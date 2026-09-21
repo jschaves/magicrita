@@ -6,6 +6,7 @@ import { TextArea } from "@/components/ui/Field";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n } from "@/i18n/I18nProvider";
 import { ingestPhoto, isAcceptedPhoto, MAX_PHOTOS, type MediaRef } from "@/lib/protocol/media";
+import { MAX_POST_CHARS } from "@/lib/protocol/envelope";
 
 type Preview = {
   file: File;
@@ -92,11 +93,12 @@ export function ComposePage() {
       >
         <TextArea
           label={t("compose.note")}
-          rows={6}
+          rows={5}
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => setContent(e.target.value.slice(0, MAX_POST_CHARS))}
           placeholder={t("compose.placeholder")}
-          maxLength={4000}
+          maxLength={MAX_POST_CHARS}
+          counter
           onPaste={(e) => {
             const files = e.clipboardData?.files;
             if (files && files.length > 0) {

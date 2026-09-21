@@ -1,15 +1,20 @@
-import { useRef, useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n } from "@/i18n/I18nProvider";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { TextArea, TextField } from "@/components/ui/Field";
 import { Avatar } from "@/components/note/Avatar";
+import { LocalCaptcha } from "@/components/ui/LocalCaptcha";
 import { ingestPhoto, isAcceptedPhoto } from "@/lib/protocol/media";
+import { MAX_BIO_CHARS, MAX_NAME_CHARS } from "@/lib/protocol/envelope";
+import { verifyCaptcha } from "@/lib/protocol/captcha";
+import { createBlock, noteCreateAttempt } from "@/lib/protocol/signupGuard";
+import { betaInviteRequired, loadBetaInvite, redeemBetaInvite } from "@/lib/protocol/betaInvite";
 
 export function CreateAccountPage() {
-  const { createAccount } = useRita();
+  const { status, createAccount } = useRita();
   const { t, errorMessage } = useI18n();
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -19,16 +24,53 @@ export function CreateAccountPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [captcha, setCaptcha] = useState("");
+  const [captchaTick, setCaptchaTick] = useState(0);
+  const onCaptcha = useCallback((value: string) => setCaptcha(value), []);
   const [rsec, setRsec] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [block, setBlock] = useState(() => createBlock());
+  const [needInvite, setNeedInvite] = useState(false);
+  const [invite, setInvite] = useState(() => loadBetaInvite());
+
+  useEffect(() => {
+    void betaInviteRequired().then(setNeedInvite);
+  }, []);
+
+  if (status === "ready") return <Navigate to="/" replace />;
+  if (status === "locked") return <Navigate to="/unlock" replace />;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
     if (password !== confirm) {
       setError(t("create.mismatch"));
+      return;
+    }
+    const gated = createBlock();
+    if (gated) {
+      setBlock(gated);
+      setError(
+        gated.reason === "exists" ? t("create.blockedExists") : t("create.rateLimited", { n: gated.minutes }),
+      );
+      return;
+    }
+    if (needInvite) {
+      try {
+        await redeemBetaInvite(invite);
+      } catch (err) {
+        setError(errorMessage(err, "create.failed"));
+        return;
+      }
+    }
+    noteCreateAttempt();
+    if (!verifyCaptcha(captcha)) {
+      setError(t("create.captchaWrong"));
+      setCaptcha("");
+      setCaptchaTick((n) => n + 1);
+      setBlock(createBlock());
       return;
     }
     setBusy(true);
@@ -38,6 +80,7 @@ export function CreateAccountPage() {
       setRsec(keys.rsec);
     } catch (err) {
       setError(errorMessage(err, "create.failed"));
+      setBlock(createBlock());
     } finally {
       setBusy(false);
     }
@@ -66,6 +109,24 @@ export function CreateAccountPage() {
               {t("create.enter")}
             </Button>
           </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (block) {
+    return (
+      <div className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-4 py-12">
+        <Link to="/welcome" className="mb-4 text-sm text-muted hover:text-ink">
+          {t("common.back")}
+        </Link>
+        <Card>
+          <p className="font-display text-3xl text-plum">{t("create.title")}</p>
+          <p className="mt-4 text-sm leading-6 text-accent">
+            {block.reason === "exists"
+              ? t("create.blockedExists")
+              : t("create.rateLimited", { n: block.minutes })}
+          </p>
         </Card>
       </div>
     );
@@ -113,15 +174,19 @@ export function CreateAccountPage() {
           <TextField
             label={t("create.name")}
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => setName(e.target.value.slice(0, MAX_NAME_CHARS))}
             placeholder="Rita"
+            maxLength={MAX_NAME_CHARS}
+            counter
           />
           <TextArea
             label={t("create.about")}
             rows={3}
             value={about}
-            onChange={(e) => setAbout(e.target.value)}
+            onChange={(e) => setAbout(e.target.value.slice(0, MAX_BIO_CHARS))}
             placeholder={t("create.aboutPlaceholder")}
+            maxLength={MAX_BIO_CHARS}
+            counter
           />
           <TextField
             label={t("create.password")}
@@ -142,6 +207,16 @@ export function CreateAccountPage() {
             required
             minLength={8}
           />
+          {needInvite ? (
+            <TextField
+              label={t("create.inviteCode")}
+              value={invite}
+              onChange={(e) => setInvite(e.target.value)}
+              hint={t("create.inviteHint")}
+              required
+            />
+          ) : null}
+          <LocalCaptcha key={captchaTick} value={captcha} onChange={onCaptcha} />
           {error ? <p className="text-sm text-accent">{error}</p> : null}
           <Button type="submit" className="w-full" disabled={busy}>
             {busy ? t("create.creating") : t("create.submit")}

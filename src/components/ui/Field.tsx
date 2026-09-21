@@ -3,17 +3,31 @@ import type { InputHTMLAttributes, TextareaHTMLAttributes } from "react";
 type FieldProps = {
   label: string;
   hint?: string;
+  counter?: boolean;
 };
+
+function Count({ value, max }: { value: unknown; max?: number }) {
+  if (typeof value !== "string" || typeof max !== "number") return null;
+  return (
+    <span className={`text-xs tabular-nums ${value.length >= max ? "text-accent" : "text-muted"}`}>
+      {value.length}/{max}
+    </span>
+  );
+}
 
 export function TextField({
   label,
   hint,
+  counter,
   className = "",
   ...props
 }: FieldProps & InputHTMLAttributes<HTMLInputElement>) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-semibold text-ink">{label}</span>
+      <span className="mb-1.5 flex items-baseline justify-between gap-2">
+        <span className="text-sm font-semibold text-ink">{label}</span>
+        {counter ? <Count value={props.value} max={props.maxLength} /> : null}
+      </span>
       <input
         className={`w-full rounded-2xl border border-line bg-paper px-3.5 py-2.5 text-ink outline-none ring-accent/30 placeholder:text-muted/70 focus:ring-2 ${className}`}
         {...props}
@@ -26,12 +40,16 @@ export function TextField({
 export function TextArea({
   label,
   hint,
+  counter,
   className = "",
   ...props
 }: FieldProps & TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-semibold text-ink">{label}</span>
+      <span className="mb-1.5 flex items-baseline justify-between gap-2">
+        <span className="text-sm font-semibold text-ink">{label}</span>
+        {counter ? <Count value={props.value} max={props.maxLength} /> : null}
+      </span>
       <textarea
         className={`w-full rounded-2xl border border-line bg-paper px-3.5 py-2.5 text-ink outline-none ring-accent/30 placeholder:text-muted/70 focus:ring-2 ${className}`}
         {...props}
@@ -39,4 +57,8 @@ export function TextArea({
       {hint ? <span className="mt-1 block text-xs text-muted">{hint}</span> : null}
     </label>
   );
+}
+
+export function CharCount({ value, max }: { value: string; max: number }) {
+  return <Count value={value} max={max} />;
 }

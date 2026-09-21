@@ -17,6 +17,7 @@ import { SettingsPage } from "@/features/settings/SettingsPage";
 import { PeoplePage } from "@/features/people/PeoplePage";
 import { SavedPage } from "@/features/saved/SavedPage";
 import { AdminPage } from "@/features/admin/AdminPage";
+import { LegalPage } from "@/features/legal/LegalPage";
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
       <RitaProvider>
         <BrowserRouter>
           <Routes>
+            <Route path="/legal" element={<LegalPage />} />
             <Route path="/welcome" element={<WelcomePage />} />
             <Route path="/welcome/create" element={<CreateAccountPage />} />
             <Route path="/welcome/import" element={<ImportKeyPage />} />
@@ -40,6 +42,7 @@ export default function App() {
               <Route path="/n/:id" element={<NotePage />} />
               <Route path="/p/:rpub" element={<ProfilePage />} />
               <Route path="/messages" element={<MessagesPage />} />
+              <Route path="/messages/:rpub" element={<MessagesPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

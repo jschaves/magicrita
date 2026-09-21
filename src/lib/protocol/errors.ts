@@ -26,7 +26,17 @@ export type ProtocolErrorCode =
   | "edit_too_late"
   | "cannot_edit_other"
   | "cannot_delete_other"
-  | "comment_too_late";
+  | "comment_too_late"
+  | "account_exists"
+  | "create_rate_limited"
+  | "too_many_links"
+  | "invite_self"
+  | "invite_required"
+  | "invite_bad"
+  | "chat_self"
+  | "chat_blocked"
+  | "chat_closed"
+  | "empty_chat";
 
 export class ProtocolError extends Error {
   readonly code: ProtocolErrorCode;

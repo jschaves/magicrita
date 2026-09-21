@@ -20,7 +20,23 @@ npm run signal
 
 La URL de señalización es fija (no se edita en la app): en local `ws://localhost:8787`; en producción `wss://tu-dominio/signal/` o `VITE_SIGNAL_URL` al construir.
 
-## Paso 2 (ahora)
+## Paso 4 (hecho)
+
+- Chat cifrado de extremo a extremo (pedir, aceptar, revocar o bloquear)
+- 280 caracteres por mensaje, 50 por conversación en este navegador
+
+## Paso 5 (hecho)
+
+- Fotos firmadas (SHA-256) en el sobre, una por nota
+- Viajan entre pares y en el archivo portable; el relé no las guarda
+
+## Paso 3 (hecho)
+
+- Relé propio de señalización: une a quien está conectado (WebRTC)
+- No guarda notas, perfiles ni claves (solo RAM)
+- Buzón en memoria si el otro está ausente; se pierde al reiniciar el proceso
+
+## Paso 2 (hecho)
 
 - **Exportar mis datos** e **importarlos** en otro navegador o dispositivo
 - El archivo es tu cuenta (identidad cifrada, notas y fotos), no la sesión de otra persona
@@ -30,8 +46,6 @@ La URL de señalización es fija (no se edita en la app): en local `ws://localho
 - Crear o importar una identidad Ed25519
 - Cifrar la `rsec` en el navegador
 - Perfil y notas firmadas, guardadas solo en este dispositivo
-
-Todavía no hay red. Eso es el paso 3.
 
 ---
 

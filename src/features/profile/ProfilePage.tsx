@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Avatar } from "@/components/note/Avatar";
 import { Button } from "@/components/ui/Button";
 import { useRita } from "@/context/RitaProvider";
@@ -25,6 +25,7 @@ export function ProfilePage() {
     feed,
   } = useRita();
   const { t } = useI18n();
+  const navigate = useNavigate();
   const isMe = Boolean(identity && rpub && identity.rpub === rpub);
   const person = rpub ? personByRpub(rpub) : undefined;
   const otherProfile = rpub && !isMe ? profileOf(rpub) : null;
@@ -63,6 +64,9 @@ export function ProfilePage() {
           <p className="mt-2 text-xs text-muted">{shortenId(rpub ?? "")}</p>
           {!isMe && rpub ? (
             <div className="mt-4 flex flex-wrap gap-2">
+              <Button variant="secondary" onClick={() => navigate(`/messages/${encodeURIComponent(rpub)}`)}>
+                {t("messages.title")}
+              </Button>
               <Button
                 variant={following ? "secondary" : "primary"}
                 onClick={() => (following ? unfollow(rpub) : follow(rpub))}

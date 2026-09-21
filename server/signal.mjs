@@ -42,7 +42,19 @@ const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || "0.0.0.0";
 const ADMIN_USER = process.env.ADMIN_USER || "";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+const BETA_INVITE = process.env.BETA_INVITE || "";
 const BLOCKS_PATH = path.join(ROOT, "..", "data", "admin-blocks.json");
+const BRAND_DIR = path.join(ROOT, "..", "data", "brand");
+const BRAND_META_PATH = path.join(BRAND_DIR, "meta.json");
+const LOGO_MAX_BYTES = 1_000_000;
+const LOGO_JSON_MAX = 1_400_000;
+const LOGO_TYPES = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+  "image/svg+xml": ".svg",
+};
 
 /** @type {Map<import('ws').WebSocket, { rpub: string, name: string, interests: string[] }>} */
 const live = new Map();
@@ -57,6 +69,62 @@ const BLOBBOX_MAX = 400;
 
 const sessions = new Map();
 const SESSION_MS = 12 * 60 * 60 * 1000;
+const POW_BITS = 16;
+const POW_PREFIX = "rita-pow-v1";
+const MAX_IP_SOCKETS = 4;
+const MAX_IP_RPUBS = 8;
+const hits = new Map();
+
+function clientIp(req) {
+  const xf = req.headers["x-forwarded-for"];
+  if (typeof xf === "string" && xf.trim()) return xf.split(",")[0].trim();
+  return req.socket?.remoteAddress || "0.0.0.0";
+}
+
+function inviteOk(code) {
+  if (!BETA_INVITE) return true;
+  const got = crypto.createHash("sha256").update(String(code || "")).digest();
+  const expect = crypto.createHash("sha256").update(BETA_INVITE).digest();
+  return crypto.timingSafeEqual(got, expect);
+}
+
+function powOk(rpub, nonce) {
+  if (typeof rpub !== "string" || !/^rpub_[0-9a-f]{64}$/i.test(rpub)) return false;
+  if (typeof nonce !== "string" || nonce.length === 0 || nonce.length > 32) return false;
+  const hex = crypto.createHash("sha256").update(`${POW_PREFIX}:${rpub}:${nonce}`).digest("hex");
+  const nibbles = Math.floor(POW_BITS / 4);
+  const rem = POW_BITS % 4;
+  if (!hex.startsWith("0".repeat(nibbles))) return false;
+  if (rem === 0) return true;
+  return (parseInt(hex[nibbles], 16) >> (4 - rem)) === 0;
+}
+
+function tooMany(key, max, windowMs) {
+  const now = Date.now();
+  const row = hits.get(key);
+  if (!row || row.reset < now) {
+    hits.set(key, { n: 1, reset: now + windowMs });
+    return false;
+  }
+  row.n += 1;
+  return row.n > max;
+}
+
+function socketsForIp(ip) {
+  let n = 0;
+  for (const client of wss.clients) {
+    if (client.clientIp === ip) n += 1;
+  }
+  return n;
+}
+
+function rpubsForIp(ip) {
+  const set = new Set();
+  for (const [ws, info] of live) {
+    if (ws.clientIp === ip && info.rpub) set.add(info.rpub);
+  }
+  return set;
+}
 
 function loadBlocks() {
   try {
@@ -79,6 +147,58 @@ let staffBlocks = loadBlocks();
 
 function unique(list) {
   return [...new Set(list.filter(Boolean))];
+}
+
+function brandMeta() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(BRAND_META_PATH, "utf8"));
+    if (!raw || typeof raw.file !== "string" || typeof raw.mime !== "string") return null;
+    if (!fs.existsSync(path.join(BRAND_DIR, raw.file))) return null;
+    return { file: raw.file, mime: raw.mime, updated: Number(raw.updated) || 0 };
+  } catch {
+    return null;
+  }
+}
+
+function brandInfo() {
+  const meta = brandMeta();
+  if (!meta) return { logo: false };
+  return { logo: true, mime: meta.mime, updated: meta.updated };
+}
+
+function looksLikeImage(mime, buf) {
+  if (mime === "image/png") return buf.length > 8 && buf[0] === 0x89 && buf[1] === 0x50;
+  if (mime === "image/jpeg") return buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8;
+  if (mime === "image/gif") return buf.slice(0, 3).toString("ascii") === "GIF";
+  if (mime === "image/webp") {
+    return buf.slice(0, 4).toString("ascii") === "RIFF" && buf.slice(8, 12).toString("ascii") === "WEBP";
+  }
+  if (mime === "image/svg+xml") {
+    return buf.slice(0, 512).toString("utf8").toLowerCase().includes("<svg");
+  }
+  return false;
+}
+
+function readLimited(req, max) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    let failed = false;
+    req.on("data", (chunk) => {
+      if (failed) return;
+      size += chunk.length;
+      if (size > max) {
+        failed = true;
+        reject(new Error("too_large"));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => {
+      if (!failed) resolve(Buffer.concat(chunks));
+    });
+    req.on("error", reject);
+  });
 }
 
 function readBody(req) {
@@ -133,6 +253,39 @@ async function onHttp(req, res) {
   }
   if (req.method === "GET" && url.pathname === "/moderation/blocks") {
     json(res, 200, staffBlocks);
+    return;
+  }
+  if (req.method === "GET" && url.pathname === "/beta") {
+    json(res, 200, { required: Boolean(BETA_INVITE) });
+    return;
+  }
+  if (req.method === "POST" && url.pathname === "/beta/check") {
+    const body = await readBody(req);
+    if (!inviteOk(body.invite)) {
+      json(res, 403, { error: "invite_bad" });
+      return;
+    }
+    json(res, 200, { ok: true, required: Boolean(BETA_INVITE) });
+    return;
+  }
+  if (req.method === "GET" && url.pathname === "/brand") {
+    json(res, 200, brandInfo());
+    return;
+  }
+  if (req.method === "GET" && url.pathname === "/brand/logo") {
+    const meta = brandMeta();
+    if (!meta) {
+      res.writeHead(404, { "Access-Control-Allow-Origin": "*" });
+      res.end();
+      return;
+    }
+    const bytes = fs.readFileSync(path.join(BRAND_DIR, meta.file));
+    res.writeHead(200, {
+      "Content-Type": meta.mime,
+      "Cache-Control": "public, max-age=60",
+      "Access-Control-Allow-Origin": "*",
+    });
+    res.end(bytes);
     return;
   }
   if (req.method === "POST" && url.pathname === "/admin-api/login") {
@@ -195,6 +348,54 @@ async function onHttp(req, res) {
       saveBlocks(staffBlocks);
       broadcastModeration();
       json(res, 200, staffBlocks);
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/admin-api/logo") {
+      let raw;
+      try {
+        raw = await readLimited(req, LOGO_JSON_MAX);
+      } catch {
+        json(res, 413, { error: "too_large" });
+        return;
+      }
+      let body;
+      try {
+        body = JSON.parse(raw.toString("utf8") || "{}");
+      } catch {
+        json(res, 400, { error: "json" });
+        return;
+      }
+      const mime = String(body.mime || "").toLowerCase();
+      const ext = LOGO_TYPES[mime];
+      if (!ext) {
+        json(res, 400, { error: "tipo" });
+        return;
+      }
+      let bytes;
+      try {
+        bytes = Buffer.from(String(body.data || ""), "base64");
+      } catch {
+        json(res, 400, { error: "datos" });
+        return;
+      }
+      if (!bytes.length || bytes.length > LOGO_MAX_BYTES || !looksLikeImage(mime, bytes)) {
+        json(res, 400, { error: "tamano" });
+        return;
+      }
+      fs.mkdirSync(BRAND_DIR, { recursive: true });
+      for (const name of fs.readdirSync(BRAND_DIR)) {
+        fs.unlinkSync(path.join(BRAND_DIR, name));
+      }
+      const file = `logo${ext}`;
+      fs.writeFileSync(path.join(BRAND_DIR, file), bytes);
+      const meta = { file, mime, updated: Date.now() };
+      fs.writeFileSync(BRAND_META_PATH, JSON.stringify(meta));
+      json(res, 200, { logo: true, mime, updated: meta.updated });
+      return;
+    }
+    if (req.method === "DELETE" && url.pathname === "/admin-api/logo") {
+      fs.rmSync(BRAND_DIR, { recursive: true, force: true });
+      json(res, 200, { logo: false });
       return;
     }
     json(res, 404, { error: "ruta" });
@@ -296,8 +497,17 @@ function removeSocket(ws) {
   }
 }
 
-wss.on("connection", (ws) => {
+wss.on("connection", (ws, req) => {
   ws.isAlive = true;
+  ws.clientIp = clientIp(req);
+  if (socketsForIp(ws.clientIp) > MAX_IP_SOCKETS) {
+    try {
+      ws.close();
+    } catch {
+      // ignore
+    }
+    return;
+  }
   ws.on("pong", () => {
     ws.isAlive = true;
   });
@@ -311,7 +521,15 @@ wss.on("connection", (ws) => {
     }
     if (!msg || typeof msg !== "object") return;
 
+    const known = live.get(ws);
+    if (known && tooMany(`msg:${known.rpub}`, 80, 60_000)) return;
+
     if (msg.type === "hello" && typeof msg.rpub === "string") {
+      if (tooMany(`hello:${ws.clientIp}`, 10, 60_000)) return;
+      if (!powOk(msg.rpub, msg.pow)) return;
+      if (!inviteOk(msg.invite)) return;
+      const ipKeys = rpubsForIp(ws.clientIp);
+      if (!ipKeys.has(msg.rpub) && ipKeys.size >= MAX_IP_RPUBS) return;
       for (const [other, info] of [...live]) {
         if (info.rpub === msg.rpub && other !== ws) {
           live.delete(other);
@@ -386,6 +604,7 @@ wss.on("connection", (ws) => {
     if (msg.type === "hold" && typeof msg.to === "string" && msg.envelope) {
       const from = live.get(ws);
       if (!from) return;
+      if (tooMany(`hold:${from.rpub}`, 30, 60_000)) return;
       const target = findByRpub(msg.to);
       if (target) {
         send(target, { type: "held", envelopes: [msg.envelope] });
@@ -416,6 +635,10 @@ wss.on("connection", (ws) => {
 });
 
 const heartbeat = setInterval(() => {
+  const now = Date.now();
+  for (const [key, row] of hits) {
+    if (row.reset < now) hits.delete(key);
+  }
   for (const ws of wss.clients) {
     if (ws.isAlive === false) {
       ws.terminate();

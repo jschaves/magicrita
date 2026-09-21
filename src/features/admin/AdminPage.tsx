@@ -1,6 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/Field";
+import {
+  LOGO_MAX_BYTES,
+  fetchBrand,
+  fileToBase64,
+  logoUrl,
+  mimeFromFile,
+  notifyBrandChange,
+} from "@/lib/protocol/brand";
 
 type Blocks = { users: string[]; comments: string[] };
 type LivePeer = { rpub: string; name: string };
@@ -31,15 +39,21 @@ export function AdminPage() {
   const [live, setLive] = useState<LivePeer[]>([]);
   const [userId, setUserId] = useState("");
   const [commentId, setCommentId] = useState("");
+  const [logoSrc, setLogoSrc] = useState<string | null>(null);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const logoRef = useRef<HTMLInputElement>(null);
 
   async function refresh() {
     const session = (await api("/admin-api/session")) as { live?: LivePeer[] };
     const next = (await api("/admin-api/blocks")) as Blocks;
+    const brand = await fetchBrand();
     setLive(Array.isArray(session.live) ? session.live : []);
     setBlocks({
       users: Array.isArray(next.users) ? next.users : [],
       comments: Array.isArray(next.comments) ? next.comments : [],
     });
+    setLogoSrc(brand.logo ? logoUrl(brand.updated) : null);
   }
 
   useEffect(() => {
@@ -87,6 +101,47 @@ export function AdminPage() {
     setBlocks(next);
   }
 
+  async function uploadLogo(file: File) {
+    const mime = mimeFromFile(file);
+    if (!mime) {
+      setLogoError("Usa PNG, JPEG, WebP, GIF o SVG.");
+      return;
+    }
+    if (file.size > LOGO_MAX_BYTES) {
+      setLogoError("El logo no puede superar 1 MB.");
+      return;
+    }
+    setLogoBusy(true);
+    setLogoError(null);
+    try {
+      const data = await fileToBase64(file);
+      const next = (await api("/admin-api/logo", {
+        method: "POST",
+        body: JSON.stringify({ mime, data }),
+      })) as { updated?: number };
+      setLogoSrc(logoUrl(next.updated ?? Date.now()));
+      notifyBrandChange();
+    } catch {
+      setLogoError("No se pudo subir el logo.");
+    } finally {
+      setLogoBusy(false);
+    }
+  }
+
+  async function removeLogo() {
+    setLogoBusy(true);
+    setLogoError(null);
+    try {
+      await api("/admin-api/logo", { method: "DELETE" });
+      setLogoSrc(null);
+      notifyBrandChange();
+    } catch {
+      setLogoError("No se pudo quitar el logo.");
+    } finally {
+      setLogoBusy(false);
+    }
+  }
+
   if (!authed) {
     return (
       <main className="mx-auto max-w-md px-4 py-16">
@@ -130,6 +185,44 @@ export function AdminPage() {
       </div>
 
       <section className="mt-8 rounded-2xl border border-line bg-paper p-4">
+        <h2 className="font-semibold">Logo del sitio</h2>
+        <p className="mt-1 text-xs text-muted">
+          Se muestra junto al nombre MagicRita en la bienvenida y en la barra de la app.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-line bg-cream">
+            {logoSrc ? (
+              <img src={logoSrc} alt="Logo actual" className="h-full w-full object-contain" />
+            ) : (
+              <span className="px-2 text-center text-[11px] text-muted">Sin logo</span>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <input
+              ref={logoRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.png,.jpg,.jpeg,.webp,.gif,.svg"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) void uploadLogo(file);
+              }}
+            />
+            <Button type="button" disabled={logoBusy} onClick={() => logoRef.current?.click()}>
+              {logoBusy ? "Subiendo…" : "Subir imagen"}
+            </Button>
+            {logoSrc ? (
+              <Button type="button" variant="ghost" disabled={logoBusy} onClick={() => void removeLogo()}>
+                Quitar
+              </Button>
+            ) : null}
+          </div>
+        </div>
+        {logoError ? <p className="mt-3 text-sm text-accent">{logoError}</p> : null}
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-line bg-paper p-4">
         <h2 className="font-semibold">Usuarios conectados ahora</h2>
         {live.length === 0 ? (
           <p className="mt-2 text-sm text-muted">Nadie conectado.</p>

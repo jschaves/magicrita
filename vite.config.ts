@@ -35,6 +35,8 @@ export default defineConfig({
     proxy: {
       "/moderation": "http://127.0.0.1:8787",
       "/admin-api": "http://127.0.0.1:8787",
+      "/brand": "http://127.0.0.1:8787",
+      "/beta": "http://127.0.0.1:8787",
     },
   },
 });

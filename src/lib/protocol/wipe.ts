@@ -1,7 +1,8 @@
 import { wipeMediaStore } from "./media";
 import { stopMesh } from "./mesh";
+import { SIGNUP_KEEP } from "./signupGuard";
 
-const KEEP = new Set(["magicrita.locale"]);
+const KEEP = SIGNUP_KEEP;
 
 export async function wipeBrowserRita(): Promise<void> {
   stopMesh();

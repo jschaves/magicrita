@@ -3,8 +3,38 @@ import { ProtocolError } from "./errors";
 import { dropAuthorFromLikes, loadLikeIndex, saveLikeIndex } from "./likeIndex";
 import { dropSavedPosts } from "./saves";
 
+export const MAX_STORED_POSTS = 100;
+export const MAX_STORED_CHATS = 50;
+
 function logKey(rpub: string): string {
   return `magicrita.log.${rpub}`;
+}
+
+function pruneLog(log: Envelope[]): Envelope[] {
+  const keep = new Set<string>();
+  const newest = (type: Envelope["type"], max: number) => {
+    for (const event of log.filter((item) => item.type === type).sort((a, b) => b.ts - a.ts).slice(0, max)) {
+      if (event.sig) keep.add(event.sig);
+    }
+  };
+  newest("post", MAX_STORED_POSTS);
+  return log.filter((item) => {
+    if (item.type === "post") return Boolean(item.sig && keep.has(item.sig));
+    return true;
+  });
+}
+
+function pruneChatThread(a: string, b: string): void {
+  const pick = (author: string, to: string) =>
+    loadLog(author).filter((item) => item.type === "chat_text" && item.body.to === to);
+  const all = [...pick(a, b), ...pick(b, a)].sort((left, right) => left.ts - right.ts);
+  if (all.length <= MAX_STORED_CHATS) return;
+  const drop = new Set(all.slice(0, all.length - MAX_STORED_CHATS).map((item) => item.sig));
+  for (const author of [a, b]) {
+    const log = loadLog(author);
+    const next = log.filter((item) => !drop.has(item.sig));
+    if (next.length !== log.length) saveLog(author, next);
+  }
 }
 
 export function loadLog(rpub: string): Envelope[] {
@@ -14,7 +44,7 @@ export function loadLog(rpub: string): Envelope[] {
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
     const events = parsed.filter((item): item is Envelope => isEnvelope(item) && verifyEnvelope(item));
-    const pruned = events.filter((item) => item.type !== "presence");
+    const pruned = pruneLog(events.filter((item) => item.type !== "presence"));
     if (pruned.length !== events.length) {
       try {
         saveLog(rpub, pruned);
@@ -37,9 +67,12 @@ export function appendEnvelope(rpub: string, envelope: Envelope): Envelope[] {
     throw new ProtocolError("invalid_envelope");
   }
   const current = loadLog(rpub);
-  const next = [...current.filter((item) => item.sig !== envelope.sig), envelope].sort((a, b) => a.ts - b.ts);
+  const next = pruneLog(
+    [...current.filter((item) => item.sig !== envelope.sig), envelope].sort((a, b) => a.ts - b.ts),
+  );
   saveLog(rpub, next);
-  return next;
+  if (envelope.type === "chat_text") pruneChatThread(envelope.author, envelope.body.to);
+  return loadLog(rpub);
 }
 
 export function latestProfile(log: Envelope[]): Envelope | null {
@@ -79,11 +112,13 @@ export function envelopesToSync(selfRpub: string): Envelope[] {
   add(lastOf(mine, "follows"));
   add(lastOf(mine, "blocks"));
   add(lastOf(mine, "gone"));
-  add(postsOf(mine).slice(0, 40));
+  add(postsOf(mine).slice(0, MAX_STORED_POSTS));
   add(recentOf(mine, "like", 400));
   add(recentOf(mine, "comment", 400));
   add(recentOf(mine, "report", 200));
   add(recentOf(mine, "delete", 200));
+  add(recentOf(mine, "chat_consent", 80));
+  add(recentOf(mine, "chat_text", MAX_STORED_CHATS));
   for (const rpub of listKnownRpubs()) {
     if (rpub === selfRpub) continue;
     const log = loadLog(rpub);
@@ -92,11 +127,13 @@ export function envelopesToSync(selfRpub: string): Envelope[] {
       continue;
     }
     add(lastOf(log, "profile"));
-    add(postsOf(log).slice(0, 20));
+    add(postsOf(log).slice(0, MAX_STORED_POSTS));
     add(recentOf(log, "like", 80));
     add(recentOf(log, "comment", 80));
     add(recentOf(log, "report", 40));
     add(recentOf(log, "delete", 40));
+    add(recentOf(log, "chat_consent", 20));
+    add(recentOf(log, "chat_text", MAX_STORED_CHATS));
   }
   return out;
 }
@@ -105,6 +142,9 @@ export function recipientsOf(envelope: Envelope): string[] {
   const mine = envelope.author;
   if (envelope.type === "follows" || envelope.type === "blocks") {
     return envelope.body.rpubs.filter((rpub) => rpub && rpub !== mine);
+  }
+  if (envelope.type === "chat_consent" || envelope.type === "chat_text") {
+    return envelope.body.to && envelope.body.to !== mine ? [envelope.body.to] : [];
   }
   if (envelope.type === "like" || envelope.type === "comment" || envelope.type === "report") {
     const target = envelope.body.target;
@@ -115,7 +155,13 @@ export function recipientsOf(envelope: Envelope): string[] {
     }
     return listKnownRpubs().filter((rpub) => rpub !== mine);
   }
-  if (envelope.type === "post" || envelope.type === "profile" || envelope.type === "delete" || envelope.type === "gone") {
+  if (
+    envelope.type === "post" ||
+    envelope.type === "profile" ||
+    envelope.type === "delete" ||
+    envelope.type === "gone" ||
+    envelope.type === "invite"
+  ) {
     return listKnownRpubs().filter((rpub) => rpub !== mine);
   }
   return [];

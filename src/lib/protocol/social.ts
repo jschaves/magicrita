@@ -1,5 +1,6 @@
 import type { Envelope, ReactionKind } from "./envelope";
 import { listKnownRpubs, loadLog } from "./store";
+import { isQuarantined, reportHideAfter } from "./spam";
 
 export const REPORT_HIDE_AFTER = 10;
 export const PRESENCE_MS = 90_000;
@@ -143,8 +144,15 @@ export function reportsOf(all: Envelope[], target: string): Set<string> {
   return authors;
 }
 
-export function isHiddenByReports(all: Envelope[], target: string): boolean {
-  return reportsOf(all, target).size >= REPORT_HIDE_AFTER;
+export function isHiddenByReports(
+  all: Envelope[],
+  target: string,
+  opts?: { author?: string; me?: string | null; follows?: string[] },
+): boolean {
+  const young =
+    Boolean(opts?.author) &&
+    isQuarantined(all, opts?.author ?? "", opts?.me ?? null, opts?.follows ?? []);
+  return reportsOf(all, target).size >= reportHideAfter(young);
 }
 
 export function reportedByMe(all: Envelope[], target: string, me: string | null): boolean {

@@ -1,25 +1,36 @@
-import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n } from "@/i18n/I18nProvider";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { TextArea, TextField } from "@/components/ui/Field";
+import { betaInviteRequired, loadBetaInvite, redeemBetaInvite } from "@/lib/protocol/betaInvite";
 
 export function ImportKeyPage() {
-  const { importSecret } = useRita();
+  const { status, importSecret } = useRita();
   const { t, errorMessage } = useI18n();
   const navigate = useNavigate();
   const [secret, setSecret] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [needInvite, setNeedInvite] = useState(false);
+  const [invite, setInvite] = useState(() => loadBetaInvite());
+
+  useEffect(() => {
+    void betaInviteRequired().then(setNeedInvite);
+  }, []);
+
+  if (status === "ready") return <Navigate to="/" replace />;
+  if (status === "locked") return <Navigate to="/unlock" replace />;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
     setBusy(true);
     try {
+      if (needInvite) await redeemBetaInvite(invite);
       await importSecret(secret, password);
       navigate("/");
     } catch (err) {
@@ -54,6 +65,15 @@ export function ImportKeyPage() {
             required
             minLength={8}
           />
+          {needInvite ? (
+            <TextField
+              label={t("create.inviteCode")}
+              value={invite}
+              onChange={(e) => setInvite(e.target.value)}
+              hint={t("create.inviteHint")}
+              required
+            />
+          ) : null}
           {error ? <p className="text-sm text-accent">{error}</p> : null}
           <Button type="submit" className="w-full" disabled={busy}>
             {busy ? t("importKey.importing") : t("importKey.submit")}

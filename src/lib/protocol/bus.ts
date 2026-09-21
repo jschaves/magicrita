@@ -1,4 +1,5 @@
-import { isEnvelope, type Envelope } from "./envelope";
+import { isEnvelope, verifyEnvelope, type Envelope } from "./envelope";
+import { shouldRejectSpam } from "./spam";
 import { appendEnvelope, applyAuthorGone, loadLog } from "./store";
 
 const CHANNEL = "magicrita-live";
@@ -46,11 +47,13 @@ export function listenEnvelopes(onEnvelope: (envelope: Envelope) => void): () =>
 }
 
 export function acceptRemoteEnvelope(envelope: Envelope): boolean {
+  if (!isEnvelope(envelope) || !verifyEnvelope(envelope)) return false;
   if (envelope.type === "presence") return false;
   if (envelope.type === "gone") return applyAuthorGone(envelope);
   const existing = loadLog(envelope.author);
   if (existing.some((item) => item.type === "gone")) return false;
   if (existing.some((item) => item.sig === envelope.sig)) return false;
+  if (shouldRejectSpam(envelope, existing)) return false;
   appendEnvelope(envelope.author, envelope);
   return true;
 }

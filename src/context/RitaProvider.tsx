@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -29,13 +30,25 @@ import {
   signLike,
   signDelete,
   signGone,
+  signInvite,
+  signChatConsent,
+  signChatText,
   signPost,
   signProfile,
   signReport,
+  MAX_CHAT_CHARS,
   type Envelope,
   type ProfileBody,
   type ReactionKind,
 } from "@/lib/protocol/envelope";
+import {
+  chatLines,
+  chatPeers,
+  chatPhase,
+  sealChat,
+  type ChatLine,
+  type ChatPhase,
+} from "@/lib/protocol/chat";
 import { MAX_PHOTOS, type MediaRef } from "@/lib/protocol/media";
 import { applyBundle, buildBundle, downloadBundle, parseBundle } from "@/lib/protocol/bundle";
 import {
@@ -85,6 +98,20 @@ import {
   visiblePostsOf,
 } from "@/lib/protocol/social";
 import { likeStats, loadLikeIndex, mergeLikes, saveLikeIndex, setLike } from "@/lib/protocol/likeIndex";
+import { countLinks, isQuarantined, MAX_TEXT_LINKS, vouchedBy } from "@/lib/protocol/spam";
+import { assertCanCreate, noteCreateSuccess } from "@/lib/protocol/signupGuard";
+import { assertBetaInvite } from "@/lib/protocol/betaInvite";
+import { latestConsent } from "@/lib/protocol/chat";
+import {
+  dropNotice,
+  dropNoticesFor,
+  loadNotices,
+  noticeFromEnvelope,
+  pingDesktop,
+  pushNotice,
+  type Notice,
+  type NoticeKind,
+} from "@/lib/protocol/notices";
 
 export type SessionStatus = "anonymous" | "locked" | "ready";
 
@@ -129,10 +156,22 @@ type RitaContextValue = {
   canEdit: (post: Envelope) => boolean;
   publishProfile: (profile: ProfileBody) => void;
   follow: (rpub: string) => void;
+  invitePeer: (rpub: string) => void;
+  invited: string[];
   unfollow: (rpub: string) => void;
   block: (rpub: string) => void;
   unblock: (rpub: string) => void;
   blocks: string[];
+  requestChat: (rpub: string) => void;
+  acceptChat: (rpub: string) => void;
+  revokeChat: (rpub: string) => void;
+  sendChat: (rpub: string, text: string) => void;
+  chatPhaseOf: (rpub: string) => ChatPhase;
+  chatLinesOf: (rpub: string) => ChatLine[];
+  chatPeerList: string[];
+  notices: Notice[];
+  dismissNotice: (id: string) => void;
+  dismissNoticesFor: (match: { kind?: NoticeKind | NoticeKind[]; from?: string }) => void;
   toggleLike: (target: string, kind: ReactionKind) => void;
   addComment: (postSig: string, text: string, parent?: string) => void;
   editComment: (comment: Envelope, text: string) => void;
@@ -205,6 +244,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
   const [signalOn, setSignalOn] = useState(false);
   const [staffBlocks, setStaffBlocks] = useState<StaffBlocks>({ users: [], comments: [] });
   const [likeIndex, setLikeIndex] = useState(loadLikeIndex);
+  const [notices, setNotices] = useState<Notice[]>([]);
 
   const bump = useCallback(() => setCatalog((n) => n + 1), []);
 
@@ -243,11 +283,14 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       about: string;
       picture?: MediaRef;
     }) => {
+      assertCanCreate();
+      await assertBetaInvite();
       const next = createIdentity();
       const record = await wrapSecret(next, password);
       setVault(record);
       const profile = signProfile(next, { name: name.trim() || "Rita", about, picture });
       appendEnvelope(next.rpub, profile);
+      noteCreateSuccess();
       hydrate(next);
       return next;
     },
@@ -256,6 +299,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
 
   const importSecret = useCallback(
     async (secret: string, password: string) => {
+      await assertBetaInvite();
       const next = fromSecret(parseSecretInput(secret));
       if (identity?.rpub === next.rpub && status === "ready") {
         notifySessionExists();
@@ -270,6 +314,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
 
   const unlock = useCallback(
     async (password: string) => {
+      await assertBetaInvite();
       const record = loadVault();
       if (!record) {
         throw new ProtocolError("no_vault");
@@ -316,6 +361,9 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       if (!text.trim() && (!media || media.length === 0)) {
         throw new ProtocolError("empty_post");
       }
+      if (countLinks(text) > MAX_TEXT_LINKS) {
+        throw new ProtocolError("too_many_links");
+      }
       if (media && media.length > MAX_PHOTOS) {
         throw new ProtocolError("media_too_many");
       }
@@ -350,6 +398,9 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       if (!text.trim() && !(nextMedia && nextMedia.length > 0)) {
         throw new ProtocolError("empty_post");
       }
+      if (countLinks(text) > MAX_TEXT_LINKS) {
+        throw new ProtocolError("too_many_links");
+      }
       emit(
         signPost(identity, {
           text,
@@ -378,6 +429,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
   );
 
   const follows = latestFollows(log);
+  const invited = identity ? [...vouchedBy(log, [identity.rpub])] : [];
 
   const follow = useCallback(
     (raw: string) => {
@@ -391,6 +443,17 @@ export function RitaProvider({ children }: { children: ReactNode }) {
     [emit, follows, identity],
   );
 
+  const invitePeer = useCallback(
+    (raw: string) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      parseRpub(raw);
+      const rpub = raw.trim();
+      if (rpub === identity.rpub) throw new ProtocolError("invite_self");
+      emit(signInvite(identity, rpub));
+    },
+    [emit, identity],
+  );
+
   const unfollow = useCallback(
     (rpub: string) => {
       if (!identity) throw new ProtocolError("not_unlocked");
@@ -400,6 +463,8 @@ export function RitaProvider({ children }: { children: ReactNode }) {
   );
 
   const blocks = latestBlocks(log);
+  const blocksRef = useRef(blocks);
+  blocksRef.current = blocks;
 
   const block = useCallback(
     (raw: string) => {
@@ -408,6 +473,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       const rpub = raw.trim();
       if (rpub === identity.rpub) throw new ProtocolError("cannot_block_self");
       emit(signBlocks(identity, [...blocks, rpub]));
+      emit(signChatConsent(identity, rpub, false));
       if (follows.includes(rpub)) emit(signFollows(identity, follows.filter((item) => item !== rpub)));
     },
     [blocks, emit, follows, identity],
@@ -419,6 +485,39 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       emit(signBlocks(identity, blocks.filter((item) => item !== rpub)));
     },
     [blocks, emit, identity],
+  );
+
+  const setChatOn = useCallback(
+    (raw: string, on: boolean) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      parseRpub(raw);
+      const rpub = raw.trim();
+      if (rpub === identity.rpub) throw new ProtocolError("chat_self");
+      if (on && blocks.includes(rpub)) throw new ProtocolError("chat_blocked");
+      emit(signChatConsent(identity, rpub, on));
+    },
+    [blocks, emit, identity],
+  );
+
+  const requestChat = useCallback(
+    (rpub: string) => {
+      setChatOn(rpub, true);
+    },
+    [setChatOn],
+  );
+
+  const acceptChat = useCallback(
+    (rpub: string) => {
+      setChatOn(rpub, true);
+    },
+    [setChatOn],
+  );
+
+  const revokeChat = useCallback(
+    (rpub: string) => {
+      setChatOn(rpub, false);
+    },
+    [setChatOn],
   );
 
   const toggleLike = useCallback(
@@ -437,6 +536,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
     (postSig: string, text: string, parent?: string) => {
       if (!identity) throw new ProtocolError("not_unlocked");
       if (!text.trim()) throw new ProtocolError("empty_comment");
+      if (countLinks(text) > MAX_TEXT_LINKS) throw new ProtocolError("too_many_links");
       emit(signComment(identity, { target: postSig, text, parent }));
     },
     [emit, identity],
@@ -451,6 +551,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
         throw new ProtocolError("comment_too_late");
       }
       if (!text.trim()) throw new ProtocolError("empty_comment");
+      if (countLinks(text) > MAX_TEXT_LINKS) throw new ProtocolError("too_many_links");
       emit(
         signComment(identity, {
           target: comment.body.target,
@@ -566,10 +667,60 @@ export function RitaProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    if (identity) setNotices(loadNotices(identity.rpub));
+    else setNotices([]);
+  }, [identity?.rpub]);
+
+  const captureNotice = useCallback(
+    (envelope: Envelope) => {
+      if (!identity) return;
+      if (blocksRef.current.includes(envelope.author)) return;
+      const notice = noticeFromEnvelope(envelope, identity.rpub);
+      if (!notice) return;
+      if (
+        notice.kind === "request" &&
+        latestConsent(loadLog(identity.rpub), identity.rpub, notice.from) === true
+      ) {
+        return;
+      }
+      setNotices(pushNotice(identity.rpub, notice));
+      pingDesktop(
+        "MagicRita",
+        notice.kind === "chat"
+          ? "Nuevo mensaje"
+          : notice.kind === "request"
+            ? "Petición de chat"
+            : "Te han invitado",
+        notice.id,
+      );
+    },
+    [identity],
+  );
+
+  const dismissNotice = useCallback(
+    (id: string) => {
+      if (!identity) return;
+      setNotices(dropNotice(identity.rpub, id));
+    },
+    [identity],
+  );
+
+  const dismissNoticesMatching = useCallback(
+    (match: { kind?: NoticeKind | NoticeKind[]; from?: string }) => {
+      if (!identity) return;
+      setNotices(dropNoticesFor(identity.rpub, match));
+    },
+    [identity],
+  );
+
+  useEffect(() => {
     return listenEnvelopes((envelope) => {
-      if (acceptRemoteEnvelope(envelope)) bump();
+      if (acceptRemoteEnvelope(envelope)) {
+        captureNotice(envelope);
+        bump();
+      }
     });
-  }, [bump]);
+  }, [bump, captureNotice]);
 
   useEffect(() => {
     if (status !== "ready" || !identity) return;
@@ -598,6 +749,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
             setLikeIndex(loadLikeIndex());
             setSaves(loadSaves(identity.rpub));
           }
+          captureNotice(packet.envelope);
           bump();
         });
       },
@@ -610,7 +762,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       stopStatus();
       stopMod();
     };
-  }, [bump, identity?.rpub, status]);
+  }, [bump, captureNotice, identity?.rpub, status]);
 
   useEffect(() => {
     void fetchStaffBlocks().then(setStaffBlocks);
@@ -628,6 +780,41 @@ export function RitaProvider({ children }: { children: ReactNode }) {
     return [...map.values()];
   }, [catalog, log]);
 
+  const sendChat = useCallback(
+    (raw: string, text: string) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      parseRpub(raw);
+      const rpub = raw.trim();
+      if (rpub === identity.rpub) throw new ProtocolError("chat_self");
+      const clipped = text.trim().slice(0, MAX_CHAT_CHARS);
+      if (!clipped) throw new ProtocolError("empty_chat");
+      if (chatPhase(allEvents, identity.rpub, rpub, blocks) !== "open") {
+        throw new ProtocolError("chat_closed");
+      }
+      const sealed = sealChat(identity, rpub, clipped);
+      emit(signChatText(identity, { to: rpub, ...sealed }));
+    },
+    [allEvents, blocks, emit, identity],
+  );
+
+  const chatPhaseOf = useCallback(
+    (rpub: string): ChatPhase => {
+      if (!identity) return "none";
+      return chatPhase(allEvents, identity.rpub, rpub, blocks);
+    },
+    [allEvents, blocks, identity],
+  );
+
+  const chatLinesOf = useCallback(
+    (rpub: string): ChatLine[] => {
+      if (!identity) return [];
+      return chatLines(allEvents, identity, rpub);
+    },
+    [allEvents, identity],
+  );
+
+  const chatPeerList = identity ? chatPeers(allEvents, identity.rpub) : [];
+
   const likes = useCallback(
     (target: string) => likeStats(likeIndex, target, identity?.rpub ?? null),
     [identity, likeIndex],
@@ -644,19 +831,34 @@ export function RitaProvider({ children }: { children: ReactNode }) {
 
   const comments = useCallback(
     (postSig: string) =>
-      commentsOf(allEvents, postSig).filter(
-        (item) => !staffBlocks.users.includes(item.author) && !staffBlocks.comments.includes(item.sig),
-      ),
-    [allEvents, staffBlocks],
+      commentsOf(allEvents, postSig).filter((item) => {
+        if (staffBlocks.users.includes(item.author) || staffBlocks.comments.includes(item.sig)) return false;
+        return !isQuarantined(
+          allEvents,
+          item.author,
+          identity?.rpub ?? null,
+          follows,
+          Date.now(),
+          new Set(livePeers.map((peer) => peer.rpub)),
+        );
+      }),
+    [allEvents, follows, identity, livePeers, staffBlocks],
   );
 
   const reports = useCallback(
-    (target: string) => ({
-      count: reportsOf(allEvents, target).size,
-      mine: reportedByMe(allEvents, target, identity?.rpub ?? null),
-      hidden: isHiddenByReports(allEvents, target),
-    }),
-    [allEvents, identity],
+    (target: string) => {
+      const author = allEvents.find((item) => item.sig === target)?.author;
+      return {
+        count: reportsOf(allEvents, target).size,
+        mine: reportedByMe(allEvents, target, identity?.rpub ?? null),
+        hidden: isHiddenByReports(allEvents, target, {
+          author,
+          me: identity?.rpub ?? null,
+          follows,
+        }),
+      };
+    },
+    [allEvents, follows, identity],
   );
 
   const people = useMemo(() => {
@@ -715,6 +917,17 @@ export function RitaProvider({ children }: { children: ReactNode }) {
     for (const event of visiblePostsOf(allEvents)) {
       if (blocks.includes(event.author) || staffBlocks.users.includes(event.author)) continue;
       if (staffBlocks.comments.includes(event.sig)) continue;
+      if (
+        isQuarantined(
+          allEvents,
+          event.author,
+          identity?.rpub ?? null,
+          follows,
+          Date.now(),
+          new Set(livePeers.map((peer) => peer.rpub)),
+        )
+      )
+        continue;
       const peer = livePeers.find((item) => item.rpub === event.author);
       items.push({
         event,
@@ -723,7 +936,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       });
     }
     return items;
-  }, [allEvents, blocks, livePeers, staffBlocks]);
+  }, [allEvents, blocks, follows, identity, livePeers, staffBlocks]);
 
   const value = useMemo<RitaContextValue>(
     () => ({
@@ -749,10 +962,22 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       canEdit,
       publishProfile,
       follow,
+      invitePeer,
+      invited,
       unfollow,
       block,
       unblock,
       blocks,
+      requestChat,
+      acceptChat,
+      revokeChat,
+      sendChat,
+      chatPhaseOf,
+      chatLinesOf,
+      chatPeerList,
+      notices,
+      dismissNotice,
+      dismissNoticesFor: dismissNoticesMatching,
       toggleLike,
       addComment,
       editComment,
@@ -787,8 +1012,20 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       allEvents,
       block,
       blocks,
+      requestChat,
+      acceptChat,
+      revokeChat,
+      sendChat,
+      chatPhaseOf,
+      chatLinesOf,
+      chatPeerList,
+      notices,
+      dismissNotice,
+      dismissNoticesMatching,
       comments,
       follow,
+      invitePeer,
+      invited,
       follows,
       identity,
       likes,

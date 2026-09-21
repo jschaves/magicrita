@@ -17,8 +17,21 @@ export type EnvelopeType =
   | "report"
   | "presence"
   | "delete"
-  | "gone";
+  | "gone"
+  | "invite"
+  | "chat_consent"
+  | "chat_text";
 export type ReactionKind = "post" | "image" | "comment";
+
+export const MAX_POST_CHARS = 280;
+export const MAX_COMMENT_CHARS = 280;
+export const MAX_NAME_CHARS = 50;
+export const MAX_BIO_CHARS = 160;
+export const MAX_CHAT_CHARS = 280;
+
+function clip(text: string, max: number): string {
+  return text.slice(0, max);
+}
 
 export type ProfileBody = {
   name: string;
@@ -41,6 +54,9 @@ export type ReportBody = { target: string; kind: ReactionKind; on?: boolean };
 export type PresenceBody = { online: true };
 export type DeleteBody = { target: string };
 export type GoneBody = { gone: true };
+export type InviteBody = { rpub: string; exp: number };
+export type ChatConsentBody = { to: string; on: boolean };
+export type ChatTextBody = { to: string; n: string; box: string };
 
 export type Envelope =
   | { v: 1; type: "profile"; author: string; ts: number; body: ProfileBody; sig: string }
@@ -52,7 +68,10 @@ export type Envelope =
   | { v: 1; type: "report"; author: string; ts: number; body: ReportBody; sig: string }
   | { v: 1; type: "presence"; author: string; ts: number; body: PresenceBody; sig: string }
   | { v: 1; type: "delete"; author: string; ts: number; body: DeleteBody; sig: string }
-  | { v: 1; type: "gone"; author: string; ts: number; body: GoneBody; sig: string };
+  | { v: 1; type: "gone"; author: string; ts: number; body: GoneBody; sig: string }
+  | { v: 1; type: "invite"; author: string; ts: number; body: InviteBody; sig: string }
+  | { v: 1; type: "chat_consent"; author: string; ts: number; body: ChatConsentBody; sig: string }
+  | { v: 1; type: "chat_text"; author: string; ts: number; body: ChatTextBody; sig: string };
 
 function payloadBytes(envelope: Omit<Envelope, "sig">): Uint8Array {
   return utf8ToBytes(
@@ -95,8 +114,8 @@ function signed<T extends Envelope["type"]>(
 
 export function signProfile(identity: Identity, body: ProfileBody, ts = Date.now()): Envelope {
   const next: ProfileBody = {
-    name: body.name.trim(),
-    about: body.about.trim(),
+    name: clip(body.name.trim(), MAX_NAME_CHARS),
+    about: clip(body.about.trim(), MAX_BIO_CHARS),
   };
   if (body.picture) {
     next.picture = {
@@ -134,7 +153,7 @@ export function signPost(
           return ref;
         })
       : undefined;
-  const body: PostBody = { text: stripBlobText(input.text) };
+  const body: PostBody = { text: clip(stripBlobText(input.text), MAX_POST_CHARS) };
   if (media) body.media = media;
   if (input.replaces) body.replaces = input.replaces;
   return signed(identity, "post", body, ts);
@@ -157,7 +176,7 @@ export function signComment(
   input: { target: string; text: string; parent?: string; replaces?: string },
   ts = Date.now(),
 ): Envelope {
-  const body: CommentBody = { target: input.target, text: input.text.trim() };
+  const body: CommentBody = { target: input.target, text: clip(input.text.trim(), MAX_COMMENT_CHARS) };
   if (input.parent) body.parent = input.parent;
   if (input.replaces) body.replaces = input.replaces;
   return signed(identity, "comment", body, ts);
@@ -177,6 +196,24 @@ export function signPresence(identity: Identity, ts = Date.now()): Envelope {
 
 export function signGone(identity: Identity, ts = Date.now()): Envelope {
   return signed(identity, "gone", { gone: true }, ts);
+}
+
+export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function signInvite(identity: Identity, rpub: string, ts = Date.now()): Envelope {
+  return signed(identity, "invite", { rpub: rpub.trim(), exp: ts + INVITE_TTL_MS }, ts);
+}
+
+export function signChatConsent(identity: Identity, to: string, on: boolean, ts = Date.now()): Envelope {
+  return signed(identity, "chat_consent", { to: to.trim(), on }, ts);
+}
+
+export function signChatText(
+  identity: Identity,
+  input: { to: string; n: string; box: string },
+  ts = Date.now(),
+): Envelope {
+  return signed(identity, "chat_text", { to: input.to.trim(), n: input.n, box: input.box }, ts);
 }
 
 export function verifyEnvelope(envelope: Envelope): boolean {
@@ -238,6 +275,17 @@ export function isEnvelope(value: unknown): value is Envelope {
   }
   if (env.type === "gone") {
     return env.body?.gone === true;
+  }
+  if (env.type === "invite") {
+    return typeof env.body?.rpub === "string" && typeof env.body?.exp === "number";
+  }
+  if (env.type === "chat_consent") {
+    return typeof env.body?.to === "string" && typeof env.body?.on === "boolean";
+  }
+  if (env.type === "chat_text") {
+    return (
+      typeof env.body?.to === "string" && typeof env.body?.n === "string" && typeof env.body?.box === "string"
+    );
   }
   return false;
 }

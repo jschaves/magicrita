@@ -39,6 +39,17 @@ type I18nContextValue = {
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
+function localeFromNavigator(): Locale {
+  if (typeof navigator === "undefined") return "en";
+  const tags = [...(navigator.languages ?? []), navigator.language];
+  for (const tag of tags) {
+    if (!tag) continue;
+    const short = tag.slice(0, 2).toLowerCase();
+    if (isLocale(short)) return short;
+  }
+  return "en";
+}
+
 function detectLocale(): Locale {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -46,11 +57,13 @@ function detectLocale(): Locale {
   } catch {
     // ignore
   }
-  if (typeof navigator !== "undefined") {
-    const short = navigator.language.slice(0, 2).toLowerCase();
-    if (isLocale(short)) return short;
+  const found = localeFromNavigator();
+  try {
+    localStorage.setItem(STORAGE_KEY, found);
+  } catch {
+    // ignore
   }
-  return "es";
+  return found;
 }
 
 function lookup(messages: Messages, key: MessageKey): string | undefined {

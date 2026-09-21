@@ -5,7 +5,8 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { useRita } from "@/context/RitaProvider";
 import { timeAgo } from "@/lib/format";
 import { shortenId } from "@/lib/protocol/identity";
-import type { Envelope } from "@/lib/protocol/envelope";
+import { MAX_COMMENT_CHARS, MAX_POST_CHARS, type Envelope } from "@/lib/protocol/envelope";
+import { CharCount } from "@/components/ui/Field";
 import { ingestPhoto, isAcceptedPhoto, type MediaRef } from "@/lib/protocol/media";
 import { commentLineageSigs, postLineageSigs } from "@/lib/protocol/social";
 import { Avatar } from "./Avatar";
@@ -124,7 +125,7 @@ export function NoteCard({
                     aria-label={t("live.edit")}
                     onClick={() => {
                       setEditing(true);
-                      setEditText(event.body.text);
+                      setEditText(event.body.text.slice(0, MAX_POST_CHARS));
                       setEditKeep(event.body.media ?? []);
                       if (editFile) URL.revokeObjectURL(editFile.url);
                       setEditFile(null);
@@ -199,11 +200,14 @@ export function NoteCard({
             >
               <textarea
                 value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                maxLength={4000}
+                onChange={(e) => setEditText(e.target.value.slice(0, MAX_POST_CHARS))}
+                maxLength={MAX_POST_CHARS}
                 rows={4}
                 className="w-full rounded-2xl border border-line bg-paper px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30"
               />
+              <div className="flex justify-end">
+                <CharCount value={editText} max={MAX_POST_CHARS} />
+              </div>
               <input
                 ref={editPhotoRef}
                 type="file"
@@ -428,7 +432,7 @@ function CommentBlock({
                 aria-label={t("live.edit")}
                 onClick={() => {
                   setEditing(true);
-                  setEditText(item.body.text);
+                  setEditText(item.body.text.slice(0, MAX_COMMENT_CHARS));
                   setConfirmDelete(false);
                 }}
               >
@@ -487,11 +491,14 @@ function CommentBlock({
           >
             <textarea
               value={editText}
-              onChange={(e) => setEditText(e.target.value)}
+              onChange={(e) => setEditText(e.target.value.slice(0, MAX_COMMENT_CHARS))}
               rows={3}
-              maxLength={2000}
+              maxLength={MAX_COMMENT_CHARS}
               className="w-full rounded-2xl border border-line bg-paper px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30"
             />
+            <div className="flex justify-end">
+              <CharCount value={editText} max={MAX_COMMENT_CHARS} />
+            </div>
             <div className="flex gap-3 text-xs">
               <button type="submit" className="font-semibold text-accent">
                 {t("live.saveEdit")}
@@ -587,13 +594,19 @@ function CommentForm({
         onSubmit();
       }}
     >
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="flex-1 rounded-full border border-line bg-paper px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30"
-      />
-      <button type="submit" className="text-sm font-semibold text-accent">
+      <div className="min-w-0 flex-1">
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value.slice(0, MAX_COMMENT_CHARS))}
+          placeholder={placeholder}
+          maxLength={MAX_COMMENT_CHARS}
+          className="w-full rounded-full border border-line bg-paper px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30"
+        />
+        <div className="mt-1 flex justify-end px-1">
+          <CharCount value={value} max={MAX_COMMENT_CHARS} />
+        </div>
+      </div>
+      <button type="submit" className="mt-2 self-start text-sm font-semibold text-accent">
         {sendLabel}
       </button>
     </form>

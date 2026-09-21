@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { WipeConfirm } from "@/components/ui/WipeConfirm";
 import { LanguageSwitch } from "@/components/ui/LanguageSwitch";
@@ -8,6 +8,7 @@ import { Avatar } from "@/components/note/Avatar";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n } from "@/i18n/I18nProvider";
 import { ingestPhoto, isAcceptedPhoto } from "@/lib/protocol/media";
+import { MAX_BIO_CHARS, MAX_NAME_CHARS } from "@/lib/protocol/envelope";
 
 export function SettingsPage() {
   const {
@@ -23,8 +24,8 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const bundleRef = useRef<HTMLInputElement>(null);
-  const [name, setName] = useState(profile?.name ?? "");
-  const [about, setAbout] = useState(profile?.about ?? "");
+  const [name, setName] = useState((profile?.name ?? "").slice(0, MAX_NAME_CHARS));
+  const [about, setAbout] = useState((profile?.about ?? "").slice(0, MAX_BIO_CHARS));
   const [interests, setInterests] = useState((profile?.interests ?? []).join(", "));
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -149,12 +150,20 @@ export function SettingsPage() {
               )}
             </div>
           </div>
-          <TextField label={t("settings.name")} value={name} onChange={(e) => setName(e.target.value)} />
+          <TextField
+            label={t("settings.name")}
+            value={name}
+            onChange={(e) => setName(e.target.value.slice(0, MAX_NAME_CHARS))}
+            maxLength={MAX_NAME_CHARS}
+            counter
+          />
           <TextArea
             label={t("settings.about")}
             rows={3}
             value={about}
-            onChange={(e) => setAbout(e.target.value)}
+            onChange={(e) => setAbout(e.target.value.slice(0, MAX_BIO_CHARS))}
+            maxLength={MAX_BIO_CHARS}
+            counter
           />
           <TextField
             label={t("settings.interests")}
@@ -230,6 +239,11 @@ export function SettingsPage() {
             </>
           )}
         </div>
+        <p>
+          <Link to="/legal" className="text-sm font-semibold text-accent hover:underline">
+            {t("legal.link")}
+          </Link>
+        </p>
       </div>
     </section>
   );

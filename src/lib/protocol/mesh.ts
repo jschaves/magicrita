@@ -11,6 +11,8 @@ import {
   type MediaRef,
 } from "./media";
 import { loadSignalUrl } from "./signalUrl";
+import { cachedPow } from "./pow";
+import { loadBetaInvite } from "./betaInvite";
 import { recipientsOf } from "./store";
 
 const OUTBOX_MAX = 250;
@@ -881,16 +883,22 @@ export function listenMesh(
       if (stopped || socket !== ws) return;
       setLinked(true);
       void (async () => {
-        const avatar = await ownThumb();
-        if (stopped || socket !== ws) return;
-        sendSignal({
-          type: "hello",
-          rpub: hello.rpub,
-          name: hello.name,
-          interests: hello.interests,
-          avatar,
-        });
-        sendSignal({ type: "scan" });
+        try {
+          const [avatar, pow] = await Promise.all([ownThumb(), cachedPow(hello.rpub)]);
+          if (stopped || socket !== ws) return;
+          sendSignal({
+            type: "hello",
+            rpub: hello.rpub,
+            name: hello.name,
+            interests: hello.interests,
+            avatar,
+            pow,
+            invite: loadBetaInvite(),
+          });
+          sendSignal({ type: "scan" });
+        } catch {
+          // sin hello válido el relé no nos lista
+        }
       })();
     };
     ws.onmessage = (event) => {
@@ -956,7 +964,7 @@ export function listenMesh(
   scan = window.setInterval(() => {
     if (socket?.readyState !== WebSocket.OPEN) return;
     sendSignal({ type: "scan" });
-    void ownThumb().then((avatar) => {
+    void Promise.all([ownThumb(), cachedPow(hello.rpub)]).then(([avatar, pow]) => {
       if (stopped || socket?.readyState !== WebSocket.OPEN) return;
       sendSignal({
         type: "hello",
@@ -964,6 +972,8 @@ export function listenMesh(
         name: hello.name,
         interests: hello.interests,
         avatar,
+        pow,
+        invite: loadBetaInvite(),
       });
     });
     repairPeers();

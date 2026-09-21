@@ -3,10 +3,12 @@ import { Bookmark, Compass, Home, LogOut, MessageCircle, PenLine, Settings, User
 import { useRita } from "@/context/RitaProvider";
 import { useI18n } from "@/i18n/I18nProvider";
 import { Avatar } from "@/components/note/Avatar";
+import { NoticeBell } from "@/components/ui/NoticeBell";
+import { SiteMark } from "@/components/ui/SiteMark";
 import { shortenId } from "@/lib/protocol/identity";
 
 export function AppShell() {
-  const { status, vault, identity, profile, logout } = useRita();
+  const { status, vault, identity, profile, logout, notices } = useRita();
   const { t } = useI18n();
   const navigate = useNavigate();
 
@@ -18,6 +20,9 @@ export function AppShell() {
   }
 
   const rpub = identity?.rpub ?? "";
+  const inbox = notices ?? [];
+  const chatBadge = inbox.filter((item) => item.kind !== "invite").length;
+  const peopleBadge = inbox.filter((item) => item.kind === "invite").length;
   const links = [
     { to: "/", label: t("nav.home"), icon: Home },
     { to: "/people", label: t("nav.people"), icon: Users },
@@ -28,10 +33,13 @@ export function AppShell() {
   ];
 
   return (
-    <div className="mx-auto grid min-h-dvh max-w-6xl grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)_260px]">
+    <div className="relative mx-auto grid min-h-dvh max-w-6xl grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)_260px]">
+      <div className="fixed right-3 top-3 z-30 md:right-[max(0.75rem,calc((100vw-72rem)/2+0.75rem))]">
+        <NoticeBell />
+      </div>
       <aside className="hidden border-r border-line md:flex md:flex-col md:px-4 md:py-6">
-        <Link to="/" className="px-3 font-display text-3xl font-semibold tracking-tight text-plum">
-          MagicRita
+        <Link to="/" className="px-3">
+          <SiteMark size="md" />
         </Link>
         <nav className="mt-8 flex flex-col gap-1">
           {links.map(({ to, label, icon: Icon }) => (
@@ -45,7 +53,15 @@ export function AppShell() {
                 }`
               }
             >
-              <Icon size={18} />
+              <span className="relative">
+                <Icon size={18} />
+                {to === "/messages" && chatBadge ? (
+                  <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-accent" />
+                ) : null}
+                {to === "/people" && peopleBadge ? (
+                  <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-accent" />
+                ) : null}
+              </span>
               {label}
             </NavLink>
           ))}
@@ -91,17 +107,22 @@ export function AppShell() {
       </aside>
 
       <main className="min-w-0 border-r border-line bg-paper/40 pb-20 md:pb-0">
+        <div className="flex items-center justify-between border-b border-line px-4 py-3 pr-14 md:hidden">
+          <Link to="/">
+            <SiteMark size="sm" />
+          </Link>
+        </div>
         <Outlet />
       </main>
 
       <aside className="hidden p-6 lg:block">
         <div className="rounded-3xl border border-line bg-paper p-4">
-          <p className="font-display text-lg">{t("shell.stepOf", { current: 2, total: 5 })}</p>
-          <p className="mt-1 text-sm leading-6 text-muted">{t("shell.step2Blurb")}</p>
+          <p className="font-display text-lg">{t("shell.philosophyTitle")}</p>
+          <p className="mt-1 text-sm leading-6 text-muted">{t("shell.philosophyBody")}</p>
         </div>
-        <ol className="mt-6 space-y-2 text-sm text-muted">
+        <ol className="mt-6 space-y-2 text-sm text-ink">
           <li>{t("shell.road1")}</li>
-          <li className="font-semibold text-ink">{t("shell.road2")}</li>
+          <li>{t("shell.road2")}</li>
           <li>{t("shell.road3")}</li>
           <li>{t("shell.road4")}</li>
           <li>{t("shell.road5")}</li>
@@ -120,7 +141,15 @@ export function AppShell() {
               }`
             }
           >
-            <Icon size={18} />
+            <span className="relative">
+              <Icon size={18} />
+              {to === "/messages" && chatBadge ? (
+                <span className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full bg-accent" />
+              ) : null}
+              {to === "/people" && peopleBadge ? (
+                <span className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full bg-accent" />
+              ) : null}
+            </span>
             {label}
           </NavLink>
         ))}

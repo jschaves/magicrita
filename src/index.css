@@ -43,6 +43,20 @@ input {
   font-family: inherit;
 }
 
+.welcome-pitch {
+  scrollbar-gutter: stable;
+  white-space: pre-line;
+}
+
+.welcome-pitch::-webkit-scrollbar {
+  width: 6px;
+}
+
+.welcome-pitch::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 999px;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
