@@ -54,6 +54,8 @@ export function latestConsent(events: Envelope[], from: string, to: string): boo
 
 export function isChatBlocked(events: Envelope[], me: string, them: string, myBlocks: string[]): boolean {
   if (myBlocks.includes(them)) return true;
+  const listed = latestBlocks(events.filter((item) => item.author === them));
+  if (listed.includes(me)) return true;
   return latestBlocks(loadLog(them)).includes(me);
 }
 
