@@ -25,5 +25,13 @@ export function VoiceNote({ media, light }: { media: MediaRef; light?: boolean }
   if (!src) {
     return <p className={`text-xs ${light ? "text-cream/70" : "text-muted"}`}>{t("live.voiceWait")}</p>;
   }
-  return <audio controls src={src} className="max-w-full" preload="metadata" />;
+  return (
+    <audio
+      controls
+      src={src}
+      className="max-w-full"
+      preload="metadata"
+      playsInline
+    />
+  );
 }

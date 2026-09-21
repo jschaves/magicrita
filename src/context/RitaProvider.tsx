@@ -205,10 +205,7 @@ function tryRestoreIdentity(vault: VaultRecord | null): Identity | null {
       clearUnlockedRsec();
       return null;
     }
-    if (!claimSession(identity.rpub)) {
-      clearUnlockedRsec();
-      return null;
-    }
+    claimSession(identity.rpub);
     return identity;
   } catch {
     clearUnlockedRsec();

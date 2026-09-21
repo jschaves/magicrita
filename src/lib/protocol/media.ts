@@ -4,7 +4,7 @@ import { ProtocolError } from "./errors";
 
 export const MAX_PHOTOS = 1;
 export const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
-export const MAX_VOICE_BYTES = 500_000;
+export const MAX_VOICE_BYTES = 1_200_000;
 export const MAX_VOICE_MS = 30_000;
 export const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 

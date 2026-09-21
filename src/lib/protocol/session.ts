@@ -1,9 +1,9 @@
 import { ProtocolError } from "./errors";
 
 const UNLOCKED_KEY = "magicrita.unlocked";
+const LIVE_KEY = "magicrita.unlockedLive";
 const TAB_KEY = "magicrita.tab";
 const LOCK_KEY = "magicrita.sessionLock";
-const STALE_MS = 20_000;
 
 type SessionLock = {
   rpub: string;
@@ -13,14 +13,24 @@ type SessionLock = {
 
 export function saveUnlockedRsec(rsec: string): void {
   sessionStorage.setItem(UNLOCKED_KEY, rsec);
+  try {
+    localStorage.setItem(LIVE_KEY, rsec);
+  } catch {
+    // ignore
+  }
 }
 
 export function loadUnlockedRsec(): string | null {
-  return sessionStorage.getItem(UNLOCKED_KEY);
+  return sessionStorage.getItem(UNLOCKED_KEY) || localStorage.getItem(LIVE_KEY);
 }
 
 export function clearUnlockedRsec(): void {
   sessionStorage.removeItem(UNLOCKED_KEY);
+  try {
+    localStorage.removeItem(LIVE_KEY);
+  } catch {
+    // ignore
+  }
 }
 
 export function tabId(): string {
@@ -50,11 +60,6 @@ function writeLock(rpub: string): void {
 }
 
 export function claimSession(rpub: string): boolean {
-  const lock = readLock();
-  const mine = tabId();
-  if (lock && lock.rpub === rpub && lock.tabId !== mine && Date.now() - lock.ts < STALE_MS) {
-    return false;
-  }
   writeLock(rpub);
   return true;
 }
