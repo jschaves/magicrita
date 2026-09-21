@@ -51,19 +51,17 @@ npm --version
 
 ## Clonar el repositorio privado
 
-Sustituye la URL por la de tu repositorio.
-
 **HTTPS** (GitHub pedirá usuario y un *Personal Access Token* con permiso `repo`, no la contraseña de la cuenta):
 
 ```bash
-git clone https://github.com/USUARIO/REPOSITORIO.git magicrita
+git clone https://github.com/jschaves/magicrita.git
 cd magicrita
 ```
 
 **SSH** (si tienes clave añadida en GitHub):
 
 ```bash
-git clone git@github.com:USUARIO/REPOSITORIO.git magicrita
+git clone git@github.com:jschaves/magicrita.git
 cd magicrita
 ```
 
