@@ -3,6 +3,7 @@ import { xchacha20poly1305 } from "@noble/ciphers/chacha.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, bytesToUtf8, hexToBytes, randomBytes, utf8ToBytes } from "./bytes";
 import type { Envelope } from "./envelope";
+import type { MediaRef } from "./media";
 import { MAX_STORED_CHATS } from "./store";
 import { parseRpub, type Identity } from "./identity";
 import { latestBlocks } from "./social";
@@ -15,6 +16,7 @@ export type ChatLine = {
   author: string;
   ts: number;
   text: string | null;
+  audio?: MediaRef;
 };
 
 function sharedKey(secret: Uint8Array, theirRpub: string): Uint8Array {
@@ -103,11 +105,14 @@ export function chatLines(events: Envelope[], identity: Identity, them: string):
     const mine = event.author === me && event.body.to === them;
     const theirs = event.author === them && event.body.to === me;
     if (!mine && !theirs) continue;
+    const audio = event.body.media?.find((item) => item.mime.startsWith("audio/"));
+    const raw = openChat(identity, them, event.body.n, event.body.box);
     lines.push({
       sig: event.sig,
       author: event.author,
       ts: event.ts,
-      text: openChat(identity, them, event.body.n, event.body.box),
+      text: audio ? (raw && raw.trim() ? raw : null) : raw,
+      audio,
     });
   }
   return lines.sort((a, b) => a.ts - b.ts).slice(-MAX_STORED_CHATS);

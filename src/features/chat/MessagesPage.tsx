@@ -3,6 +3,10 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { Avatar } from "@/components/note/Avatar";
 import { Button } from "@/components/ui/Button";
 import { CharCount } from "@/components/ui/Field";
+import { EmojiInsert } from "@/components/ui/EmojiInsert";
+import { VoiceMic } from "@/components/ui/VoiceMic";
+import { VoiceNote } from "@/components/note/VoiceNote";
+import { ingestVoice } from "@/lib/protocol/media";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n, type MessageKey } from "@/i18n/I18nProvider";
 import { timeAgo } from "@/lib/format";
@@ -170,7 +174,12 @@ export function MessagesPage() {
                       mine ? "bg-plum text-cream" : "border border-line bg-paper"
                     }`}
                   >
-                    <p className="whitespace-pre-wrap">{line.text ?? t("messages.decryptFail")}</p>
+                    {line.audio ? <VoiceNote media={line.audio} light={mine} /> : null}
+                    {line.text ? (
+                      <p className="whitespace-pre-wrap">{line.text}</p>
+                    ) : !line.audio ? (
+                      <p className="whitespace-pre-wrap">{t("messages.decryptFail")}</p>
+                    ) : null}
                     <p className={`mt-1 text-[10px] ${mine ? "text-cream/70" : "text-muted"}`}>
                       {timeAgo(line.ts, t, locale)}
                     </p>
@@ -189,9 +198,27 @@ export function MessagesPage() {
                 placeholder={t("messages.write")}
                 className="w-full rounded-2xl border border-line bg-paper px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30"
               />
-              <div className="mt-2 flex items-center justify-between">
-                <CharCount value={draft} max={MAX_CHAT_CHARS} />
-                <Button type="submit">{t("messages.send")}</Button>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1">
+                  <EmojiInsert value={draft} max={MAX_CHAT_CHARS} onChange={setDraft} />
+                  <VoiceMic
+                    onError={setError}
+                    onBlob={(blob) => {
+                      void (async () => {
+                        try {
+                          const media = await ingestVoice(blob);
+                          sendChat(them, "", media);
+                        } catch (err) {
+                          setError(errorMessage(err, "messages.failed"));
+                        }
+                      })();
+                    }}
+                  />
+                </span>
+                <div className="flex items-center gap-3">
+                  <CharCount value={draft} max={MAX_CHAT_CHARS} />
+                  <Button type="submit">{t("messages.send")}</Button>
+                </div>
               </div>
             </form>
           ) : null}

@@ -4,6 +4,8 @@ import { ProtocolError } from "./errors";
 
 export const MAX_PHOTOS = 1;
 export const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
+export const MAX_VOICE_BYTES = 500_000;
+export const MAX_VOICE_MS = 30_000;
 export const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 
 export type MediaRef = {
@@ -250,6 +252,19 @@ export async function ingestPhoto(file: File): Promise<MediaRef> {
   const ref: MediaRef = { hash, mime, name: file.name };
   if (preview) ref.preview = preview;
   return ref;
+}
+
+export async function ingestVoice(blob: Blob): Promise<MediaRef> {
+  if (blob.size > MAX_VOICE_BYTES) throw new ProtocolError("media_too_large");
+  const rawType = (blob.type || "audio/webm").split(";")[0];
+  const mime = rawType.startsWith("audio/") ? rawType : "audio/webm";
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  if (bytes.byteLength < 16) throw new ProtocolError("media_type");
+  const hash = bytesToHex(sha256(bytes));
+  await putRecord(hash, mime, bytes);
+  rememberLiveUrl(hash, URL.createObjectURL(blob));
+  notifyMedia(hash);
+  return { hash, mime, name: "voice" };
 }
 
 export async function loadMediaRecord(hash: string): Promise<MediaRecord | null> {

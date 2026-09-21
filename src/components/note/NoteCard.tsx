@@ -7,7 +7,10 @@ import { timeAgo } from "@/lib/format";
 import { shortenId } from "@/lib/protocol/identity";
 import { MAX_COMMENT_CHARS, MAX_POST_CHARS, type Envelope } from "@/lib/protocol/envelope";
 import { CharCount } from "@/components/ui/Field";
-import { ingestPhoto, isAcceptedPhoto, type MediaRef } from "@/lib/protocol/media";
+import { EmojiInsert } from "@/components/ui/EmojiInsert";
+import { VoiceMic } from "@/components/ui/VoiceMic";
+import { VoiceNote } from "./VoiceNote";
+import { ingestPhoto, ingestVoice, isAcceptedPhoto, type MediaRef } from "@/lib/protocol/media";
 import { commentLineageSigs, postLineageSigs } from "@/lib/protocol/social";
 import { Avatar } from "./Avatar";
 import { Photo } from "./Photo";
@@ -77,12 +80,21 @@ export function NoteCard({
     );
   };
 
-  function submitComment(text: string, parent?: string) {
+  function submitComment(text: string, parent?: string, media?: MediaRef) {
     try {
-      addComment(event.sig, text, parent);
+      addComment(event.sig, text, parent, media);
       setDraft("");
       setReplyTo(null);
       setError(null);
+    } catch (err) {
+      setError(errorMessage(err, "live.commentFailed"));
+    }
+  }
+
+  async function submitVoice(blob: Blob, parent?: string) {
+    try {
+      const media = await ingestVoice(blob);
+      submitComment("", parent, media);
     } catch (err) {
       setError(errorMessage(err, "live.commentFailed"));
     }
@@ -352,6 +364,8 @@ export function NoteCard({
                   value={draft}
                   onChange={setDraft}
                   onSubmit={() => submitComment(draft)}
+                  onVoice={(blob) => void submitVoice(blob)}
+                  onVoiceError={setError}
                   placeholder={t("live.writeComment")}
                   sendLabel={t("live.send")}
                 />
@@ -380,7 +394,7 @@ function CommentBlock({
   replyTo: string | null;
   setReplyTo: (id: string | null) => void;
   showHidden: boolean;
-  onSubmit: (text: string, parent?: string) => void;
+  onSubmit: (text: string, parent?: string, media?: MediaRef) => void;
 }) {
   const { t, errorMessage } = useI18n();
   const {
@@ -496,7 +510,8 @@ function CommentBlock({
               maxLength={MAX_COMMENT_CHARS}
               className="w-full rounded-2xl border border-line bg-paper px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30"
             />
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between">
+              <EmojiInsert value={editText} max={MAX_COMMENT_CHARS} onChange={setEditText} />
               <CharCount value={editText} max={MAX_COMMENT_CHARS} />
             </div>
             <div className="flex gap-3 text-xs">
@@ -509,9 +524,16 @@ function CommentBlock({
             </div>
           </form>
         ) : (
-          <p className="mt-1 whitespace-pre-wrap">
-            <FilteredText text={item.body.text} />
-          </p>
+          <div className="mt-1 space-y-2">
+            {item.type === "comment" && item.body.media?.[0]?.mime.startsWith("audio/") ? (
+              <VoiceNote media={item.body.media[0]} />
+            ) : null}
+            {item.body.text.trim() ? (
+              <p className="whitespace-pre-wrap">
+                <FilteredText text={item.body.text} />
+              </p>
+            ) : null}
+          </div>
         )}
         <div className="mt-1 flex flex-wrap gap-3">
           <HeartButton count={cLikes.count} mine={cLikes.mine} onClick={() => toggleLike(item.sig, "comment")} />
@@ -543,6 +565,16 @@ function CommentBlock({
               onSubmit={() => {
                 onSubmit(text, item.sig);
                 setText("");
+              }}
+              onVoice={(blob) => {
+                void (async () => {
+                  try {
+                    const media = await ingestVoice(blob);
+                    onSubmit("", item.sig, media);
+                  } catch {
+                    // parent shows error via onSubmit
+                  }
+                })();
               }}
               placeholder={t("live.replyTo")}
               sendLabel={t("live.send")}
@@ -577,12 +609,16 @@ function CommentForm({
   value,
   onChange,
   onSubmit,
+  onVoice,
+  onVoiceError,
   placeholder,
   sendLabel,
 }: {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  onVoice?: (blob: Blob) => void;
+  onVoiceError?: (message: string) => void;
   placeholder: string;
   sendLabel: string;
 }) {
@@ -602,7 +638,11 @@ function CommentForm({
           maxLength={MAX_COMMENT_CHARS}
           className="w-full rounded-full border border-line bg-paper px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30"
         />
-        <div className="mt-1 flex justify-end px-1">
+        <div className="mt-1 flex items-center justify-between px-1">
+          <span className="flex items-center gap-1">
+            <EmojiInsert value={value} max={MAX_COMMENT_CHARS} onChange={onChange} />
+            {onVoice ? <VoiceMic onBlob={onVoice} onError={onVoiceError} /> : null}
+          </span>
           <CharCount value={value} max={MAX_COMMENT_CHARS} />
         </div>
       </div>

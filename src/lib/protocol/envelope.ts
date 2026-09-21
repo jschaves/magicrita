@@ -49,14 +49,20 @@ export type PostBody = {
 export type FollowsBody = { rpubs: string[] };
 export type BlocksBody = { rpubs: string[] };
 export type LikeBody = { target: string; kind: ReactionKind; on: boolean };
-export type CommentBody = { target: string; text: string; parent?: string; replaces?: string };
+export type CommentBody = {
+  target: string;
+  text: string;
+  parent?: string;
+  replaces?: string;
+  media?: MediaRef[];
+};
 export type ReportBody = { target: string; kind: ReactionKind; on?: boolean };
 export type PresenceBody = { online: true };
 export type DeleteBody = { target: string };
 export type GoneBody = { gone: true };
 export type InviteBody = { rpub: string; exp: number };
 export type ChatConsentBody = { to: string; on: boolean };
-export type ChatTextBody = { to: string; n: string; box: string };
+export type ChatTextBody = { to: string; n: string; box: string; media?: MediaRef[] };
 
 export type Envelope =
   | { v: 1; type: "profile"; author: string; ts: number; body: ProfileBody; sig: string }
@@ -173,12 +179,15 @@ export function signLike(
 
 export function signComment(
   identity: Identity,
-  input: { target: string; text: string; parent?: string; replaces?: string },
+  input: { target: string; text: string; parent?: string; replaces?: string; media?: MediaRef[] },
   ts = Date.now(),
 ): Envelope {
   const body: CommentBody = { target: input.target, text: clip(input.text.trim(), MAX_COMMENT_CHARS) };
   if (input.parent) body.parent = input.parent;
   if (input.replaces) body.replaces = input.replaces;
+  if (input.media && input.media.length > 0) {
+    body.media = input.media.map((item) => ({ hash: item.hash, mime: item.mime, name: item.name }));
+  }
   return signed(identity, "comment", body, ts);
 }
 
@@ -210,10 +219,14 @@ export function signChatConsent(identity: Identity, to: string, on: boolean, ts 
 
 export function signChatText(
   identity: Identity,
-  input: { to: string; n: string; box: string },
+  input: { to: string; n: string; box: string; media?: MediaRef[] },
   ts = Date.now(),
 ): Envelope {
-  return signed(identity, "chat_text", { to: input.to.trim(), n: input.n, box: input.box }, ts);
+  const body: ChatTextBody = { to: input.to.trim(), n: input.n, box: input.box };
+  if (input.media && input.media.length > 0) {
+    body.media = input.media.map((item) => ({ hash: item.hash, mime: item.mime, name: item.name }));
+  }
+  return signed(identity, "chat_text", body, ts);
 }
 
 export function verifyEnvelope(envelope: Envelope): boolean {
@@ -258,7 +271,7 @@ export function isEnvelope(value: unknown): value is Envelope {
     if (typeof env.body?.target !== "string" || typeof env.body?.text !== "string") return false;
     if (env.body.parent !== undefined && typeof env.body.parent !== "string") return false;
     if (env.body.replaces !== undefined && typeof env.body.replaces !== "string") return false;
-    return true;
+    return env.body.media === undefined || (Array.isArray(env.body.media) && env.body.media.every(isMediaRef));
   }
   if (env.type === "report") {
     if (env.body?.on !== undefined && typeof env.body.on !== "boolean") return false;
@@ -283,9 +296,10 @@ export function isEnvelope(value: unknown): value is Envelope {
     return typeof env.body?.to === "string" && typeof env.body?.on === "boolean";
   }
   if (env.type === "chat_text") {
-    return (
-      typeof env.body?.to === "string" && typeof env.body?.n === "string" && typeof env.body?.box === "string"
-    );
+    if (typeof env.body?.to !== "string" || typeof env.body?.n !== "string" || typeof env.body?.box !== "string") {
+      return false;
+    }
+    return env.body.media === undefined || (Array.isArray(env.body.media) && env.body.media.every(isMediaRef));
   }
   return false;
 }
@@ -293,5 +307,7 @@ export function isEnvelope(value: unknown): value is Envelope {
 export function mediaRefsOf(envelope: Envelope): MediaRef[] {
   if (envelope.type === "profile" && envelope.body.picture) return [envelope.body.picture];
   if (envelope.type === "post" && envelope.body.media) return envelope.body.media;
+  if (envelope.type === "comment" && envelope.body.media) return envelope.body.media;
+  if (envelope.type === "chat_text" && envelope.body.media) return envelope.body.media;
   return [];
 }

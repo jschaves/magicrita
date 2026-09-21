@@ -49,7 +49,7 @@ import {
   type ChatLine,
   type ChatPhase,
 } from "@/lib/protocol/chat";
-import { MAX_PHOTOS, type MediaRef } from "@/lib/protocol/media";
+import { MAX_PHOTOS, onMediaStored, type MediaRef } from "@/lib/protocol/media";
 import { applyBundle, buildBundle, downloadBundle, parseBundle } from "@/lib/protocol/bundle";
 import {
   loadVault,
@@ -81,7 +81,6 @@ import {
   requestPeerData,
   type LivePeer,
 } from "@/lib/protocol/mesh";
-import { onMediaStored } from "@/lib/protocol/media";
 import { loadSaves, toggleSaved as toggleSavedStore } from "@/lib/protocol/saves";
 import {
   allEnvelopes,
@@ -165,7 +164,7 @@ type RitaContextValue = {
   requestChat: (rpub: string) => void;
   acceptChat: (rpub: string) => void;
   revokeChat: (rpub: string) => void;
-  sendChat: (rpub: string, text: string) => void;
+  sendChat: (rpub: string, text: string, media?: MediaRef) => void;
   chatPhaseOf: (rpub: string) => ChatPhase;
   chatLinesOf: (rpub: string) => ChatLine[];
   chatPeerList: string[];
@@ -173,7 +172,7 @@ type RitaContextValue = {
   dismissNotice: (id: string) => void;
   dismissNoticesFor: (match: { kind?: NoticeKind | NoticeKind[]; from?: string }) => void;
   toggleLike: (target: string, kind: ReactionKind) => void;
-  addComment: (postSig: string, text: string, parent?: string) => void;
+  addComment: (postSig: string, text: string, parent?: string, media?: MediaRef) => void;
   editComment: (comment: Envelope, text: string) => void;
   deleteComment: (comment: Envelope) => void;
   canMutateComment: (comment: Envelope) => boolean;
@@ -533,11 +532,11 @@ export function RitaProvider({ children }: { children: ReactNode }) {
   );
 
   const addComment = useCallback(
-    (postSig: string, text: string, parent?: string) => {
+    (postSig: string, text: string, parent?: string, media?: MediaRef) => {
       if (!identity) throw new ProtocolError("not_unlocked");
-      if (!text.trim()) throw new ProtocolError("empty_comment");
+      if (!text.trim() && !media) throw new ProtocolError("empty_comment");
       if (countLinks(text) > MAX_TEXT_LINKS) throw new ProtocolError("too_many_links");
-      emit(signComment(identity, { target: postSig, text, parent }));
+      emit(signComment(identity, { target: postSig, text, parent, media: media ? [media] : undefined }));
     },
     [emit, identity],
   );
@@ -781,18 +780,18 @@ export function RitaProvider({ children }: { children: ReactNode }) {
   }, [catalog, log]);
 
   const sendChat = useCallback(
-    (raw: string, text: string) => {
+    (raw: string, text: string, media?: MediaRef) => {
       if (!identity) throw new ProtocolError("not_unlocked");
       parseRpub(raw);
       const rpub = raw.trim();
       if (rpub === identity.rpub) throw new ProtocolError("chat_self");
       const clipped = text.trim().slice(0, MAX_CHAT_CHARS);
-      if (!clipped) throw new ProtocolError("empty_chat");
+      if (!clipped && !media) throw new ProtocolError("empty_chat");
       if (chatPhase(allEvents, identity.rpub, rpub, blocks) !== "open") {
         throw new ProtocolError("chat_closed");
       }
-      const sealed = sealChat(identity, rpub, clipped);
-      emit(signChatText(identity, { to: rpub, ...sealed }));
+      const sealed = sealChat(identity, rpub, clipped || " ");
+      emit(signChatText(identity, { to: rpub, ...sealed, media: media ? [media] : undefined }));
     },
     [allEvents, blocks, emit, identity],
   );
