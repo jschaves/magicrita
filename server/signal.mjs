@@ -58,6 +58,8 @@ const LOGO_TYPES = {
 
 /** @type {Map<import('ws').WebSocket, { rpub: string, name: string, interests: string[] }>} */
 const live = new Map();
+/** @type {Map<string, import('ws').WebSocket>} */
+const byRpub = new Map();
 /** Buzón RAM: sobres firmados para quien aún no está conectado. Sin disco. */
 /** @type {Map<string, object[]>} */
 const mailbox = new Map();
@@ -408,20 +410,23 @@ async function onHttp(req, res) {
 const httpServer = http.createServer((req, res) => {
   void onHttp(req, res);
 });
-const wss = new WebSocketServer({ server: httpServer, maxPayload: 20 * 1024 * 1024 });
+const wss = new WebSocketServer({
+  server: httpServer,
+  maxPayload: 20 * 1024 * 1024,
+  perMessageDeflate: false,
+});
 
-function snapshot() {
-  const seen = new Set();
+function slim(info) {
+  return { rpub: info.rpub, name: info.name || "", interests: info.interests || [] };
+}
+
+function snapshot(exceptRpub) {
   const peers = [];
-  for (const info of live.values()) {
-    if (seen.has(info.rpub)) continue;
-    seen.add(info.rpub);
-    peers.push({
-      rpub: info.rpub,
-      name: info.name,
-      interests: info.interests,
-      avatar: info.avatar,
-    });
+  for (const info of byRpub.keys()) {
+    if (info === exceptRpub) continue;
+    const ws = byRpub.get(info);
+    const row = ws ? live.get(ws) : null;
+    if (row) peers.push(slim(row));
   }
   return peers;
 }
@@ -430,18 +435,35 @@ function send(ws, msg) {
   if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
 }
 
-function pushRoster() {
-  const peers = snapshot();
-  for (const [ws, info] of live) {
-    send(ws, { type: "peers", peers: peers.filter((p) => p.rpub !== info.rpub) });
+function broadcastRaw(raw, exceptWs) {
+  for (const client of live.keys()) {
+    if (client === exceptWs || client.readyState !== client.OPEN) continue;
+    client.send(raw);
   }
 }
 
 function findByRpub(rpub) {
-  for (const [ws, info] of live) {
-    if (info.rpub === rpub) return ws;
+  const ws = byRpub.get(rpub);
+  if (!ws) return null;
+  if (live.get(ws)?.rpub !== rpub) {
+    byRpub.delete(rpub);
+    return null;
   }
-  return null;
+  return ws;
+}
+
+function bindSocket(ws, info) {
+  const old = byRpub.get(info.rpub);
+  if (old && old !== ws) {
+    live.delete(old);
+    try {
+      old.close();
+    } catch {
+      // ignore
+    }
+  }
+  live.set(ws, info);
+  byRpub.set(info.rpub, ws);
 }
 
 function holdFor(to, envelope) {
@@ -487,13 +509,9 @@ function removeSocket(ws) {
   const info = live.get(ws);
   live.delete(ws);
   if (!info) return;
-  const stillThere = [...live.values()].some((peer) => peer.rpub === info.rpub);
-  if (!stillThere) {
-    const raw = JSON.stringify({ type: "leave", rpub: info.rpub });
-    for (const client of live.keys()) {
-      if (client.readyState === client.OPEN) client.send(raw);
-    }
-    pushRoster();
+  if (byRpub.get(info.rpub) === ws) byRpub.delete(info.rpub);
+  if (!byRpub.has(info.rpub)) {
+    broadcastRaw(JSON.stringify({ type: "leave", rpub: info.rpub }), ws);
   }
 }
 
@@ -530,26 +548,20 @@ wss.on("connection", (ws, req) => {
       if (!inviteOk(msg.invite)) return;
       const ipKeys = rpubsForIp(ws.clientIp);
       if (!ipKeys.has(msg.rpub) && ipKeys.size >= MAX_IP_RPUBS) return;
-      for (const [other, info] of [...live]) {
-        if (info.rpub === msg.rpub && other !== ws) {
-          live.delete(other);
-          try {
-            other.close();
-          } catch {
-            // ignore
-          }
-        }
-      }
-      const incomingAvatar =
-        typeof msg.avatar === "string" && msg.avatar.startsWith("data:image/") ? msg.avatar : "";
-      const previous = [...live.values()].find((info) => info.rpub === msg.rpub);
-      live.set(ws, {
+      const previousWs = byRpub.get(msg.rpub);
+      const previous = previousWs ? live.get(previousWs) : undefined;
+      const first = !previous || previousWs !== ws;
+      bindSocket(ws, {
         rpub: msg.rpub,
         name: typeof msg.name === "string" && msg.name ? msg.name : previous?.name || "",
-        interests: Array.isArray(msg.interests) ? msg.interests.filter((x) => typeof x === "string") : previous?.interests || [],
-        avatar: incomingAvatar || previous?.avatar || "",
+        interests: Array.isArray(msg.interests)
+          ? msg.interests.filter((x) => typeof x === "string").slice(0, 12)
+          : previous?.interests || [],
       });
-      pushRoster();
+      if (first) {
+        send(ws, { type: "peers", peers: snapshot(msg.rpub) });
+        broadcastRaw(JSON.stringify({ type: "join", peer: slim(live.get(ws)) }), ws);
+      }
       send(ws, { type: "moderation", users: staffBlocks.users, comments: staffBlocks.comments });
       const pending = drainMailbox(msg.rpub);
       if (pending.length) send(ws, { type: "held", envelopes: pending });
@@ -594,9 +606,15 @@ wss.on("connection", (ws, req) => {
     if (msg.type === "need-blob" && typeof msg.hash === "string") {
       const from = live.get(ws);
       if (!from) return;
+      const pool = [];
       for (const [other, info] of live) {
-        if (other === ws || info.rpub === from.rpub) continue;
-        send(other, { type: "need-blob", hash: msg.hash, from: from.rpub });
+        if (other !== ws && info.rpub !== from.rpub) pool.push(other);
+      }
+      for (let n = 0; n < 8 && pool.length; n++) {
+        const i = Math.floor(Math.random() * pool.length);
+        send(pool[i], { type: "need-blob", hash: msg.hash, from: from.rpub });
+        pool[i] = pool[pool.length - 1];
+        pool.pop();
       }
       return;
     }
@@ -617,7 +635,7 @@ wss.on("connection", (ws, req) => {
     if (msg.type === "scan" || msg.type === "ping") {
       const info = live.get(ws);
       if (!info) return;
-      send(ws, { type: "peers", peers: snapshot().filter((p) => p.rpub !== info.rpub) });
+      send(ws, { type: "peers", peers: snapshot(info.rpub) });
       return;
     }
 

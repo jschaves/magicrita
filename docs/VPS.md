@@ -91,6 +91,8 @@ La URL de señal **no se edita en la app**. Es fija:
 
 ## systemd
 
+El relé aguanta miles de WebSockets: la lista de conectados va **sin fotos** y solo avisa altas y bajas, no el roster entero en cada `hello`.
+
 ```ini
 [Unit]
 Description=MagicRita signal
@@ -102,10 +104,14 @@ WorkingDirectory=/opt/magicrita
 ExecStart=/usr/bin/node server/signal.mjs
 Restart=always
 EnvironmentFile=/opt/magicrita/.env
+Environment=NODE_OPTIONS=--max-old-space-size=2048
+LimitNOFILE=65535
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+En nginx, para >5.000 conexiones, sube `worker_connections` (por ejemplo 16384) y `worker_rlimit_nofile 65535` en el `events` global. El VPS: **4–8 GB de RAM** y 4 vCPU si coinciden miles en línea.
 
 Activa el servicio:
 
