@@ -1,0 +1,43 @@
+export type ProtocolErrorCode =
+  | "secret_length"
+  | "rpub_prefix"
+  | "rpub_invalid"
+  | "rsec_empty"
+  | "rsec_invalid"
+  | "rsec_format"
+  | "password_short"
+  | "vault_mismatch"
+  | "wrong_password"
+  | "no_vault"
+  | "not_unlocked"
+  | "invalid_envelope"
+  | "media_type"
+  | "media_too_large"
+  | "media_too_many"
+  | "empty_post"
+  | "invalid_bundle"
+  | "media_hash"
+  | "backup_conflict"
+  | "cannot_follow_self"
+  | "cannot_block_self"
+  | "empty_comment"
+  | "already_reported"
+  | "session_exists"
+  | "edit_too_late"
+  | "cannot_edit_other"
+  | "cannot_delete_other"
+  | "comment_too_late";
+
+export class ProtocolError extends Error {
+  readonly code: ProtocolErrorCode;
+
+  constructor(code: ProtocolErrorCode) {
+    super(code);
+    this.name = "ProtocolError";
+    this.code = code;
+  }
+}
+
+export function isProtocolError(error: unknown): error is ProtocolError {
+  return error instanceof ProtocolError;
+}

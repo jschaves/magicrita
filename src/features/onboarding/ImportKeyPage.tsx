@@ -1,0 +1,65 @@
+import { useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useRita } from "@/context/RitaProvider";
+import { useI18n } from "@/i18n/I18nProvider";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { TextArea, TextField } from "@/components/ui/Field";
+
+export function ImportKeyPage() {
+  const { importSecret } = useRita();
+  const { t, errorMessage } = useI18n();
+  const navigate = useNavigate();
+  const [secret, setSecret] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      await importSecret(secret, password);
+      navigate("/");
+    } catch (err) {
+      setError(errorMessage(err, "importKey.failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-4 py-12">
+      <Link to="/welcome" className="mb-4 text-sm text-muted hover:text-ink">
+        {t("common.back")}
+      </Link>
+      <Card>
+        <p className="font-display text-3xl text-plum">{t("importKey.title")}</p>
+        <form className="mt-6 space-y-4" onSubmit={(event) => void onSubmit(event)}>
+          <TextArea
+            label={t("importKey.secret")}
+            rows={3}
+            value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            placeholder="rsec_…"
+            required
+          />
+          <TextField
+            label={t("importKey.password")}
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            hint={t("importKey.hint")}
+            required
+            minLength={8}
+          />
+          {error ? <p className="text-sm text-accent">{error}</p> : null}
+          <Button type="submit" className="w-full" disabled={busy}>
+            {busy ? t("importKey.importing") : t("importKey.submit")}
+          </Button>
+        </form>
+      </Card>
+    </div>
+  );
+}

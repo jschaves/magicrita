@@ -1,0 +1,836 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  createIdentity,
+  fromSecret,
+  parseRpub,
+  parseSecretInput,
+  type Identity,
+} from "@/lib/protocol/identity";
+import {
+  latestFollows,
+  latestProfile,
+  authorIsGone,
+  listKnownRpubs,
+  loadLog,
+  appendEnvelope,
+} from "@/lib/protocol/store";
+import {
+  signBlocks,
+  signComment,
+  signFollows,
+  signLike,
+  signDelete,
+  signGone,
+  signPost,
+  signProfile,
+  signReport,
+  type Envelope,
+  type ProfileBody,
+  type ReactionKind,
+} from "@/lib/protocol/envelope";
+import { MAX_PHOTOS, type MediaRef } from "@/lib/protocol/media";
+import { applyBundle, buildBundle, downloadBundle, parseBundle } from "@/lib/protocol/bundle";
+import {
+  loadVault,
+  saveVault,
+  unwrapVault,
+  wrapSecret,
+  type VaultRecord,
+} from "@/lib/protocol/vault";
+import { ProtocolError } from "@/lib/protocol/errors";
+import { wipeBrowserRita } from "@/lib/protocol/wipe";
+import { fetchStaffBlocks, type StaffBlocks } from "@/lib/protocol/adminBlocks";
+import {
+  assertSingleSession,
+  clearUnlockedRsec,
+  claimSession,
+  heartbeatSession,
+  loadUnlockedRsec,
+  notifySessionExists,
+  releaseSession,
+  saveUnlockedRsec,
+} from "@/lib/protocol/session";
+import { acceptRemoteEnvelope, broadcastEnvelope, listenEnvelopes } from "@/lib/protocol/bus";
+import {
+  ingestMeshPacket,
+  listenMesh,
+  onMeshStatus,
+  onModeration,
+  publishMesh,
+  requestPeerData,
+  type LivePeer,
+} from "@/lib/protocol/mesh";
+import { onMediaStored } from "@/lib/protocol/media";
+import { loadSaves, toggleSaved as toggleSavedStore } from "@/lib/protocol/saves";
+import {
+  allEnvelopes,
+  canEditPost,
+  canMutateComment,
+  commentsOf,
+  imageTarget,
+  isHiddenByReports,
+  isOnline,
+  latestBlocks,
+  MAX_AUTHOR_POSTS,
+  reportedByMe,
+  reportsOf,
+  visiblePostsOf,
+} from "@/lib/protocol/social";
+import { likeStats, loadLikeIndex, mergeLikes, saveLikeIndex, setLike } from "@/lib/protocol/likeIndex";
+
+export type SessionStatus = "anonymous" | "locked" | "ready";
+
+export type Person = {
+  rpub: string;
+  profile: ProfileBody | null;
+  online: boolean;
+  avatarUrl?: string;
+};
+
+export type FeedItem = {
+  event: Envelope;
+  profile: ProfileBody | null;
+  avatarUrl?: string;
+};
+
+type RitaContextValue = {
+  status: SessionStatus;
+  vault: VaultRecord | null;
+  identity: Identity | null;
+  log: Envelope[];
+  posts: Envelope[];
+  feed: FeedItem[];
+  profile: ProfileBody | null;
+  follows: string[];
+  people: Person[];
+  signalOn: boolean;
+  error: string | null;
+  createAccount: (opts: {
+    password: string;
+    name: string;
+    about: string;
+    picture?: MediaRef;
+  }) => Promise<Identity>;
+  importSecret: (secret: string, password: string) => Promise<void>;
+  unlock: (password: string) => Promise<void>;
+  logout: () => void;
+  wipeIdentity: () => Promise<void>;
+  publishPost: (text: string, media?: MediaRef[]) => void;
+  editPost: (post: Envelope, text: string, media?: MediaRef[]) => void;
+  deletePost: (post: Envelope) => void;
+  canEdit: (post: Envelope) => boolean;
+  publishProfile: (profile: ProfileBody) => void;
+  follow: (rpub: string) => void;
+  unfollow: (rpub: string) => void;
+  block: (rpub: string) => void;
+  unblock: (rpub: string) => void;
+  blocks: string[];
+  toggleLike: (target: string, kind: ReactionKind) => void;
+  addComment: (postSig: string, text: string, parent?: string) => void;
+  editComment: (comment: Envelope, text: string) => void;
+  deleteComment: (comment: Envelope) => void;
+  canMutateComment: (comment: Envelope) => boolean;
+  report: (target: string, kind: ReactionKind) => void;
+  toggleSave: (postSig: string) => void;
+  saves: string[];
+  allEvents: Envelope[];
+  likes: (target: string) => { count: number; mine: boolean };
+  comments: (postSig: string) => Envelope[];
+  reports: (target: string) => { count: number; mine: boolean; hidden: boolean };
+  imageTarget: (postSig: string, hash: string) => string;
+  profileOf: (rpub: string) => ProfileBody | null;
+  postsOfRpub: (rpub: string) => Envelope[];
+  personByRpub: (rpub: string) => Person | undefined;
+  askPeerData: (rpub: string) => void;
+  exportPublic: () => Promise<void>;
+  exportBackup: () => Promise<void>;
+  importBundleFile: (file: File) => Promise<{ authors: number; vaultRestored: boolean }>;
+};
+
+const RitaContext = createContext<RitaContextValue | null>(null);
+
+function tryRestoreIdentity(vault: VaultRecord | null): Identity | null {
+  if (!vault) return null;
+  const rsec = loadUnlockedRsec();
+  if (!rsec) return null;
+  try {
+    const identity = fromSecret(parseSecretInput(rsec));
+    if (identity.rpub !== vault.rpub) {
+      clearUnlockedRsec();
+      return null;
+    }
+    if (!claimSession(identity.rpub)) {
+      clearUnlockedRsec();
+      return null;
+    }
+    return identity;
+  } catch {
+    clearUnlockedRsec();
+    return null;
+  }
+}
+
+function personFrom(rpub: string, events: Envelope[]): Person {
+  const profileEnv = latestProfile(loadLog(rpub));
+  return {
+    rpub,
+    profile: profileEnv?.type === "profile" ? profileEnv.body : null,
+    online: isOnline(events, rpub),
+  };
+}
+
+export function RitaProvider({ children }: { children: ReactNode }) {
+  const [vault, setVault] = useState<VaultRecord | null>(() => loadVault());
+  const [identity, setIdentity] = useState<Identity | null>(() => tryRestoreIdentity(loadVault()));
+  const [log, setLog] = useState<Envelope[]>(() => {
+    const restored = tryRestoreIdentity(loadVault());
+    return restored ? loadLog(restored.rpub) : [];
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<SessionStatus>(() => {
+    const currentVault = loadVault();
+    if (tryRestoreIdentity(currentVault)) return "ready";
+    return currentVault ? "locked" : "anonymous";
+  });
+  const [catalog, setCatalog] = useState(0);
+  const [livePeers, setLivePeers] = useState<LivePeer[]>([]);
+  const [signalOn, setSignalOn] = useState(false);
+  const [staffBlocks, setStaffBlocks] = useState<StaffBlocks>({ users: [], comments: [] });
+  const [likeIndex, setLikeIndex] = useState(loadLikeIndex);
+
+  const bump = useCallback(() => setCatalog((n) => n + 1), []);
+
+  const emit = useCallback(
+    (envelope: Envelope) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      const next = appendEnvelope(identity.rpub, envelope);
+      setLog(next);
+      bump();
+      broadcastEnvelope(envelope);
+      void publishMesh(envelope).catch(() => undefined);
+    },
+    [bump, identity],
+  );
+
+  const hydrate = useCallback((next: Identity) => {
+    assertSingleSession(next.rpub);
+    saveUnlockedRsec(next.rsec);
+    const stored = loadLog(next.rpub);
+    setIdentity(next);
+    setLog(stored);
+    setError(null);
+    setStatus("ready");
+    bump();
+  }, [bump]);
+
+  const createAccount = useCallback(
+    async ({
+      password,
+      name,
+      about,
+      picture,
+    }: {
+      password: string;
+      name: string;
+      about: string;
+      picture?: MediaRef;
+    }) => {
+      const next = createIdentity();
+      const record = await wrapSecret(next, password);
+      setVault(record);
+      const profile = signProfile(next, { name: name.trim() || "Rita", about, picture });
+      appendEnvelope(next.rpub, profile);
+      hydrate(next);
+      return next;
+    },
+    [hydrate],
+  );
+
+  const importSecret = useCallback(
+    async (secret: string, password: string) => {
+      const next = fromSecret(parseSecretInput(secret));
+      if (identity?.rpub === next.rpub && status === "ready") {
+        notifySessionExists();
+        throw new ProtocolError("session_exists");
+      }
+      const record = await wrapSecret(next, password);
+      setVault(record);
+      hydrate(next);
+    },
+    [hydrate, identity, status],
+  );
+
+  const unlock = useCallback(
+    async (password: string) => {
+      const record = loadVault();
+      if (!record) {
+        throw new ProtocolError("no_vault");
+      }
+      const next = await unwrapVault(record, password);
+      setVault(record);
+      hydrate(next);
+    },
+    [hydrate],
+  );
+
+  const logout = useCallback(() => {
+    if (identity) releaseSession(identity.rpub);
+    clearUnlockedRsec();
+    setIdentity(null);
+    setLog([]);
+    setStatus(loadVault() ? "locked" : "anonymous");
+    bump();
+  }, [bump, identity]);
+
+  const wipeIdentity = useCallback(async () => {
+    if (identity) {
+      const gone = signGone(identity);
+      broadcastEnvelope(gone);
+      await publishMesh(gone).catch(() => undefined);
+      await new Promise((resolve) => window.setTimeout(resolve, 600));
+      releaseSession(identity.rpub);
+    }
+    clearUnlockedRsec();
+    await wipeBrowserRita();
+    setVault(null);
+    setIdentity(null);
+    setLog([]);
+    setLikeIndex({});
+    setSaves([]);
+    setLivePeers([]);
+    setStatus("anonymous");
+    bump();
+  }, [bump, identity]);
+
+  const publishPost = useCallback(
+    (text: string, media?: MediaRef[]) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      if (!text.trim() && (!media || media.length === 0)) {
+        throw new ProtocolError("empty_post");
+      }
+      if (media && media.length > MAX_PHOTOS) {
+        throw new ProtocolError("media_too_many");
+      }
+      emit(signPost(identity, { text, media }));
+      const extras = visiblePostsOf(loadLog(identity.rpub), identity.rpub).slice(MAX_AUTHOR_POSTS);
+      for (const extra of extras) {
+        if (extra.sig) emit(signDelete(identity, extra.sig));
+      }
+    },
+    [emit, identity],
+  );
+
+  const deletePost = useCallback(
+    (post: Envelope) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      if (post.type !== "post" || !post.sig) throw new ProtocolError("invalid_envelope");
+      if (post.author !== identity.rpub) throw new ProtocolError("cannot_delete_other");
+      emit(signDelete(identity, post.sig));
+    },
+    [emit, identity],
+  );
+
+  const editPost = useCallback(
+    (post: Envelope, text: string, media?: MediaRef[]) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      if (post.type !== "post" || !post.sig) throw new ProtocolError("invalid_envelope");
+      if (post.author !== identity.rpub) throw new ProtocolError("cannot_edit_other");
+      if (!canEditPost(allEnvelopes(), post) && !canEditPost(log, post)) {
+        throw new ProtocolError("edit_too_late");
+      }
+      const nextMedia = media !== undefined ? media : post.body.media;
+      if (!text.trim() && !(nextMedia && nextMedia.length > 0)) {
+        throw new ProtocolError("empty_post");
+      }
+      emit(
+        signPost(identity, {
+          text,
+          media: nextMedia && nextMedia.length > 0 ? nextMedia : undefined,
+          replaces: post.sig,
+        }),
+      );
+    },
+    [emit, identity, log],
+  );
+
+  const canEdit = useCallback(
+    (post: Envelope) => {
+      if (!identity || post.author !== identity.rpub) return false;
+      return canEditPost(allEnvelopes(), post) || canEditPost(log, post);
+    },
+    [identity, log],
+  );
+
+  const publishProfile = useCallback(
+    (profile: ProfileBody) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      emit(signProfile(identity, profile));
+    },
+    [emit, identity],
+  );
+
+  const follows = latestFollows(log);
+
+  const follow = useCallback(
+    (raw: string) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      parseRpub(raw);
+      const rpub = raw.trim();
+      if (rpub === identity.rpub) throw new ProtocolError("cannot_follow_self");
+      const next = [...new Set([...follows, rpub])];
+      emit(signFollows(identity, next));
+    },
+    [emit, follows, identity],
+  );
+
+  const unfollow = useCallback(
+    (rpub: string) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      emit(signFollows(identity, follows.filter((item) => item !== rpub)));
+    },
+    [emit, follows, identity],
+  );
+
+  const blocks = latestBlocks(log);
+
+  const block = useCallback(
+    (raw: string) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      parseRpub(raw);
+      const rpub = raw.trim();
+      if (rpub === identity.rpub) throw new ProtocolError("cannot_block_self");
+      emit(signBlocks(identity, [...blocks, rpub]));
+      if (follows.includes(rpub)) emit(signFollows(identity, follows.filter((item) => item !== rpub)));
+    },
+    [blocks, emit, follows, identity],
+  );
+
+  const unblock = useCallback(
+    (rpub: string) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      emit(signBlocks(identity, blocks.filter((item) => item !== rpub)));
+    },
+    [blocks, emit, identity],
+  );
+
+  const toggleLike = useCallback(
+    (target: string, kind: ReactionKind) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      const mine = likeStats(likeIndex, target, identity.rpub).mine;
+      const next = setLike(likeIndex, target, identity.rpub, !mine);
+      saveLikeIndex(next);
+      setLikeIndex(next);
+      emit(signLike(identity, { target, kind, on: !mine }));
+    },
+    [emit, identity, likeIndex],
+  );
+
+  const addComment = useCallback(
+    (postSig: string, text: string, parent?: string) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      if (!text.trim()) throw new ProtocolError("empty_comment");
+      emit(signComment(identity, { target: postSig, text, parent }));
+    },
+    [emit, identity],
+  );
+
+  const editComment = useCallback(
+    (comment: Envelope, text: string) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      if (comment.type !== "comment" || !comment.sig) throw new ProtocolError("invalid_envelope");
+      if (comment.author !== identity.rpub) throw new ProtocolError("cannot_edit_other");
+      if (!canMutateComment(allEnvelopes(), comment) && !canMutateComment(log, comment)) {
+        throw new ProtocolError("comment_too_late");
+      }
+      if (!text.trim()) throw new ProtocolError("empty_comment");
+      emit(
+        signComment(identity, {
+          target: comment.body.target,
+          text,
+          parent: comment.body.parent,
+          replaces: comment.sig,
+        }),
+      );
+    },
+    [emit, identity, log],
+  );
+
+  const deleteComment = useCallback(
+    (comment: Envelope) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      if (comment.type !== "comment" || !comment.sig) throw new ProtocolError("invalid_envelope");
+      if (comment.author !== identity.rpub) throw new ProtocolError("cannot_delete_other");
+      if (!canMutateComment(allEnvelopes(), comment) && !canMutateComment(log, comment)) {
+        throw new ProtocolError("comment_too_late");
+      }
+      emit(signDelete(identity, comment.sig));
+    },
+    [emit, identity, log],
+  );
+
+  const canChangeComment = useCallback(
+    (comment: Envelope) => {
+      if (!identity || comment.author !== identity.rpub) return false;
+      return canMutateComment(allEnvelopes(), comment) || canMutateComment(log, comment);
+    },
+    [identity, log],
+  );
+
+  const report = useCallback(
+    (target: string, kind: ReactionKind) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      const mine = reportedByMe(allEnvelopes(), target, identity.rpub);
+      emit(signReport(identity, { target, kind, on: !mine }));
+    },
+    [emit, identity],
+  );
+
+  const [saves, setSaves] = useState<string[]>(() => []);
+  useEffect(() => {
+    setSaves(identity ? loadSaves(identity.rpub) : []);
+  }, [identity]);
+
+  const toggleSave = useCallback(
+    (postSig: string) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      setSaves(toggleSavedStore(identity.rpub, postSig));
+    },
+    [identity],
+  );
+
+  const profileOf = useCallback(
+    (rpub: string) => {
+      const local = personFrom(rpub, allEnvelopes()).profile;
+      const peer = livePeers.find((item) => item.rpub === rpub);
+      if (!local && !peer) return null;
+      return {
+        name: local?.name || peer?.name || "",
+        about: local?.about ?? "",
+        picture: local?.picture,
+        interests: local?.interests?.length ? local.interests : peer?.interests,
+      };
+    },
+    [catalog, livePeers],
+  );
+
+  const postsOfRpub = useCallback((rpub: string) => visiblePostsOf(loadLog(rpub), rpub), [catalog]);
+
+  const exportPublic = useCallback(async () => {
+    if (!identity) throw new ProtocolError("not_unlocked");
+    const bundle = await buildBundle({ kind: "public", rpubs: [identity.rpub] });
+    downloadBundle(bundle, `magicrita-${identity.rpub.slice(0, 12)}.json`);
+  }, [identity]);
+
+  const exportBackup = useCallback(async () => {
+    if (!identity) throw new ProtocolError("not_unlocked");
+    const rpubs = [...new Set([identity.rpub, ...listKnownRpubs()])];
+    const bundle = await buildBundle({
+      kind: "backup",
+      rpubs,
+      vault: vault ?? undefined,
+    });
+    downloadBundle(bundle, `magicrita-backup-${Date.now()}.json`);
+  }, [identity, vault]);
+
+  const importBundleFile = useCallback(
+    async (file: File) => {
+      const text = await file.text();
+      const bundle = parseBundle(text);
+      if (bundle.kind === "backup" && bundle.vault) {
+        if (identity && identity.rpub !== bundle.vault.rpub) {
+          throw new ProtocolError("backup_conflict");
+        }
+        saveVault(bundle.vault);
+        setVault(bundle.vault);
+        if (!identity) setStatus("locked");
+      }
+      const authors = await applyBundle(bundle);
+      if (identity) {
+        setLog(loadLog(identity.rpub));
+      }
+      bump();
+      return {
+        authors: authors.length,
+        vaultRestored: Boolean(bundle.kind === "backup" && bundle.vault),
+      };
+    },
+    [bump, identity],
+  );
+
+  useEffect(() => {
+    return listenEnvelopes((envelope) => {
+      if (acceptRemoteEnvelope(envelope)) bump();
+    });
+  }, [bump]);
+
+  useEffect(() => {
+    if (status !== "ready" || !identity) return;
+    heartbeatSession(identity.rpub);
+    const timer = window.setInterval(() => heartbeatSession(identity.rpub), 4000);
+    return () => window.clearInterval(timer);
+  }, [identity, status]);
+
+  const profileEnvelope = latestProfile(log);
+  const profile = profileEnvelope?.type === "profile" ? profileEnvelope.body : null;
+  const posts = visiblePostsOf(log, identity?.rpub);
+
+  useEffect(() => {
+    if (status !== "ready" || !identity) return;
+    const meta = latestProfile(loadLog(identity.rpub));
+    const stopMesh = listenMesh(
+      {
+        rpub: identity.rpub,
+        name: (meta?.type === "profile" ? meta.body.name : "") || "",
+        interests: meta?.type === "profile" ? (meta.body.interests ?? []) : [],
+      },
+      (packet) => {
+        void ingestMeshPacket(packet).then((changed) => {
+          if (!changed) return;
+          if (packet.envelope.type === "gone") {
+            setLikeIndex(loadLikeIndex());
+            setSaves(loadSaves(identity.rpub));
+          }
+          bump();
+        });
+      },
+      setLivePeers,
+    );
+    const stopStatus = onMeshStatus(setSignalOn);
+    const stopMod = onModeration(setStaffBlocks);
+    return () => {
+      stopMesh();
+      stopStatus();
+      stopMod();
+    };
+  }, [bump, identity?.rpub, status]);
+
+  useEffect(() => {
+    void fetchStaffBlocks().then(setStaffBlocks);
+  }, []);
+
+  useEffect(() => onMediaStored(() => bump()), [bump]);
+  const allEvents = useMemo(() => {
+    const map = new Map<string, Envelope>();
+    for (const event of allEnvelopes()) {
+      if (event.sig) map.set(event.sig, event);
+    }
+    for (const event of log) {
+      if (event.sig) map.set(event.sig, event);
+    }
+    return [...map.values()];
+  }, [catalog, log]);
+
+  const likes = useCallback(
+    (target: string) => likeStats(likeIndex, target, identity?.rpub ?? null),
+    [identity, likeIndex],
+  );
+
+  useEffect(() => {
+    setLikeIndex((prev) => {
+      const merged = mergeLikes(prev, allEvents);
+      if (JSON.stringify(merged) === JSON.stringify(prev)) return prev;
+      saveLikeIndex(merged);
+      return merged;
+    });
+  }, [allEvents]);
+
+  const comments = useCallback(
+    (postSig: string) =>
+      commentsOf(allEvents, postSig).filter(
+        (item) => !staffBlocks.users.includes(item.author) && !staffBlocks.comments.includes(item.sig),
+      ),
+    [allEvents, staffBlocks],
+  );
+
+  const reports = useCallback(
+    (target: string) => ({
+      count: reportsOf(allEvents, target).size,
+      mine: reportedByMe(allEvents, target, identity?.rpub ?? null),
+      hidden: isHiddenByReports(allEvents, target),
+    }),
+    [allEvents, identity],
+  );
+
+  const people = useMemo(() => {
+    const list: Person[] = [];
+    const seen = new Set<string>();
+    if (identity) {
+      seen.add(identity.rpub);
+      list.push({
+        rpub: identity.rpub,
+        online: true,
+        profile: profile ?? personFrom(identity.rpub, allEvents).profile,
+        avatarUrl: undefined,
+      });
+    }
+    for (const peer of livePeers) {
+      if (
+        seen.has(peer.rpub) ||
+        blocks.includes(peer.rpub) ||
+        staffBlocks.users.includes(peer.rpub) ||
+        authorIsGone(peer.rpub)
+      )
+        continue;
+      seen.add(peer.rpub);
+      const base = personFrom(peer.rpub, allEvents);
+      list.push({
+        rpub: peer.rpub,
+        online: true,
+        avatarUrl: peer.avatar,
+        profile: {
+          name: peer.name || base.profile?.name || "",
+          about: base.profile?.about ?? "",
+          picture: base.profile?.picture,
+          interests: peer.interests.length ? peer.interests : base.profile?.interests,
+        },
+      });
+    }
+    for (const rpub of follows) {
+      if (seen.has(rpub) || blocks.includes(rpub) || staffBlocks.users.includes(rpub) || authorIsGone(rpub)) continue;
+      seen.add(rpub);
+      list.push({ ...personFrom(rpub, allEvents), online: false });
+    }
+    return list;
+  }, [allEvents, blocks, follows, identity, livePeers, profile, signalOn, staffBlocks]);
+
+  const personByRpub = useCallback(
+    (rpub: string) => people.find((person) => person.rpub === rpub),
+    [people],
+  );
+
+  const askPeerData = useCallback((rpub: string) => {
+    requestPeerData(rpub);
+  }, []);
+
+  const feed = useMemo(() => {
+    const items: FeedItem[] = [];
+    for (const event of visiblePostsOf(allEvents)) {
+      if (blocks.includes(event.author) || staffBlocks.users.includes(event.author)) continue;
+      if (staffBlocks.comments.includes(event.sig)) continue;
+      const peer = livePeers.find((item) => item.rpub === event.author);
+      items.push({
+        event,
+        profile: personFrom(event.author, allEvents).profile,
+        avatarUrl: peer?.avatar,
+      });
+    }
+    return items;
+  }, [allEvents, blocks, livePeers, staffBlocks]);
+
+  const value = useMemo<RitaContextValue>(
+    () => ({
+      status,
+      vault,
+      identity,
+      log,
+      posts,
+      feed,
+      profile,
+      follows,
+      people,
+      signalOn,
+      error,
+      createAccount,
+      importSecret,
+      unlock,
+      logout,
+      wipeIdentity,
+      publishPost,
+      editPost,
+      deletePost,
+      canEdit,
+      publishProfile,
+      follow,
+      unfollow,
+      block,
+      unblock,
+      blocks,
+      toggleLike,
+      addComment,
+      editComment,
+      deleteComment,
+      canMutateComment: canChangeComment,
+      report,
+      toggleSave,
+      saves,
+      allEvents,
+      likes,
+      comments,
+      reports,
+      imageTarget,
+      profileOf,
+      postsOfRpub,
+      personByRpub,
+      askPeerData,
+      exportPublic,
+      exportBackup,
+      importBundleFile,
+    }),
+    [
+      createAccount,
+      error,
+      exportBackup,
+      exportPublic,
+      feed,
+      addComment,
+      canChangeComment,
+      deleteComment,
+      editComment,
+      allEvents,
+      block,
+      blocks,
+      comments,
+      follow,
+      follows,
+      identity,
+      likes,
+      importBundleFile,
+      importSecret,
+      log,
+      logout,
+      wipeIdentity,
+      people,
+      signalOn,
+      posts,
+      postsOfRpub,
+      profile,
+      profileOf,
+      personByRpub,
+      askPeerData,
+      canEdit,
+      deletePost,
+      editPost,
+      publishPost,
+      publishProfile,
+      report,
+      reports,
+      saves,
+      status,
+      toggleLike,
+      toggleSave,
+      unblock,
+      unfollow,
+      likeIndex,
+      unlock,
+      vault,
+    ],
+  );
+
+  return <RitaContext.Provider value={value}>{children}</RitaContext.Provider>;
+}
+
+export function useRita(): RitaContextValue {
+  const ctx = useContext(RitaContext);
+  if (!ctx) {
+    throw new Error("useRita debe usarse dentro de RitaProvider");
+  }
+  return ctx;
+}
