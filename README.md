@@ -133,7 +133,7 @@ Si la señal está en otro host:
 VITE_SIGNAL_URL=wss://tu-dominio/signal/ npm run build
 ```
 
-4. Arranca el señalizador y sirve la carpeta `dist/` con nginx. Detalle de nginx, HTTPS y systemd: `docs/VPS.md`.
+4. Arranca el señalizador y sirve la carpeta `dist/` con nginx. Instalación en Ubuntu (comandos uno a uno): `docs/INSTALAR-VPS.md`. Relé, nginx y systemd: `docs/VPS.md`.
 
 Resumen mínimo:
 
