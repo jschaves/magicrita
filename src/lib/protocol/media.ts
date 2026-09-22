@@ -84,7 +84,7 @@ function tightBuffer(bytes: Uint8Array): ArrayBuffer {
 function blobFromBytes(bytes: Uint8Array, mime: string): Blob {
   const copy = new Uint8Array(bytes.byteLength);
   copy.set(bytes);
-  return new Blob([copy.buffer], { type: mime || "application/octet-stream" });
+  return new Blob([copy], { type: mime || "application/octet-stream" });
 }
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -365,7 +365,9 @@ export async function putMediaTier(hash: string, tier: "mq" | "hq", mime: string
     return;
   }
   await putRecord(mqKey(hash), mime || "image/jpeg", bytes);
-  rememberLiveUrl(hash, URL.createObjectURL(blobFromBytes(bytes, mime || "image/jpeg")));
+  if (!livePhotoUrl(hash)) {
+    rememberLiveUrl(hash, URL.createObjectURL(blobFromBytes(bytes, mime || "image/jpeg")));
+  }
   notifyMedia(hash);
 }
 
