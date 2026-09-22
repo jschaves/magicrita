@@ -277,60 +277,30 @@ async function waitDrain(channel: RTCDataChannel): Promise<boolean> {
   return channel.readyState === "open";
 }
 
-function binChunkSize(channel: RTCDataChannel): number {
-  const reported = Number((channel as RTCDataChannel & { maxMessageSize?: number }).maxMessageSize);
-  const cap = Number.isFinite(reported) && reported > 4096 ? reported : 65_536;
-  return Math.max(8_192, Math.min(48_000, cap - 256));
-}
-
-function sendBinary(channel: RTCDataChannel, bytes: Uint8Array): boolean {
-  if (channel.readyState !== "open") return false;
-  try {
-    const copy = new Uint8Array(bytes.byteLength);
-    copy.set(bytes);
-    channel.send(copy);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 async function sendBlobFromBytes(
   channel: RTCDataChannel,
   ref: MediaRef,
   bytes: Uint8Array,
   tier: "mq" | "hq" = "hq",
 ): Promise<boolean> {
-  const chunk = binChunkSize(channel);
+  const max = dcLimit(channel);
+  const rawChunk = Math.max(900, Math.floor((max - 220) * 3 / 4));
+  const chunk = rawChunk - (rawChunk % 3);
   const n = Math.max(1, Math.ceil(bytes.length / chunk));
   for (let i = 0; i < n; i++) {
     if (!(await waitDrain(channel))) return false;
     const slice = bytes.subarray(i * chunk, (i + 1) * chunk);
-    const header = JSON.stringify({
-      type: "media-bin",
+    const payload = JSON.stringify({
+      type: "media",
       hash: ref.hash,
       mime: ref.mime,
       name: (ref.name ?? "").slice(0, 80),
       tier,
       i,
       n,
-      bytes: slice.byteLength,
+      data: bytesToBase64(slice),
     });
-    if (sendRaw(channel, header) && sendBinary(channel, slice)) continue;
-    const ok = sendRaw(
-      channel,
-      JSON.stringify({
-        type: "media",
-        hash: ref.hash,
-        mime: ref.mime,
-        name: (ref.name ?? "").slice(0, 80),
-        tier,
-        i,
-        n,
-        data: bytesToBase64(slice),
-      }),
-    );
-    if (!ok) return false;
+    if (!sendRaw(channel, payload, max)) return false;
   }
   return true;
 }
@@ -484,6 +454,7 @@ async function takeMediaPart(msg: {
     if (tier === "mq") await putMediaTier(msg.hash, "mq", slot.mime, bytes);
     else await putMediaBytes({ hash: msg.hash, mime: slot.mime, name: slot.name }, bytes);
   } catch {
+    if (slot.mime.startsWith("audio/") || slot.mime.startsWith("video/")) return;
     try {
       await putMediaTier(msg.hash, "mq", slot.mime, bytes);
     } catch {
@@ -677,32 +648,10 @@ function setupChannel(rpub: string, channel: RTCDataChannel) {
   };
   channel.onopen = boot;
   if (channel.readyState === "open") boot();
-  let pendingBin: {
-    hash: string;
-    mime?: string;
-    name?: string;
-    tier?: string;
-    i: number;
-    n: number;
-    bytes?: number;
-  } | null = null;
   channel.onmessage = (event) => {
     try {
-      if (event.data instanceof ArrayBuffer || ArrayBuffer.isView(event.data)) {
-        const raw =
-          event.data instanceof ArrayBuffer
-            ? new Uint8Array(event.data)
-            : new Uint8Array(event.data.buffer, event.data.byteOffset, event.data.byteLength);
-        const header = pendingBin;
-        pendingBin = null;
-        if (header) void takeMediaPart({ ...header, raw });
-        return;
-      }
       const text = typeof event.data === "string" ? event.data : "";
-      if (!text) {
-        pendingBin = null;
-        return;
-      }
+      if (!text) return;
       const parsed = JSON.parse(text) as {
         type?: string;
         id?: string;
@@ -717,19 +666,6 @@ function setupChannel(rpub: string, channel: RTCDataChannel) {
         envelope?: MeshPacket["envelope"];
         media?: MeshPacket["media"];
       };
-      if (parsed?.type === "media-bin" && typeof parsed.hash === "string" && typeof parsed.i === "number" && typeof parsed.n === "number") {
-        pendingBin = {
-          hash: parsed.hash,
-          mime: parsed.mime,
-          name: parsed.name,
-          tier: parsed.tier,
-          i: parsed.i,
-          n: parsed.n,
-          bytes: parsed.bytes,
-        };
-        return;
-      }
-      pendingBin = null;
       if (parsed?.type === "need-data") {
         void flushTo(channel);
         return;
@@ -761,7 +697,7 @@ function setupChannel(rpub: string, channel: RTCDataChannel) {
       if (!parsed?.envelope || !isEnvelope(parsed.envelope) || !verifyEnvelope(parsed.envelope)) return;
       packetHandler?.({ envelope: parsed.envelope, media: parsed.media });
     } catch {
-      pendingBin = null;
+      // ignore
     }
   };
   channel.onclose = () => {

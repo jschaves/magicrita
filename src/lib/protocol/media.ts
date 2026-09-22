@@ -381,12 +381,33 @@ export function peekRamPhotoUrl(hash: string): string | null {
   return url;
 }
 
+export async function loadVerifiedBlob(hash: string, mimeHint?: string): Promise<Blob | null> {
+  const rec = await loadMediaRecord(hash);
+  if (!rec?.bytes) return null;
+  const bytes = new Uint8Array(rec.bytes.byteLength);
+  bytes.set(new Uint8Array(rec.bytes));
+  if (bytesToHex(sha256(bytes)) !== hash) return null;
+  let mime = (rec.mime || mimeHint || "").split(";")[0];
+  if (bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
+    mime = "audio/wav";
+  } else if (bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) {
+    mime = mimeHint?.startsWith("audio/") ? "audio/webm" : "video/webm";
+  } else if (bytes.length >= 12 && bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
+    mime = "video/mp4";
+  }
+  if (!mime) mime = mimeHint || "application/octet-stream";
+  return blobFromBytes(bytes, mime);
+}
+
 export async function ensurePhotoSrc(hash: string, fresh = false, mimeHint?: string): Promise<string | null> {
+  const clip = Boolean(mimeHint?.startsWith("audio/") || mimeHint?.startsWith("video/"));
   if (!fresh) {
     const existing = livePhotoUrl(hash);
     if (existing) return existing;
   }
-  const rec = (await loadMediaRecord(hash)) ?? (await loadMediaRecord(mqKey(hash)));
+  const rec = clip
+    ? await loadMediaRecord(hash)
+    : (await loadMediaRecord(hash)) ?? (await loadMediaRecord(mqKey(hash)));
   if (!rec?.bytes) return null;
   const stored = (rec.mime || "").split(";")[0];
   const hint = (mimeHint || "").split(";")[0];

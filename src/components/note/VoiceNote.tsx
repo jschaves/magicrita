@@ -1,18 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
-import { loadMediaRecord, onMediaStored, type MediaRef } from "@/lib/protocol/media";
+import { loadVerifiedBlob, onMediaStored, type MediaRef } from "@/lib/protocol/media";
 import { requestMedia } from "@/lib/protocol/mesh";
 
-function copyBuffer(bytes: ArrayBuffer | Uint8Array): ArrayBuffer {
-  const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  const copy = new Uint8Array(view.byteLength);
-  copy.set(view);
-  return copy.buffer;
-}
-
 function fmt(secs: number): string {
-  const s = Math.max(0, Math.floor(secs));
+  const s = Math.max(0, Math.floor(Number.isFinite(secs) ? secs : 0));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
@@ -28,136 +21,92 @@ export function VoiceNote({
   removeLabel?: string;
 }) {
   const { t } = useI18n();
-  const [ready, setReady] = useState(false);
+  const node = useRef<HTMLAudioElement>(null);
+  const urlRef = useRef<string | null>(null);
+  const [src, setSrc] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [pos, setPos] = useState(0);
   const [dur, setDur] = useState(0);
-  const ctxRef = useRef<AudioContext | null>(null);
-  const bufRef = useRef<AudioBuffer | null>(null);
-  const srcRef = useRef<AudioBufferSourceNode | null>(null);
-  const startedAt = useRef(0);
-  const offsetRef = useRef(0);
-  const raf = useRef(0);
-  const playingRef = useRef(false);
 
   useEffect(() => {
     let alive = true;
-    const Ctx =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return;
-
-    const load = async () => {
-      const rec = await loadMediaRecord(media.hash);
+    const pull = async () => {
+      const blob = await loadVerifiedBlob(media.hash, media.mime);
       if (!alive) return;
-      if (!rec?.bytes) {
+      if (!blob) {
         requestMedia(media.hash);
         return;
       }
-      if (!ctxRef.current) ctxRef.current = new Ctx();
-      const ctx = ctxRef.current;
-      try {
-        const buf = await ctx.decodeAudioData(copyBuffer(rec.bytes));
-        if (!alive) return;
-        bufRef.current = buf;
-        setDur(buf.duration);
-        setReady(true);
-      } catch {
-        if (alive) setReady(false);
-      }
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      const url = URL.createObjectURL(blob);
+      urlRef.current = url;
+      setSrc(url);
     };
-
-    void load();
+    void pull();
     const stop = onMediaStored((hash) => {
-      if (hash === media.hash) void load();
+      if (hash === media.hash) void pull();
     });
     const retry = window.setInterval(() => {
-      if (!alive || bufRef.current) return;
+      if (!alive || urlRef.current) return;
       requestMedia(media.hash);
-      void load();
-    }, 3000);
+      void pull();
+    }, 2500);
     return () => {
       alive = false;
       stop();
       window.clearInterval(retry);
-      playingRef.current = false;
-      cancelAnimationFrame(raf.current);
-      try {
-        srcRef.current?.stop();
-      } catch {
-        // already stopped
-      }
-      srcRef.current = null;
-      void ctxRef.current?.close();
-      ctxRef.current = null;
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = null;
     };
-  }, [media.hash]);
+  }, [media.hash, media.mime]);
 
-  function tick() {
-    const ctx = ctxRef.current;
-    const buf = bufRef.current;
-    if (!ctx || !buf || !playingRef.current) return;
-    const t = offsetRef.current + (ctx.currentTime - startedAt.current);
-    if (t >= buf.duration) {
-      playingRef.current = false;
-      setPlaying(false);
-      offsetRef.current = 0;
-      setPos(0);
-      return;
-    }
-    setPos(t);
-    raf.current = requestAnimationFrame(tick);
-  }
+  useEffect(() => {
+    const el = node.current;
+    if (!el || !src) return;
+    el.src = src;
+  }, [src]);
 
   async function toggle() {
-    const ctx = ctxRef.current;
-    const buf = bufRef.current;
-    if (!ctx || !buf) return;
-    if (ctx.state === "suspended") await ctx.resume();
-    if (playingRef.current) {
-      try {
-        srcRef.current?.stop();
-      } catch {
-        // ignore
+    const el = node.current;
+    if (!el) return;
+    try {
+      if (el.paused) {
+        await el.play();
+        setPlaying(true);
+      } else {
+        el.pause();
+        setPlaying(false);
       }
-      srcRef.current = null;
-      offsetRef.current = Math.min(buf.duration, offsetRef.current + (ctx.currentTime - startedAt.current));
-      playingRef.current = false;
+    } catch {
       setPlaying(false);
-      cancelAnimationFrame(raf.current);
-      return;
     }
-    const node = ctx.createBufferSource();
-    node.buffer = buf;
-    node.connect(ctx.destination);
-    const off = offsetRef.current >= buf.duration - 0.05 ? 0 : offsetRef.current;
-    offsetRef.current = off;
-    startedAt.current = ctx.currentTime;
-    node.onended = () => {
-      if (srcRef.current !== node) return;
-      playingRef.current = false;
-      srcRef.current = null;
-      offsetRef.current = 0;
-      setPlaying(false);
-      setPos(0);
-    };
-    node.start(0, off);
-    srcRef.current = node;
-    playingRef.current = true;
-    setPlaying(true);
-    raf.current = requestAnimationFrame(tick);
   }
 
   const ink = light ? "text-cream" : "text-ink";
   const bar = light ? "bg-cream/30" : "bg-line";
   const fill = light ? "bg-cream" : "bg-accent";
 
-  if (!ready) {
+  if (!src) {
     return <p className={`text-xs ${light ? "text-cream/70" : "text-muted"}`}>{t("live.voiceWait")}</p>;
   }
 
   return (
     <span className="block">
+      <audio
+        ref={node}
+        preload="auto"
+        className="hidden"
+        onTimeUpdate={(event) => setPos(event.currentTarget.currentTime)}
+        onLoadedMetadata={(event) => setDur(event.currentTarget.duration)}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => {
+          setPlaying(false);
+          setPos(0);
+          const el = node.current;
+          if (el) el.currentTime = 0;
+        }}
+      />
       <span className={`flex items-center gap-2 ${ink}`}>
         <button
           type="button"
@@ -173,9 +122,7 @@ export function VoiceNote({
             style={{ width: `${dur ? Math.min(100, (pos / dur) * 100) : 0}%` }}
           />
         </span>
-        <span className="w-10 text-[11px] font-semibold tabular-nums">
-          {fmt(playing ? pos : dur)}
-        </span>
+        <span className="w-10 text-[11px] font-semibold tabular-nums">{fmt(playing ? pos : dur)}</span>
       </span>
       {onRemove ? (
         <button

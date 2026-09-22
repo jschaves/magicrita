@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Play } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
-import { ensurePhotoSrc, onMediaStored, type MediaRef } from "@/lib/protocol/media";
+import { loadVerifiedBlob, onMediaStored, type MediaRef } from "@/lib/protocol/media";
 import { requestMedia } from "@/lib/protocol/mesh";
 
 export function VideoNote({
@@ -15,43 +15,46 @@ export function VideoNote({
 }) {
   const { t } = useI18n();
   const node = useRef<HTMLVideoElement>(null);
+  const urlRef = useRef<string | null>(null);
   const [src, setSrc] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
-  const mime = media.mime?.startsWith("video/") ? media.mime.split(";")[0] : "video/webm";
 
   useEffect(() => {
     let alive = true;
-    const show = (url: string | null) => {
-      if (alive && url) setSrc(url);
+    const pull = async () => {
+      const blob = await loadVerifiedBlob(media.hash, media.mime);
+      if (!alive) return;
+      if (!blob) {
+        requestMedia(media.hash);
+        return;
+      }
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      const url = URL.createObjectURL(blob);
+      urlRef.current = url;
+      setSrc(url);
     };
-    const pull = () => {
-      void ensurePhotoSrc(media.hash, false, mime).then((url) => {
-        if (url) show(url);
-        else requestMedia(media.hash);
-      });
-    };
-    pull();
+    void pull();
     const stop = onMediaStored((hash) => {
-      if (hash !== media.hash) return;
-      void ensurePhotoSrc(media.hash, true, mime).then(show);
+      if (hash === media.hash) void pull();
     });
     const retry = window.setInterval(() => {
-      if (!alive) return;
-      pull();
-    }, 3000);
+      if (!alive || urlRef.current) return;
+      requestMedia(media.hash);
+      void pull();
+    }, 2500);
     return () => {
       alive = false;
       stop();
       window.clearInterval(retry);
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = null;
     };
-  }, [media.hash, mime]);
+  }, [media.hash, media.mime]);
 
   useEffect(() => {
     const el = node.current;
     if (!el || !src) return;
-    if (el.getAttribute("src") !== src) {
-      el.src = src;
-    }
+    el.src = src;
   }, [src]);
 
   async function toggle() {
