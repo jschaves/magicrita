@@ -2,8 +2,6 @@ import { ProtocolError } from "./errors";
 
 const ATTEMPTS_KEY = "magicrita.signup.attempts";
 const LAST_CREATED_KEY = "magicrita.signup.lastCreated";
-export const SIGNUP_KEEP = new Set([ATTEMPTS_KEY, LAST_CREATED_KEY, "magicrita.locale", "magicrita.betaInvite"]);
-
 const ATTEMPT_WINDOW_MS = 20 * 60 * 1000;
 const MAX_ATTEMPTS = 3;
 const SUCCESS_COOLDOWN_MS = 12 * 60 * 60 * 1000;
@@ -36,12 +34,8 @@ function minutesFrom(ts: number): number {
 
 export function hasLocalAccount(): boolean {
   try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key || !key.startsWith("magicrita.")) continue;
-      if (SIGNUP_KEEP.has(key)) continue;
-      return true;
-    }
+    if (localStorage.getItem("magicrita.vault")) return true;
+    if (localStorage.getItem("magicrita.unlockedLive")) return true;
   } catch {
     return false;
   }

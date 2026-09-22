@@ -1,4 +1,4 @@
-import { base64ToBytes, blobToBase64, bytesToBase64, concatBytes } from "./bytes";
+import { base64ToBytes, bytesToBase64, concatBytes } from "./bytes";
 import { isEnvelope, mediaRefsOf, verifyEnvelope, type Envelope } from "./envelope";
 import {
   loadMediaRecord,
@@ -7,6 +7,7 @@ import {
   notifyMedia,
   putMediaBytes,
   putMediaTier,
+  storeClip,
   rememberPreview,
   type MediaRef,
 } from "./media";
@@ -122,48 +123,19 @@ function sendSignal(msg: object) {
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(msg));
 }
 
-async function pushBlobViaSignal(to: string, hash: string, rec: { mime: string; bytes: ArrayBuffer }): Promise<void> {
-  const view = rec.bytes instanceof Uint8Array ? rec.bytes : new Uint8Array(rec.bytes);
-  const bytes = view.slice();
-  if (bytes.length < 32) return;
-  const mime = rec.mime || "application/octet-stream";
-  const piece = 48_000;
-  const n = Math.max(1, Math.ceil(bytes.length / piece));
-  for (let i = 0; i < n; i++) {
-    const slice = bytes.subarray(i * piece, (i + 1) * piece);
-    sendSignal({
-      type: "blob",
-      to,
-      hash,
-      mime,
-      tier: "hq",
-      i,
-      n,
-      size: bytes.length,
-      data: bytesToBase64(slice),
-    });
-    if (i % 4 === 3) await new Promise((resolve) => window.setTimeout(resolve, 0));
-  }
-}
-
 async function pushMediaViaSignal(to: string, hash: string): Promise<void> {
   if (!to || !hash || to === self?.rpub) return;
   const rec = (await loadMediaRecord(hash)) ?? (await loadMediaRecord(mqKey(hash)));
   if (!rec) return;
-  const bytes = new Uint8Array(rec.bytes);
-  if (bytes.length < 32) return;
+  const bytes = clipBytes(rec.bytes);
+  if (bytes.length < 16) return;
   const mime = rec.mime || "image/jpeg";
-  if (mime.startsWith("audio/") || mime.startsWith("video/")) {
-    await pushBlobViaSignal(to, hash, rec);
-    return;
-  }
-  const b64 = await blobToBase64(new Blob([bytes], { type: mime }));
   sendSignal({
     type: "pic",
     to,
     hash,
     mime,
-    data: b64,
+    data: bytesToBase64(bytes),
   });
 }
 
@@ -226,10 +198,17 @@ function holdForOffline(envelope: Envelope) {
   }
 }
 
+function requestClips(envelope: Envelope): void {
+  for (const ref of mediaRefsOf(envelope)) {
+    if (ref.mime.startsWith("audio/") || ref.mime.startsWith("video/")) requestMedia(ref.hash);
+  }
+}
+
 function takeHeld(envelopes: Envelope[]) {
   for (const envelope of envelopes) {
     if (!isEnvelope(envelope) || !verifyEnvelope(envelope)) continue;
     packetHandler?.({ envelope });
+    requestClips(envelope);
   }
 }
 
@@ -286,9 +265,8 @@ async function sendBlobFromBytes(
   tier: "mq" | "hq" = "hq",
 ): Promise<boolean> {
   const max = dcLimit(channel);
-  const forB64 = Math.max(600, max - 400);
-  const chunk = Math.max(3, Math.floor(forB64 * 3 / 4) - (Math.floor(forB64 * 3 / 4) % 3));
-  const body = bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength ? bytes : bytes.slice();
+  const chunk = 1998;
+  const body = bytes.slice();
   const n = Math.max(1, Math.ceil(body.length / chunk));
   for (let i = 0; i < n; i++) {
     if (!(await waitDrain(channel))) return false;
@@ -303,7 +281,7 @@ async function sendBlobFromBytes(
       n,
       data: bytesToBase64(slice),
     });
-    if (!sendRaw(channel, payload, max)) return false;
+    if (payload.length > max || !sendRaw(channel, payload, max)) return false;
   }
   return true;
 }
@@ -369,36 +347,34 @@ async function sendEnvelopeJson(channel: RTCDataChannel, envelope: Envelope): Pr
 
 async function sendEnvelope(channel: RTCDataChannel, envelope: Envelope, attachMedia = true): Promise<boolean> {
   try {
+    let ok = true;
     await queueChannel(channel, async () => {
-      if (!(await sendEnvelopeJson(channel, envelope))) return;
+      if (!(await sendEnvelopeJson(channel, envelope))) {
+        ok = false;
+        return;
+      }
       for (const ref of mediaRefsOf(envelope)) {
-        if (channel.readyState !== "open") return;
+        if (channel.readyState !== "open") {
+          ok = false;
+          return;
+        }
         const preview = loadPreview(ref.hash);
         if (preview) await sendPreview(channel, ref.hash, preview);
         if (!attachMedia) continue;
-        const clip = ref.mime.startsWith("video/") || ref.mime.startsWith("audio/");
-        if (!clip) {
-          const mid = await loadMediaRecord(mqKey(ref.hash));
-          if (mid) {
-            await sendBlobFromBytes(
-              channel,
-              { hash: ref.hash, mime: mid.mime, name: ref.name },
-              new Uint8Array(mid.bytes),
-              "mq",
-            );
-          }
-        }
         const record = await loadMediaRecord(ref.hash);
         if (!record) continue;
-        await sendBlobFromBytes(
+        const mime = record.mime || ref.mime || "";
+        if (mime.startsWith("audio/") || mime.startsWith("video/")) continue;
+        const sent = await sendBlobFromBytes(
           channel,
-          { hash: ref.hash, mime: record.mime || ref.mime, name: ref.name },
+          { hash: ref.hash, mime, name: ref.name },
           clipBytes(record.bytes),
           "hq",
         );
+        if (!sent) ok = false;
       }
     });
-    return true;
+    return ok;
   } catch {
     return false;
   }
@@ -581,7 +557,7 @@ function takePreview(msg: { hash?: string; data?: string; i?: number; n?: number
 export function requestMedia(hash: string): void {
   if (!hash) return;
   const now = Date.now();
-  if ((lastAsk.get(hash) ?? 0) + 2000 > now) return;
+  if ((lastAsk.get(hash) ?? 0) + 3000 > now) return;
   lastAsk.set(hash, now);
   sendSignal({ type: "need-blob", hash });
   const msg = JSON.stringify({ type: "need-blob", hash });
@@ -815,7 +791,7 @@ export async function publishMesh(envelope: Envelope): Promise<void> {
   for (const peer of live) tos.add(peer.rpub);
   tos.delete(envelope.author);
   for (const ref of mediaRefsOf(envelope)) {
-    for (const to of tos) void pushMediaViaSignal(to, ref.hash);
+    for (const to of tos) await pushMediaViaSignal(to, ref.hash);
   }
 }
 
@@ -831,7 +807,9 @@ export async function ingestMeshPacket(packet: MeshPacket): Promise<boolean> {
   }
   const { acceptRemoteEnvelope } = await import("./bus");
   for (const ref of mediaRefsOf(packet.envelope)) rememberPreview(ref.hash, ref.preview);
-  return acceptRemoteEnvelope(packet.envelope);
+  const ok = acceptRemoteEnvelope(packet.envelope);
+  if (ok) requestClips(packet.envelope);
+  return ok;
 }
 
 export function meshConnected(): boolean {
@@ -940,7 +918,13 @@ export function listenMesh(
       if (msg.type === "pic" && msg.hash && msg.data) {
         void (async () => {
           try {
-            await putMediaTier(msg.hash, "mq", msg.mime || "image/jpeg", base64ToBytes(msg.data));
+            const bytes = base64ToBytes(msg.data);
+            const mime = msg.mime || "image/jpeg";
+            if (mime.startsWith("audio/") || mime.startsWith("video/")) {
+              await storeClip(msg.hash, mime, bytes);
+            } else {
+              await putMediaTier(msg.hash, "mq", mime, bytes);
+            }
           } catch {
             // ignore
           }
@@ -1024,4 +1008,19 @@ export function stopMesh(): void {
   setLinked(false);
   setLive([]);
   current?.close();
+}
+
+export function resetMeshState(): void {
+  stopMesh();
+  outbox.length = 0;
+  lastAsk.clear();
+  assembling.clear();
+  assemblingPreview.clear();
+  assemblingEnv.clear();
+  assemblingWs.clear();
+  try {
+    localStorage.removeItem(OUTBOX_KEY);
+  } catch {
+    // ignore
+  }
 }

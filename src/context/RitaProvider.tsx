@@ -61,7 +61,7 @@ import {
   type VaultRecord,
 } from "@/lib/protocol/vault";
 import { ProtocolError } from "@/lib/protocol/errors";
-import { wipeBrowserRita } from "@/lib/protocol/wipe";
+import { purgeForeignIdentities, wipeBrowserRita, wipeRitaPreservingInvite } from "@/lib/protocol/wipe";
 import { fetchStaffBlocks, type StaffBlocks } from "@/lib/protocol/adminBlocks";
 import {
   assertSingleSession,
@@ -100,7 +100,7 @@ import {
 } from "@/lib/protocol/social";
 import { likeStats, loadLikeIndex, mergeLikes, saveLikeIndex, setLike } from "@/lib/protocol/likeIndex";
 import { countLinks, isQuarantined, MAX_TEXT_LINKS, vouchedBy } from "@/lib/protocol/spam";
-import { assertCanCreate, noteCreateSuccess } from "@/lib/protocol/signupGuard";
+import { noteCreateSuccess } from "@/lib/protocol/signupGuard";
 import { assertBetaInvite } from "@/lib/protocol/betaInvite";
 import { latestConsent } from "@/lib/protocol/chat";
 import {
@@ -284,7 +284,8 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       about: string;
       picture?: MediaRef;
     }) => {
-      assertCanCreate();
+      if (loadVault()) throw new ProtocolError("account_exists");
+      await wipeRitaPreservingInvite();
       await assertBetaInvite();
       const next = createIdentity();
       const record = await wrapSecret(next, password);
@@ -292,6 +293,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       const profile = signProfile(next, { name: name.trim() || "Rita", about, picture });
       appendEnvelope(next.rpub, profile);
       noteCreateSuccess();
+      purgeForeignIdentities(next.rpub);
       hydrate(next);
       return next;
     },
@@ -318,6 +320,12 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       if (identity?.rpub === next.rpub && status === "ready") {
         notifySessionExists();
         throw new ProtocolError("session_exists");
+      }
+      const existing = loadVault();
+      if (existing && existing.rpub !== next.rpub) {
+        await wipeRitaPreservingInvite();
+      } else {
+        purgeForeignIdentities(next.rpub);
       }
       const record = await wrapSecret(next, password);
       setVault(record);
@@ -359,15 +367,8 @@ export function RitaProvider({ children }: { children: ReactNode }) {
     }
     clearUnlockedRsec();
     await wipeBrowserRita();
-    setVault(null);
-    setIdentity(null);
-    setLog([]);
-    setLikeIndex({});
-    setSaves([]);
-    setLivePeers([]);
-    setStatus("anonymous");
-    bump();
-  }, [bump, identity]);
+    window.location.assign("/welcome");
+  }, [identity]);
 
   const publishPost = useCallback(
     (text: string, media?: MediaRef[]) => {

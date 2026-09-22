@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, FolderOpen, Square, Video } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { MAX_VIDEO_MS } from "@/lib/protocol/media";
+import { dropStream, getCameraStream, isSecureMedia } from "@/lib/protocol/mediaAccess";
+import { stampMediaDuration } from "@/lib/protocol/stampMedia";
 
 function durationOf(file: File): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -18,13 +20,6 @@ function durationOf(file: File): Promise<number> {
     };
     node.src = url;
   });
-}
-
-function secureEnough(): boolean {
-  if (typeof window === "undefined") return false;
-  if (window.isSecureContext) return true;
-  const host = window.location.hostname;
-  return host === "localhost" || host === "127.0.0.1" || host === "[::1]";
 }
 
 function pickRecorderMime(): string {
@@ -64,13 +59,16 @@ export function VideoClip({
   const [rec, setRec] = useState(false);
   const [secs, setSecs] = useState(0);
   const [hint, setHint] = useState<string | null>(null);
+  const elapsedRef = useRef(0);
+  const startedAt = useRef(0);
 
   useEffect(() => {
     return () => {
       gen.current += 1;
       recFlag.current = false;
       window.clearInterval(timer.current);
-      streamRef.current?.getTracks().forEach((track) => track.stop());
+      dropStream(streamRef.current);
+      streamRef.current = null;
     };
   }, []);
 
@@ -100,7 +98,7 @@ export function VideoClip({
 
   function releaseStream() {
     window.clearInterval(timer.current);
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+    dropStream(streamRef.current);
     streamRef.current = null;
     recorderRef.current = null;
     if (previewRef.current) previewRef.current.srcObject = null;
@@ -136,27 +134,36 @@ export function VideoClip({
     sent.current = true;
     const parts = chunks.current;
     chunks.current = [];
+    const ms = elapsedRef.current;
     releaseStream();
     setRec(false);
     setSecs(0);
     busy.current = false;
     const type = (mime || "video/webm").split(";")[0];
-    const blob = new Blob(parts, { type: type.startsWith("video/") ? type : "video/webm" });
-    if (blob.size < 32) {
+    const raw = new Blob(parts, { type: type.startsWith("video/") ? type : "video/webm" });
+    if (raw.size < 32) {
       fail(t("live.videoDenied"));
       return;
     }
-    setHint(null);
-    const ext = type.includes("mp4") ? "mp4" : "webm";
-    onFile(new File([blob], `clip.${ext}`, { type: blob.type }));
+    void stampMediaDuration(raw, ms).then((blob) => {
+      setHint(null);
+      const ext = blob.type.includes("mp4") ? "mp4" : "webm";
+      onFile(new File([blob], `clip.${ext}`, { type: blob.type }));
+    });
   }
 
   function stopCamera() {
     if (!recFlag.current) return;
     recFlag.current = false;
     window.clearInterval(timer.current);
+    elapsedRef.current = Date.now() - startedAt.current;
     const recorder = recorderRef.current;
     if (recorder && recorder.state === "recording") {
+      try {
+        recorder.requestData();
+      } catch {
+        // ignore
+      }
       recorder.stop();
       return;
     }
@@ -167,11 +174,11 @@ export function VideoClip({
     setOpen(false);
     if (disabled || rec || busy.current) return;
     setHint(null);
-    if (!secureEnough()) {
+    if (!isSecureMedia()) {
       fail(t("live.videoInsecure"));
       return;
     }
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    if (typeof MediaRecorder === "undefined") {
       fail(t("live.videoDenied"));
       return;
     }
@@ -180,12 +187,10 @@ export function VideoClip({
     sent.current = false;
     busy.current = true;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
-        video: { facingMode: { ideal: "user" }, width: { ideal: 720 }, height: { ideal: 720 } },
-      });
+      const stream = await getCameraStream();
       if (my !== gen.current) {
-        stream.getTracks().forEach((track) => track.stop());
+        dropStream(stream);
+        busy.current = false;
         return;
       }
       streamRef.current = stream;
@@ -204,15 +209,16 @@ export function VideoClip({
       recorder.onerror = () => fail(t("live.videoDenied"));
       recorder.onstop = () => finish(recorder.mimeType || mime || "video/webm");
       recFlag.current = true;
-      if (mime.includes("mp4")) recorder.start();
-      else recorder.start(200);
+      recorder.start(250);
       setRec(true);
       busy.current = false;
       setSecs(0);
       setHint(t("live.videoHint"));
-      const started = Date.now();
+      startedAt.current = Date.now();
+      elapsedRef.current = 0;
       timer.current = window.setInterval(() => {
-        const elapsed = Date.now() - started;
+        const elapsed = Date.now() - startedAt.current;
+        elapsedRef.current = elapsed;
         setSecs(Math.min(10, Math.floor(elapsed / 1000)));
         if (elapsed >= MAX_VIDEO_MS) stopCamera();
       }, 200);

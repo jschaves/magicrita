@@ -9,6 +9,10 @@ export const MAX_STORED_CHATS = 100;
 
 const logCache = new Map<string, Envelope[]>();
 
+export function resetLogCache(): void {
+  logCache.clear();
+}
+
 function logKey(rpub: string): string {
   return `magicrita.log.${rpub}`;
 }

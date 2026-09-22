@@ -26,20 +26,14 @@ export function useStoredPhoto(hash?: string, src?: string) {
       }
       try {
         const hq = await loadPhotoUrl(hash);
-        if (cancelled) {
-          if (hq) URL.revokeObjectURL(hq);
-          return;
-        }
+        if (cancelled) return;
         if (hq) {
           got = true;
           setUrl(hq);
           return;
         }
         const mid = await loadPhotoUrl(mqKey(hash));
-        if (cancelled) {
-          if (mid) URL.revokeObjectURL(mid);
-          return;
-        }
+        if (cancelled) return;
         if (mid) {
           got = true;
           setUrl(mid);

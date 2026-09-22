@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import type { MediaRef } from "@/lib/protocol/media";
-import { loadPhotoUrl, onMediaStored, peekRamPhotoUrl } from "@/lib/protocol/media";
-import { requestMedia } from "@/lib/protocol/mesh";
+import { ensurePhotoSrc, onMediaStored, peekRamPhotoUrl } from "@/lib/protocol/media";
 
 const sizes = {
   sm: "h-11 w-11 text-sm",
@@ -46,19 +45,15 @@ export function Avatar({
       setUrl(ram);
       return;
     }
-    void loadPhotoUrl(hash).then((next) => {
-      if (cancelled) {
-        if (next) URL.revokeObjectURL(next);
-        return;
-      }
-      if (next) setUrl(next);
-      else requestMedia(hash);
-    });
+    const show = (next: string | null) => {
+      if (cancelled || !next) return;
+      setFailed(false);
+      setUrl(next);
+    };
+    void ensurePhotoSrc(hash).then(show);
     const stop = onMediaStored((stored) => {
       if (stored !== hash || cancelled) return;
-      void loadPhotoUrl(hash).then((next) => {
-        if (!cancelled && next) setUrl(next);
-      });
+      void ensurePhotoSrc(hash, true).then(show);
     });
     return () => {
       cancelled = true;
@@ -67,7 +62,14 @@ export function Avatar({
   }, [src, picture?.hash]);
 
   if (url && !failed) {
-    return <img src={url} alt="" onError={() => setFailed(true)} className={`${box} object-cover`} />;
+    return (
+      <img
+        src={url}
+        alt=""
+        onError={() => setFailed(true)}
+        className={`${box} object-cover`}
+      />
+    );
   }
 
   return <div className={box}>{initial}</div>;

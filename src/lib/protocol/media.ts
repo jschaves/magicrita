@@ -27,6 +27,7 @@ type RamBlob = { mime: string; bytes: Uint8Array };
 const ram = new Map<string, RamBlob>();
 const previews = new Map<string, string>();
 const liveUrls = new Map<string, string>();
+const liveBlobs = new Map<string, Blob>();
 const PREVIEW_MAX_CHARS = 48_000;
 
 export type PhotoTier = "lq" | "mq" | "hq";
@@ -67,8 +68,15 @@ export function rememberLiveUrl(hash: string, url: string): void {
   liveUrls.set(hash, url);
 }
 
+export function rememberLiveBlob(hash: string, blob: Blob): void {
+  if (!blob || blob.size < 16) return;
+  liveBlobs.set(hash, blob);
+  rememberLiveUrl(hash, URL.createObjectURL(blob));
+}
+
 export function forgetLiveUrl(hash: string): void {
   liveUrls.delete(hash);
+  liveBlobs.delete(hash);
 }
 
 function asBytes(data: ArrayBuffer | Uint8Array): Uint8Array {
@@ -303,11 +311,12 @@ export async function ingestVoice(blob: Blob): Promise<MediaRef> {
   if (blob.size > MAX_VOICE_BYTES) throw new ProtocolError("media_too_large");
   const rawType = (blob.type || "audio/webm").split(";")[0];
   const mime = rawType.startsWith("audio/") ? rawType : "audio/webm";
+  const keep = blob.slice(0, blob.size, mime);
   const bytes = new Uint8Array(await blob.arrayBuffer());
   if (bytes.byteLength < 16) throw new ProtocolError("media_type");
   const hash = bytesToHex(sha256(bytes));
   await putRecord(hash, mime, bytes);
-  rememberLiveUrl(hash, URL.createObjectURL(blob));
+  rememberLiveBlob(hash, keep);
   notifyMedia(hash);
   return { hash, mime, name: "voice" };
 }
@@ -316,11 +325,12 @@ export async function ingestVideo(file: Blob): Promise<MediaRef> {
   if (file.size > MAX_VIDEO_BYTES) throw new ProtocolError("media_too_large");
   const rawType = (file.type || "video/mp4").split(";")[0];
   const mime = rawType.startsWith("video/") ? rawType : "video/mp4";
+  const keep = file.slice(0, file.size, mime);
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (bytes.byteLength < 32) throw new ProtocolError("media_type");
   const hash = bytesToHex(sha256(bytes));
   await putRecord(hash, mime, bytes);
-  rememberLiveUrl(hash, URL.createObjectURL(file));
+  rememberLiveBlob(hash, keep);
   notifyMedia(hash);
   const name = file instanceof File && file.name ? file.name : "video";
   return { hash, mime, name };
@@ -355,15 +365,27 @@ export async function loadMediaRecord(hash: string): Promise<MediaRecord | null>
   return { hash: record.hash, mime: record.mime, bytes: tightBuffer(bytes) };
 }
 
+export async function storeClip(hash: string, mime: string, bytes: Uint8Array): Promise<void> {
+  const exact = asBytes(bytes);
+  if (exact.byteLength < 16) return;
+  await putRecord(hash, mime || "application/octet-stream", exact);
+  rememberLiveBlob(hash, blobFromBytes(exact, mime));
+  notifyMedia(hash);
+}
+
 export async function putMediaBytes(ref: MediaRef, bytes: Uint8Array): Promise<void> {
   const exact = asBytes(bytes);
   const hash = bytesToHex(sha256(exact));
   if (hash !== ref.hash) {
+    if (ref.mime.startsWith("audio/") || ref.mime.startsWith("video/")) {
+      await storeClip(ref.hash, ref.mime, exact);
+      return;
+    }
     throw new ProtocolError("media_hash");
   }
   if (ref.preview) rememberPreview(hash, ref.preview);
   await putRecord(hash, ref.mime, exact);
-  rememberLiveUrl(hash, URL.createObjectURL(blobFromBytes(exact, ref.mime)));
+  rememberLiveBlob(hash, blobFromBytes(exact, ref.mime));
   notifyMedia(hash);
 }
 
@@ -390,7 +412,9 @@ export function peekRamPhotoUrl(hash: string): string | null {
 }
 
 export async function loadVerifiedBlob(hash: string, mimeHint?: string): Promise<Blob | null> {
-  const rec = await loadMediaRecord(hash);
+  const live = liveBlobs.get(hash);
+  if (live && live.size >= 32) return live;
+  const rec = (await loadMediaRecord(hash)) ?? (await loadMediaRecord(mqKey(hash)));
   if (!rec?.bytes) return null;
   const bytes = asBytes(rec.bytes);
   if (bytes.byteLength < 32) return null;
@@ -428,11 +452,19 @@ export async function ensurePhotoSrc(hash: string, fresh = false, mimeHint?: str
 }
 
 export async function loadPhotoUrl(hash: string): Promise<string | null> {
+  const live = livePhotoUrl(hash);
+  if (live) return live;
   const hit = ram.get(hash);
-  if (hit) return URL.createObjectURL(blobFromBytes(hit.bytes, hit.mime));
+  if (hit) {
+    const url = URL.createObjectURL(blobFromBytes(hit.bytes, hit.mime));
+    rememberLiveUrl(hash, url);
+    return url;
+  }
   const record = await loadMediaRecord(hash);
   if (!record) return null;
-  return URL.createObjectURL(blobFromBytes(new Uint8Array(record.bytes), record.mime));
+  const url = URL.createObjectURL(blobFromBytes(asBytes(record.bytes), record.mime));
+  rememberLiveUrl(hash, url);
+  return url;
 }
 
 export async function avatarThumb(hash: string): Promise<string | null> {
@@ -466,6 +498,7 @@ export async function avatarThumb(hash: string): Promise<string | null> {
 export async function clearAllPhotos(): Promise<void> {
   ram.clear();
   previews.clear();
+  liveBlobs.clear();
   for (const url of liveUrls.values()) URL.revokeObjectURL(url);
   liveUrls.clear();
   const db = await openDb();
@@ -480,6 +513,7 @@ export async function clearAllPhotos(): Promise<void> {
 export async function wipeMediaStore(): Promise<void> {
   ram.clear();
   previews.clear();
+  liveBlobs.clear();
   for (const url of liveUrls.values()) URL.revokeObjectURL(url);
   liveUrls.clear();
   try {
@@ -488,6 +522,7 @@ export async function wipeMediaStore(): Promise<void> {
   } catch {
     // ignore
   }
+  dbPromise = null;
   await new Promise<void>((resolve) => {
     const request = indexedDB.deleteDatabase(DB_NAME);
     request.onsuccess = () => resolve();

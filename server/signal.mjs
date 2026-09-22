@@ -112,20 +112,10 @@ function clientIp(req) {
   return req.socket?.remoteAddress || "0.0.0.0";
 }
 
-function isLoopback(ip) {
-  return (
-    ip === "127.0.0.1" ||
-    ip === "::1" ||
-    ip === ":ffff:127.0.0.1" ||
-    ip === "::ffff:127.0.0.1"
-  );
-}
-
-function inviteOk(code, ip) {
+function inviteOk(code) {
   if (!BETA_INVITE) return true;
-  if (ip && isLoopback(ip)) return true;
-  const got = crypto.createHash("sha256").update(String(code || "")).digest();
-  const expect = crypto.createHash("sha256").update(BETA_INVITE).digest();
+  const got = crypto.createHash("sha256").update(String(code || "").trim()).digest();
+  const expect = crypto.createHash("sha256").update(String(BETA_INVITE).trim()).digest();
   return crypto.timingSafeEqual(got, expect);
 }
 
@@ -633,7 +623,7 @@ wss.on("connection", (ws, req) => {
       };
       const target = findByRpub(msg.to);
       if (target) send(target, payload);
-      else if (msg.data.length <= 500_000) holdBlob(msg.to, payload);
+      else if (msg.data.length <= 12_000_000) holdBlob(msg.to, payload);
       return;
     }
 

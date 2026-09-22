@@ -174,9 +174,9 @@ export function MessagesPage() {
               return (
                 <div key={line.sig} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div
-                    className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-5 ${
-                      mine ? "bg-plum text-cream" : "border border-line bg-paper"
-                    }`}
+                    className={`rounded-2xl px-3 py-2 text-sm leading-5 ${
+                      line.audio ? "w-[min(22rem,85%)] min-w-[16.5rem]" : "max-w-[80%]"
+                    } ${mine ? "bg-plum text-cream" : "border border-line bg-paper"}`}
                   >
                     {line.audio ? (
                       <VoiceNote

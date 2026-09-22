@@ -2,57 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { Mic, Square } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
 import { MAX_VOICE_MS } from "@/lib/protocol/media";
+import { dropStream, getMicStream, isSecureMedia } from "@/lib/protocol/mediaAccess";
+import { recorderAudioToWav, stampMediaDuration } from "@/lib/protocol/stampMedia";
 
-const TARGET_RATE = 16_000;
-
-function secureEnough(): boolean {
-  if (typeof window === "undefined") return false;
-  if (window.isSecureContext) return true;
-  const host = window.location.hostname;
-  return host === "localhost" || host === "127.0.0.1" || host === "[::1]";
-}
-
-function downsample(input: Float32Array, fromRate: number, toRate: number): Float32Array {
-  if (fromRate === toRate) return input;
-  const ratio = fromRate / toRate;
-  const out = new Float32Array(Math.max(1, Math.floor(input.length / ratio)));
-  for (let i = 0; i < out.length; i++) out[i] = input[Math.floor(i * ratio)] ?? 0;
-  return out;
-}
-
-function encodeWav(chunks: Float32Array[], sampleRate: number): Blob {
-  const merged = new Float32Array(chunks.reduce((n, c) => n + c.length, 0));
-  let offset = 0;
-  for (const chunk of chunks) {
-    merged.set(chunk, offset);
-    offset += chunk.length;
-  }
-  const pcm = downsample(merged, sampleRate, TARGET_RATE);
-  const bytes = new ArrayBuffer(44 + pcm.length * 2);
-  const view = new DataView(bytes);
-  const write = (at: number, text: string) => {
-    for (let i = 0; i < text.length; i++) view.setUint8(at + i, text.charCodeAt(i));
-  };
-  write(0, "RIFF");
-  view.setUint32(4, 36 + pcm.length * 2, true);
-  write(8, "WAVE");
-  write(12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, TARGET_RATE, true);
-  view.setUint32(28, TARGET_RATE * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  write(36, "data");
-  view.setUint32(40, pcm.length * 2, true);
-  let p = 44;
-  for (let i = 0; i < pcm.length; i++) {
-    const s = Math.max(-1, Math.min(1, pcm[i] ?? 0));
-    view.setInt16(p, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-    p += 2;
-  }
-  return new Blob([bytes], { type: "audio/wav" });
+function pickAudioMime(): string {
+  const types = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+  if (typeof MediaRecorder === "undefined") return "";
+  return types.find((type) => MediaRecorder.isTypeSupported(type)) ?? "";
 }
 
 export function VoiceMic({
@@ -68,122 +24,139 @@ export function VoiceMic({
   const [rec, setRec] = useState(false);
   const [secs, setSecs] = useState(0);
   const [hint, setHint] = useState<string | null>(null);
-  const timer = useRef<number>(0);
+  const timer = useRef(0);
   const streamRef = useRef<MediaStream | null>(null);
-  const ctxRef = useRef<AudioContext | null>(null);
-  const procRef = useRef<ScriptProcessorNode | null>(null);
-  const samples = useRef<Float32Array[]>([]);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunks = useRef<Blob[]>([]);
   const busy = useRef(false);
   const recFlag = useRef(false);
+  const sent = useRef(false);
+  const elapsedRef = useRef(0);
+  const startedAt = useRef(0);
 
   useEffect(() => {
     return () => {
       recFlag.current = false;
       window.clearInterval(timer.current);
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      void ctxRef.current?.close();
+      dropStream(streamRef.current);
+      streamRef.current = null;
     };
   }, []);
 
   function fail(message: string) {
+    sent.current = true;
+    recFlag.current = false;
+    cleanup();
     setHint(message);
     onError?.(message);
     setRec(false);
-    recFlag.current = false;
     busy.current = false;
   }
 
   function cleanup() {
     window.clearInterval(timer.current);
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    try {
-      procRef.current?.disconnect();
-    } catch {
-      // ignore
+    const recoder = recorderRef.current;
+    recorderRef.current = null;
+    if (recoder && recoder.state !== "inactive") {
+      try {
+        recoder.stop();
+      } catch {
+        // ignore
+      }
     }
-    procRef.current = null;
-    void ctxRef.current?.close();
-    ctxRef.current = null;
+    dropStream(streamRef.current);
+    streamRef.current = null;
   }
 
-  async function start() {
-    if (disabled || rec || busy.current) return;
-    setHint(null);
-    if (!secureEnough()) {
-      fail(t("live.voiceInsecure"));
-      return;
-    }
-    if (!navigator.mediaDevices?.getUserMedia) {
-      fail(t("live.voiceDenied"));
-      return;
-    }
-    const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AC) {
-      fail(t("live.voiceDenied"));
-      return;
-    }
-    busy.current = true;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
-      });
-      streamRef.current = stream;
-      const ctx = new AC();
-      ctxRef.current = ctx;
-      if (ctx.state === "suspended") await ctx.resume();
-      const source = ctx.createMediaStreamSource(stream);
-      const processor = ctx.createScriptProcessor(4096, 1, 1);
-      const mute = ctx.createGain();
-      mute.gain.value = 0;
-      samples.current = [];
-      processor.onaudioprocess = (event) => {
-        if (!recFlag.current) return;
-        samples.current.push(new Float32Array(event.inputBuffer.getChannelData(0)));
-      };
-      procRef.current = processor;
-      source.connect(processor);
-      processor.connect(mute);
-      mute.connect(ctx.destination);
-      recFlag.current = true;
-      setRec(true);
-      busy.current = false;
-      setSecs(0);
-      setHint(t("live.voiceHint"));
-      const started = Date.now();
-      timer.current = window.setInterval(() => {
-        const elapsed = Date.now() - started;
-        setSecs(Math.floor(elapsed / 1000));
-        if (elapsed >= MAX_VOICE_MS) stop();
-      }, 200);
-    } catch {
+  function finish(mime: string) {
+    if (sent.current) {
       cleanup();
-      fail(t("live.voiceDenied"));
+      setRec(false);
+      busy.current = false;
+      return;
     }
+    sent.current = true;
+    const parts = chunks.current;
+    chunks.current = [];
+    const ms = elapsedRef.current;
+    cleanup();
+    setRec(false);
+    setSecs(0);
+    busy.current = false;
+    const type = (mime || "audio/webm").split(";")[0];
+    const raw = new Blob(parts, { type: type.startsWith("audio/") ? type : "audio/webm" });
+    if (raw.size < 64) {
+      fail(t("live.voiceDenied"));
+      return;
+    }
+    void (async () => {
+      let blob = await recorderAudioToWav(raw);
+      if (!blob.type.includes("wav")) blob = await stampMediaDuration(blob, ms);
+      setHint(null);
+      onBlob(blob);
+    })();
   }
 
   function stop() {
     if (!recFlag.current) return;
     recFlag.current = false;
     window.clearInterval(timer.current);
-    const rate = ctxRef.current?.sampleRate ?? TARGET_RATE;
-    const chunks = samples.current;
-    samples.current = [];
-    cleanup();
-    setRec(false);
-    setSecs(0);
-    busy.current = false;
-    if (!chunks.length) {
-      fail(t("live.voiceDenied"));
+    elapsedRef.current = Date.now() - startedAt.current;
+    const recoder = recorderRef.current;
+    if (recoder && recoder.state === "recording") {
+      try {
+        recoder.requestData();
+      } catch {
+        // ignore
+      }
+      recoder.stop();
       return;
     }
-    const blob = encodeWav(chunks, rate);
-    if (blob.size < 128) {
-      fail(t("live.voiceDenied"));
-      return;
-    }
+    finish(recoder?.mimeType ?? "audio/webm");
+  }
+
+  async function start() {
+    if (disabled || rec || busy.current) return;
     setHint(null);
-    onBlob(blob);
+    if (!isSecureMedia()) {
+      fail(t("live.voiceInsecure"));
+      return;
+    }
+    if (typeof MediaRecorder === "undefined") {
+      fail(t("live.voiceDenied"));
+      return;
+    }
+    const mime = pickAudioMime();
+    busy.current = true;
+    sent.current = false;
+    try {
+      const stream = await getMicStream();
+      streamRef.current = stream;
+      chunks.current = [];
+      const recoder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+      recorderRef.current = recoder;
+      recoder.ondataavailable = (event) => {
+        if (event.data.size) chunks.current.push(event.data);
+      };
+      recoder.onerror = () => fail(t("live.voiceDenied"));
+      recoder.onstop = () => finish(recoder.mimeType || mime || "audio/webm");
+      recFlag.current = true;
+      recoder.start(250);
+      setRec(true);
+      busy.current = false;
+      setSecs(0);
+      setHint(t("live.voiceHint"));
+      startedAt.current = Date.now();
+      elapsedRef.current = 0;
+      timer.current = window.setInterval(() => {
+        const elapsed = Date.now() - startedAt.current;
+        elapsedRef.current = elapsed;
+        setSecs(Math.floor(elapsed / 1000));
+        if (elapsed >= MAX_VOICE_MS) stop();
+      }, 200);
+    } catch {
+      fail(t("live.voiceDenied"));
+    }
   }
 
   return (
