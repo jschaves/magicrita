@@ -313,7 +313,11 @@ export function NoteCard({
               ) : null}
               {photos.map((item) => (
                 <div key={item.hash} className="mt-3">
-                  <Photo hash={item.hash} alt={item.name} preview={item.preview} />
+                  {item.mime.startsWith("audio/") ? (
+                    <VoiceNote media={item} />
+                  ) : (
+                    <Photo hash={item.hash} alt={item.name} preview={item.preview} />
+                  )}
                 </div>
               ))}
             </>

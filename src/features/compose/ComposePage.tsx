@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/Button";
 import { TextArea } from "@/components/ui/Field";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n } from "@/i18n/I18nProvider";
-import { ingestPhoto, isAcceptedPhoto, MAX_PHOTOS, type MediaRef } from "@/lib/protocol/media";
+import { ingestPhoto, ingestVoice, isAcceptedPhoto, MAX_PHOTOS, type MediaRef } from "@/lib/protocol/media";
 import { MAX_POST_CHARS } from "@/lib/protocol/envelope";
+import { VoiceMic } from "@/components/ui/VoiceMic";
+import { VoiceNote } from "@/components/note/VoiceNote";
 
 type Preview = {
   file: File;
@@ -20,6 +22,7 @@ export function ComposePage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [content, setContent] = useState("");
   const [previews, setPreviews] = useState<Preview[]>([]);
+  const [voice, setVoice] = useState<MediaRef | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -53,7 +56,7 @@ export function ComposePage() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!content.trim() && previews.length === 0) return;
+    if (!content.trim() && previews.length === 0 && !voice) return;
     setBusy(true);
     setError(null);
     try {
@@ -61,6 +64,7 @@ export function ComposePage() {
       for (const preview of previews) {
         media.push(await ingestPhoto(preview.file));
       }
+      if (voice) media.push(voice);
       publishPost(content, media);
       previews.forEach((item) => URL.revokeObjectURL(item.url));
       navigate("/");
@@ -152,9 +156,43 @@ export function ComposePage() {
           <p className="mt-1 text-xs text-muted">{t("compose.photoHint")}</p>
         </div>
 
+        <div>
+          <p className="mb-1.5 text-sm font-semibold">{t("compose.voice")}</p>
+          {voice ? (
+            <div className="mb-2 flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <VoiceNote media={voice} />
+              </div>
+              <button
+                type="button"
+                className="rounded-full p-1 text-muted hover:text-accent"
+                onClick={() => setVoice(null)}
+                aria-label={t("compose.removeVoice")}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          ) : (
+            <VoiceMic
+              onBlob={(blob) => {
+                void (async () => {
+                  try {
+                    setVoice(await ingestVoice(blob));
+                    setError(null);
+                  } catch (err) {
+                    setError(errorMessage(err, "compose.failed"));
+                  }
+                })();
+              }}
+              onError={setError}
+            />
+          )}
+          <p className="mt-1 text-xs text-muted">{t("compose.voiceHint")}</p>
+        </div>
+
         {error ? <p className="text-sm text-accent">{error}</p> : null}
         <div className="flex justify-end">
-          <Button type="submit" disabled={busy || (!content.trim() && previews.length === 0)}>
+          <Button type="submit" disabled={busy || (!content.trim() && previews.length === 0 && !voice)}>
             {busy ? t("compose.saving") : t("compose.submit")}
           </Button>
         </div>
