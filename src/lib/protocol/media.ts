@@ -71,20 +71,26 @@ export function forgetLiveUrl(hash: string): void {
   liveUrls.delete(hash);
 }
 
+function asBytes(data: ArrayBuffer | Uint8Array): Uint8Array {
+  const view = data instanceof Uint8Array ? data : new Uint8Array(data);
+  const out = new Uint8Array(view.byteLength);
+  out.set(view);
+  return out;
+}
+
 function rememberBytes(hash: string, mime: string, bytes: Uint8Array): void {
-  ram.set(hash, { mime, bytes: bytes.slice() });
+  ram.set(hash, { mime, bytes: asBytes(bytes) });
 }
 
 function tightBuffer(bytes: Uint8Array): ArrayBuffer {
-  const copy = new Uint8Array(bytes.byteLength);
-  copy.set(bytes);
-  return copy.buffer;
+  const copy = asBytes(bytes);
+  return copy.buffer.slice(copy.byteOffset, copy.byteOffset + copy.byteLength) as ArrayBuffer;
 }
 
 function blobFromBytes(bytes: Uint8Array, mime: string): Blob {
-  const copy = new Uint8Array(bytes.byteLength);
-  copy.set(bytes);
-  return new Blob([copy], { type: mime || "application/octet-stream" });
+  const copy = asBytes(bytes);
+  const buf = copy.buffer.slice(copy.byteOffset, copy.byteOffset + copy.byteLength) as ArrayBuffer;
+  return new Blob([buf], { type: mime || "application/octet-stream" });
 }
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -344,18 +350,20 @@ export async function loadMediaRecord(hash: string): Promise<MediaRecord | null>
     request.onerror = () => reject(request.error ?? new Error("indexeddb"));
   });
   if (!record?.bytes) return null;
-  rememberBytes(hash, record.mime, new Uint8Array(record.bytes));
-  return record;
+  const bytes = asBytes(record.bytes);
+  rememberBytes(hash, record.mime, bytes);
+  return { hash: record.hash, mime: record.mime, bytes: tightBuffer(bytes) };
 }
 
 export async function putMediaBytes(ref: MediaRef, bytes: Uint8Array): Promise<void> {
-  const hash = bytesToHex(sha256(bytes));
+  const exact = asBytes(bytes);
+  const hash = bytesToHex(sha256(exact));
   if (hash !== ref.hash) {
     throw new ProtocolError("media_hash");
   }
   if (ref.preview) rememberPreview(hash, ref.preview);
-  await putRecord(hash, ref.mime, bytes);
-  rememberLiveUrl(hash, URL.createObjectURL(blobFromBytes(bytes, ref.mime)));
+  await putRecord(hash, ref.mime, exact);
+  rememberLiveUrl(hash, URL.createObjectURL(blobFromBytes(exact, ref.mime)));
   notifyMedia(hash);
 }
 
@@ -384,9 +392,8 @@ export function peekRamPhotoUrl(hash: string): string | null {
 export async function loadVerifiedBlob(hash: string, mimeHint?: string): Promise<Blob | null> {
   const rec = await loadMediaRecord(hash);
   if (!rec?.bytes) return null;
-  const bytes = new Uint8Array(rec.bytes.byteLength);
-  bytes.set(new Uint8Array(rec.bytes));
-  if (bytesToHex(sha256(bytes)) !== hash) return null;
+  const bytes = asBytes(rec.bytes);
+  if (bytes.byteLength < 32) return null;
   let mime = (rec.mime || mimeHint || "").split(";")[0];
   if (bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
     mime = "audio/wav";

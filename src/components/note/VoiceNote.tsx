@@ -95,7 +95,7 @@ export function VoiceNote({
       <audio
         ref={node}
         preload="auto"
-        className="hidden"
+        className="sr-only"
         onTimeUpdate={(event) => setPos(event.currentTarget.currentTime)}
         onLoadedMetadata={(event) => setDur(event.currentTarget.duration)}
         onPlay={() => setPlaying(true)}

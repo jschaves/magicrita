@@ -284,12 +284,13 @@ async function sendBlobFromBytes(
   tier: "mq" | "hq" = "hq",
 ): Promise<boolean> {
   const max = dcLimit(channel);
-  const rawChunk = Math.max(900, Math.floor((max - 220) * 3 / 4));
-  const chunk = rawChunk - (rawChunk % 3);
-  const n = Math.max(1, Math.ceil(bytes.length / chunk));
+  const forB64 = Math.max(600, max - 400);
+  const chunk = Math.max(3, Math.floor(forB64 * 3 / 4) - (Math.floor(forB64 * 3 / 4) % 3));
+  const body = bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength ? bytes : bytes.slice();
+  const n = Math.max(1, Math.ceil(body.length / chunk));
   for (let i = 0; i < n; i++) {
     if (!(await waitDrain(channel))) return false;
-    const slice = bytes.subarray(i * chunk, (i + 1) * chunk);
+    const slice = body.subarray(i * chunk, (i + 1) * chunk);
     const payload = JSON.stringify({
       type: "media",
       hash: ref.hash,
@@ -326,24 +327,20 @@ async function sendPreview(channel: RTCDataChannel, hash: string, preview: strin
   return true;
 }
 
+function clipBytes(data: ArrayBuffer | Uint8Array): Uint8Array {
+  const view = data instanceof Uint8Array ? data : new Uint8Array(data);
+  return view.slice();
+}
+
 async function sendBlobByHash(channel: RTCDataChannel, ref: MediaRef): Promise<void> {
   const preview = loadPreview(ref.hash);
   if (preview) await sendPreview(channel, ref.hash, preview);
-  const mid = await loadMediaRecord(mqKey(ref.hash));
-  if (mid && channel.readyState === "open") {
-    await sendBlobFromBytes(
-      channel,
-      { hash: ref.hash, mime: mid.mime, name: ref.name || ref.hash },
-      new Uint8Array(mid.bytes),
-      "mq",
-    );
-  }
   const record = await loadMediaRecord(ref.hash);
   if (!record || channel.readyState !== "open") return;
   await sendBlobFromBytes(
     channel,
     { hash: ref.hash, mime: record.mime || ref.mime, name: ref.name || record.hash },
-    new Uint8Array(record.bytes),
+    clipBytes(record.bytes),
     "hq",
   );
 }
@@ -394,7 +391,7 @@ async function sendEnvelope(channel: RTCDataChannel, envelope: Envelope, attachM
         await sendBlobFromBytes(
           channel,
           { hash: ref.hash, mime: record.mime || ref.mime, name: ref.name },
-          new Uint8Array(record.bytes),
+          clipBytes(record.bytes),
           "hq",
         );
       }
