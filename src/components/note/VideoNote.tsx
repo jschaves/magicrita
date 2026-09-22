@@ -22,19 +22,27 @@ export function VideoNote({
   useEffect(() => {
     let alive = true;
     const show = (url: string | null) => {
-      if (alive && url) setSrc((prev) => prev ?? url);
+      if (alive && url) setSrc(url);
     };
-    void ensurePhotoSrc(media.hash, false, mime).then((url) => {
-      if (url) show(url);
-      else requestMedia(media.hash);
-    });
+    const pull = () => {
+      void ensurePhotoSrc(media.hash, false, mime).then((url) => {
+        if (url) show(url);
+        else requestMedia(media.hash);
+      });
+    };
+    pull();
     const stop = onMediaStored((hash) => {
       if (hash !== media.hash) return;
-      void ensurePhotoSrc(media.hash, false, mime).then(show);
+      void ensurePhotoSrc(media.hash, true, mime).then(show);
     });
+    const retry = window.setInterval(() => {
+      if (!alive) return;
+      pull();
+    }, 3000);
     return () => {
       alive = false;
       stop();
+      window.clearInterval(retry);
     };
   }, [media.hash, mime]);
 

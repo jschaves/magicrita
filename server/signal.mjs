@@ -96,7 +96,7 @@ const mailbox = new Map();
 const blobbox = new Map();
 const MAILBOX_MAX = 250;
 const MAILBOX_BYTES = 24_000;
-const BLOBBOX_MAX = 400;
+const BLOBBOX_MAX = 800;
 
 const sessions = new Map();
 const SESSION_MS = 12 * 60 * 60 * 1000;
@@ -648,15 +648,10 @@ wss.on("connection", (ws, req) => {
     if (msg.type === "need-blob" && typeof msg.hash === "string") {
       const from = live.get(ws);
       if (!from) return;
-      const pool = [];
+      const payload = { type: "need-blob", hash: msg.hash, from: from.rpub };
       for (const [other, info] of live) {
-        if (other !== ws && info.rpub !== from.rpub) pool.push(other);
-      }
-      for (let n = 0; n < 8 && pool.length; n++) {
-        const i = Math.floor(Math.random() * pool.length);
-        send(pool[i], { type: "need-blob", hash: msg.hash, from: from.rpub });
-        pool[i] = pool[pool.length - 1];
-        pool.pop();
+        if (other === ws || info.rpub === from.rpub) continue;
+        send(other, payload);
       }
       return;
     }

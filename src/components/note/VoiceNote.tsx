@@ -71,9 +71,15 @@ export function VoiceNote({
     const stop = onMediaStored((hash) => {
       if (hash === media.hash) void load();
     });
+    const retry = window.setInterval(() => {
+      if (!alive || bufRef.current) return;
+      requestMedia(media.hash);
+      void load();
+    }, 3000);
     return () => {
       alive = false;
       stop();
+      window.clearInterval(retry);
       playingRef.current = false;
       cancelAnimationFrame(raf.current);
       try {

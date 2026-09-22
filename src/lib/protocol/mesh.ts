@@ -54,7 +54,7 @@ const assemblingPreview = new Map<string, { n: number; parts: Array<string | und
 const assemblingEnv = new Map<string, { n: number; parts: Array<string | undefined>; t: number }>();
 const assemblingWs = new Map<
   string,
-  { n: number; mime: string; tier: "mq" | "hq"; parts: Array<string | undefined>; t: number }
+  { n: number; mime: string; tier: "mq" | "hq"; parts: Array<Uint8Array | undefined>; t: number }
 >();
 const lastAsk = new Map<string, number>();
 const sendChain = new WeakMap<RTCDataChannel, Promise<void>>();
@@ -122,19 +122,45 @@ function sendSignal(msg: object) {
   if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(msg));
 }
 
+async function pushBlobViaSignal(to: string, hash: string, rec: { mime: string; bytes: ArrayBuffer }): Promise<void> {
+  const bytes = new Uint8Array(rec.bytes);
+  if (bytes.length < 32) return;
+  const mime = rec.mime || "application/octet-stream";
+  const piece = 12_000;
+  const n = Math.max(1, Math.ceil(bytes.length / piece));
+  for (let i = 0; i < n; i++) {
+    const slice = bytes.subarray(i * piece, (i + 1) * piece);
+    sendSignal({
+      type: "blob",
+      to,
+      hash,
+      mime,
+      tier: "hq",
+      i,
+      n,
+      size: bytes.length,
+      data: bytesToBase64(slice),
+    });
+  }
+}
+
 async function pushMediaViaSignal(to: string, hash: string): Promise<void> {
   if (!to || !hash || to === self?.rpub) return;
-  const mid = await loadMediaRecord(mqKey(hash));
-  const rec = mid ?? (await loadMediaRecord(hash));
+  const rec = (await loadMediaRecord(hash)) ?? (await loadMediaRecord(mqKey(hash)));
   if (!rec) return;
   const bytes = new Uint8Array(rec.bytes);
   if (bytes.length < 32) return;
-  const b64 = await blobToBase64(new Blob([bytes], { type: rec.mime || "image/jpeg" }));
+  const mime = rec.mime || "image/jpeg";
+  if (mime.startsWith("audio/") || mime.startsWith("video/")) {
+    await pushBlobViaSignal(to, hash, rec);
+    return;
+  }
+  const b64 = await blobToBase64(new Blob([bytes], { type: mime }));
   sendSignal({
     type: "pic",
     to,
     hash,
-    mime: rec.mime || "image/jpeg",
+    mime,
     data: b64,
   });
 }
@@ -222,14 +248,6 @@ function sendRaw(channel: RTCDataChannel, data: string, max = dcLimit(channel)):
   }
 }
 
-function messageToText(data: unknown): Promise<string> {
-  if (typeof data === "string") return Promise.resolve(data);
-  if (data instanceof ArrayBuffer) return Promise.resolve(new TextDecoder().decode(data));
-  if (ArrayBuffer.isView(data)) return Promise.resolve(new TextDecoder().decode(data));
-  if (typeof Blob !== "undefined" && data instanceof Blob) return data.text();
-  return Promise.resolve(String(data));
-}
-
 function iceJson(candidate: RTCIceCandidate): RTCIceCandidateInit {
   if (typeof candidate.toJSON === "function") return candidate.toJSON();
   return {
@@ -270,7 +288,7 @@ function sendBinary(channel: RTCDataChannel, bytes: Uint8Array): boolean {
   try {
     const copy = new Uint8Array(bytes.byteLength);
     copy.set(bytes);
-    channel.send(copy.buffer);
+    channel.send(copy);
     return true;
   } catch {
     return false;
@@ -389,16 +407,18 @@ async function sendEnvelope(channel: RTCDataChannel, envelope: Envelope, attachM
         const preview = loadPreview(ref.hash);
         if (preview) await sendPreview(channel, ref.hash, preview);
         if (!attachMedia) continue;
-        const mid = await loadMediaRecord(mqKey(ref.hash));
-        if (mid) {
-          await sendBlobFromBytes(
-            channel,
-            { hash: ref.hash, mime: mid.mime, name: ref.name },
-            new Uint8Array(mid.bytes),
-            "mq",
-          );
+        const clip = ref.mime.startsWith("video/") || ref.mime.startsWith("audio/");
+        if (!clip) {
+          const mid = await loadMediaRecord(mqKey(ref.hash));
+          if (mid) {
+            await sendBlobFromBytes(
+              channel,
+              { hash: ref.hash, mime: mid.mime, name: ref.name },
+              new Uint8Array(mid.bytes),
+              "mq",
+            );
+          }
         }
-        if (ref.mime.startsWith("video/") || ref.mime.startsWith("audio/")) continue;
         const record = await loadMediaRecord(ref.hash);
         if (!record) continue;
         await sendBlobFromBytes(
@@ -509,18 +529,17 @@ async function takeWsBlob(msg: {
     };
     assemblingWs.set(key, slot);
   }
-  slot.parts[msg.i] = msg.data;
-  slot.t = now;
-  if (slot.parts.some((part) => typeof part !== "string")) return;
-  assemblingWs.delete(key);
-  let bytes: Uint8Array;
   try {
-    bytes = base64ToBytes(slot.parts.join(""));
+    slot.parts[msg.i] = base64ToBytes(msg.data);
   } catch {
     return;
   }
+  slot.t = now;
+  if (slot.parts.some((part) => !part)) return;
+  assemblingWs.delete(key);
+  const bytes = concatBytes(...(slot.parts as Uint8Array[]));
   if (typeof msg.size === "number" && msg.size > 0 && bytes.length !== msg.size) return;
-  if (bytes.length < 256) return;
+  if (bytes.length < 32) return;
   try {
     if (slot.tier === "hq") {
       try {
@@ -592,7 +611,7 @@ function takePreview(msg: { hash?: string; data?: string; i?: number; n?: number
 export function requestMedia(hash: string): void {
   if (!hash) return;
   const now = Date.now();
-  if ((lastAsk.get(hash) ?? 0) + 2500 > now) return;
+  if ((lastAsk.get(hash) ?? 0) + 2000 > now) return;
   lastAsk.set(hash, now);
   sendSignal({ type: "need-blob", hash });
   const msg = JSON.stringify({ type: "need-blob", hash });
@@ -668,79 +687,82 @@ function setupChannel(rpub: string, channel: RTCDataChannel) {
     bytes?: number;
   } | null = null;
   channel.onmessage = (event) => {
-    void (async () => {
-      try {
-        if (event.data instanceof ArrayBuffer || ArrayBuffer.isView(event.data)) {
-          const raw =
-            event.data instanceof ArrayBuffer
-              ? new Uint8Array(event.data)
-              : new Uint8Array(event.data.buffer, event.data.byteOffset, event.data.byteLength);
-          const header = pendingBin;
-          pendingBin = null;
-          if (header) void takeMediaPart({ ...header, raw });
-          return;
-        }
+    try {
+      if (event.data instanceof ArrayBuffer || ArrayBuffer.isView(event.data)) {
+        const raw =
+          event.data instanceof ArrayBuffer
+            ? new Uint8Array(event.data)
+            : new Uint8Array(event.data.buffer, event.data.byteOffset, event.data.byteLength);
+        const header = pendingBin;
         pendingBin = null;
-        const parsed = JSON.parse(await messageToText(event.data)) as {
-          type?: string;
-          id?: string;
-          data?: string;
-          hash?: string;
-          mime?: string;
-          name?: string;
-          i?: number;
-          n?: number;
-          bytes?: number;
-          tier?: string;
-          envelope?: MeshPacket["envelope"];
-          media?: MeshPacket["media"];
-        };
-        if (parsed?.type === "need-data") {
-          void flushTo(channel);
-          return;
-        }
-        if (parsed?.type === "need-blob" && typeof parsed.hash === "string") {
-          const hash = parsed.hash;
-          void queueChannel(channel, () =>
-            sendBlobByHash(channel, { hash, mime: "application/octet-stream", name: hash }),
-          );
-          return;
-        }
-        if (parsed?.type === "preview") {
-          takePreview(parsed);
-          return;
-        }
-        if (parsed?.type === "media-bin" && typeof parsed.hash === "string" && typeof parsed.i === "number" && typeof parsed.n === "number") {
-          pendingBin = {
-            hash: parsed.hash,
-            mime: parsed.mime,
-            name: parsed.name,
-            tier: parsed.tier,
-            i: parsed.i,
-            n: parsed.n,
-            bytes: parsed.bytes,
-          };
-          return;
-        }
-        if (parsed?.type === "media") {
-          void takeMediaPart(parsed);
-          return;
-        }
-        if (parsed?.type === "env") {
-          takeEnv(parsed);
-          return;
-        }
-        if (parsed?.type === "avatar" && typeof parsed.data === "string") {
-          rememberThumb(rpub, parsed.data);
-          setLive(withThumbs(live));
-          return;
-        }
-        if (!parsed?.envelope || !isEnvelope(parsed.envelope) || !verifyEnvelope(parsed.envelope)) return;
-        packetHandler?.({ envelope: parsed.envelope, media: parsed.media });
-      } catch {
-        // ignore
+        if (header) void takeMediaPart({ ...header, raw });
+        return;
       }
-    })();
+      const text = typeof event.data === "string" ? event.data : "";
+      if (!text) {
+        pendingBin = null;
+        return;
+      }
+      const parsed = JSON.parse(text) as {
+        type?: string;
+        id?: string;
+        data?: string;
+        hash?: string;
+        mime?: string;
+        name?: string;
+        i?: number;
+        n?: number;
+        bytes?: number;
+        tier?: string;
+        envelope?: MeshPacket["envelope"];
+        media?: MeshPacket["media"];
+      };
+      if (parsed?.type === "media-bin" && typeof parsed.hash === "string" && typeof parsed.i === "number" && typeof parsed.n === "number") {
+        pendingBin = {
+          hash: parsed.hash,
+          mime: parsed.mime,
+          name: parsed.name,
+          tier: parsed.tier,
+          i: parsed.i,
+          n: parsed.n,
+          bytes: parsed.bytes,
+        };
+        return;
+      }
+      pendingBin = null;
+      if (parsed?.type === "need-data") {
+        void flushTo(channel);
+        return;
+      }
+      if (parsed?.type === "need-blob" && typeof parsed.hash === "string") {
+        const hash = parsed.hash;
+        void queueChannel(channel, () =>
+          sendBlobByHash(channel, { hash, mime: "application/octet-stream", name: hash }),
+        );
+        return;
+      }
+      if (parsed?.type === "preview") {
+        takePreview(parsed);
+        return;
+      }
+      if (parsed?.type === "media") {
+        void takeMediaPart(parsed);
+        return;
+      }
+      if (parsed?.type === "env") {
+        takeEnv(parsed);
+        return;
+      }
+      if (parsed?.type === "avatar" && typeof parsed.data === "string") {
+        rememberThumb(rpub, parsed.data);
+        setLive(withThumbs(live));
+        return;
+      }
+      if (!parsed?.envelope || !isEnvelope(parsed.envelope) || !verifyEnvelope(parsed.envelope)) return;
+      packetHandler?.({ envelope: parsed.envelope, media: parsed.media });
+    } catch {
+      pendingBin = null;
+    }
   };
   channel.onclose = () => {
     if (channels.get(rpub) === channel) channels.delete(rpub);
@@ -858,7 +880,6 @@ export async function publishMesh(envelope: Envelope): Promise<void> {
   for (const peer of live) tos.add(peer.rpub);
   tos.delete(envelope.author);
   for (const ref of mediaRefsOf(envelope)) {
-    if (ref.mime.startsWith("video/") || ref.mime.startsWith("audio/")) continue;
     for (const to of tos) void pushMediaViaSignal(to, ref.hash);
   }
 }
