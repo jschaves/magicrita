@@ -579,7 +579,17 @@ wss.on("connection", (ws, req) => {
     if (!msg || typeof msg !== "object") return;
 
     const known = live.get(ws);
-    if (known && tooMany(`msg:${known.rpub}`, 80, 60_000)) return;
+    if (known && msg.type === "blob") {
+      if (tooMany(`blob:${known.rpub}`, 2500, 60_000)) return;
+    } else if (
+      known &&
+      msg.type !== "pic" &&
+      msg.type !== "need-blob" &&
+      msg.type !== "signal" &&
+      tooMany(`msg:${known.rpub}`, 80, 60_000)
+    ) {
+      return;
+    }
 
     if (msg.type === "hello" && typeof msg.rpub === "string") {
       if (tooMany(`hello:${ws.clientIp}`, 10, 60_000)) return;

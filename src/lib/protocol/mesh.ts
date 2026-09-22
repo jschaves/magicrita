@@ -37,7 +37,7 @@ type SignalIn =
   | { type: "leave"; rpub: string }
   | { type: "signal"; from: string; payload: { desc?: RTCSessionDescriptionInit; cand?: RTCIceCandidateInit } }
   | { type: "held"; envelopes: Envelope[] }
-  | { type: "blob"; hash: string; mime?: string; tier?: string; i: number; n: number; data: string }
+  | { type: "blob"; hash: string; mime?: string; tier?: string; i: number; n: number; size?: number; data: string }
   | { type: "need-blob"; hash: string; from?: string }
   | { type: "pic"; hash: string; mime?: string; data: string }
   | { type: "moderation"; users: string[]; comments: string[] };
@@ -123,10 +123,11 @@ function sendSignal(msg: object) {
 }
 
 async function pushBlobViaSignal(to: string, hash: string, rec: { mime: string; bytes: ArrayBuffer }): Promise<void> {
-  const bytes = new Uint8Array(rec.bytes);
+  const view = rec.bytes instanceof Uint8Array ? rec.bytes : new Uint8Array(rec.bytes);
+  const bytes = view.slice();
   if (bytes.length < 32) return;
   const mime = rec.mime || "application/octet-stream";
-  const piece = 12_000;
+  const piece = 48_000;
   const n = Math.max(1, Math.ceil(bytes.length / piece));
   for (let i = 0; i < n; i++) {
     const slice = bytes.subarray(i * piece, (i + 1) * piece);
@@ -141,6 +142,7 @@ async function pushBlobViaSignal(to: string, hash: string, rec: { mime: string; 
       size: bytes.length,
       data: bytesToBase64(slice),
     });
+    if (i % 4 === 3) await new Promise((resolve) => window.setTimeout(resolve, 0));
   }
 }
 
