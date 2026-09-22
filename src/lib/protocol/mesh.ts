@@ -964,6 +964,18 @@ export function listenMesh(
   scan = window.setInterval(() => {
     if (socket?.readyState !== WebSocket.OPEN) return;
     sendSignal({ type: "scan" });
+    void Promise.all([ownThumb(), cachedPow(hello.rpub)]).then(([avatar, pow]) => {
+      if (stopped || socket?.readyState !== WebSocket.OPEN) return;
+      sendSignal({
+        type: "hello",
+        rpub: hello.rpub,
+        name: hello.name,
+        interests: hello.interests,
+        avatar,
+        pow,
+        invite: loadBetaInvite(),
+      });
+    });
     repairPeers();
   }, 25_000);
 

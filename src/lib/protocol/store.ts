@@ -1,13 +1,31 @@
-import { isEnvelope, verifyEnvelope, type Envelope } from "./envelope";
+import { isEnvelope, mediaRefsOf, verifyEnvelope, type Envelope } from "./envelope";
+import { dropMedia, setQuotaReliever } from "./media";
 import { ProtocolError } from "./errors";
 import { dropAuthorFromLikes, loadLikeIndex, saveLikeIndex } from "./likeIndex";
 import { dropSavedPosts } from "./saves";
 
 export const MAX_STORED_POSTS = 100;
-export const MAX_STORED_CHATS = 50;
+export const MAX_STORED_CHATS = 100;
 
 function logKey(rpub: string): string {
   return `magicrita.log.${rpub}`;
+}
+
+function hashesOf(log: Envelope[]): Set<string> {
+  const set = new Set<string>();
+  for (const event of log) {
+    for (const ref of mediaRefsOf(event)) set.add(ref.hash);
+  }
+  return set;
+}
+
+function dropOrphanMedia(before: Envelope[], after: Envelope[]): void {
+  const still = hashesOf(after);
+  for (const event of before) {
+    for (const ref of mediaRefsOf(event)) {
+      if (!still.has(ref.hash)) void dropMedia(ref.hash);
+    }
+  }
 }
 
 function pruneLog(log: Envelope[]): Envelope[] {
@@ -18,10 +36,19 @@ function pruneLog(log: Envelope[]): Envelope[] {
     }
   };
   newest("post", MAX_STORED_POSTS);
-  return log.filter((item) => {
+  const next = log.filter((item) => {
     if (item.type === "post") return Boolean(item.sig && keep.has(item.sig));
     return true;
   });
+  const droppedPosts = log.filter(
+    (item) => item.type === "post" && item.sig && !keep.has(item.sig),
+  );
+  dropOrphanMedia(log, next);
+  if (droppedPosts.length) {
+    dropSavedPosts(droppedPosts.map((item) => item.sig).filter((sig): sig is string => Boolean(sig)));
+    for (const listener of trimListeners) listener(droppedPosts);
+  }
+  return next;
 }
 
 function pruneChatThread(a: string, b: string): void {
@@ -30,10 +57,17 @@ function pruneChatThread(a: string, b: string): void {
   const all = [...pick(a, b), ...pick(b, a)].sort((left, right) => left.ts - right.ts);
   if (all.length <= MAX_STORED_CHATS) return;
   const drop = new Set(all.slice(0, all.length - MAX_STORED_CHATS).map((item) => item.sig));
+  const leftover: Envelope[] = [];
   for (const author of [a, b]) {
     const log = loadLog(author);
     const next = log.filter((item) => !drop.has(item.sig));
+    leftover.push(...next);
     if (next.length !== log.length) saveLog(author, next);
+  }
+  dropOrphanMedia(all, leftover);
+  const droppedChats = all.filter((item) => item.sig && drop.has(item.sig));
+  if (droppedChats.length) {
+    for (const listener of trimListeners) listener(droppedChats);
   }
 }
 
@@ -58,8 +92,85 @@ export function loadLog(rpub: string): Envelope[] {
   }
 }
 
-export function saveLog(rpub: string, log: Envelope[]): void {
+const trimListeners = new Set<(dropped: Envelope[]) => void>();
+
+export function onStorageTrim(listener: (dropped: Envelope[]) => void): () => void {
+  trimListeners.add(listener);
+  return () => trimListeners.delete(listener);
+}
+
+function isQuotaError(error: unknown): boolean {
+  return error instanceof DOMException && (error.name === "QuotaExceededError" || error.code === 22);
+}
+
+function writeLogRaw(rpub: string, log: Envelope[]): void {
   localStorage.setItem(logKey(rpub), JSON.stringify(log));
+}
+
+function readLogRaw(rpub: string): Envelope[] {
+  try {
+    const raw = localStorage.getItem(logKey(rpub));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is Envelope => isEnvelope(item) && verifyEnvelope(item));
+  } catch {
+    return [];
+  }
+}
+
+function freeQuarter(rpub: string): Envelope[] {
+  const log = readLogRaw(rpub);
+  const posts = log.filter((item) => item.type === "post").sort((a, b) => a.ts - b.ts);
+  const chats = log.filter((item) => item.type === "chat_text").sort((a, b) => a.ts - b.ts);
+  const dropPosts = posts.length ? posts.slice(0, Math.max(1, Math.ceil(posts.length * 0.25))) : [];
+  const dropChats = chats.length ? chats.slice(0, Math.max(1, Math.ceil(chats.length * 0.25))) : [];
+  const drop = new Set([...dropPosts, ...dropChats].map((item) => item.sig).filter(Boolean));
+  if (drop.size === 0) return [];
+  const next = log.filter((item) => !item.sig || !drop.has(item.sig));
+  dropOrphanMedia(log, next);
+  dropSavedPosts(dropPosts.map((item) => item.sig).filter((sig): sig is string => Boolean(sig)));
+  writeLogRaw(rpub, next);
+  for (const chat of dropChats) {
+    if (chat.type !== "chat_text") continue;
+    const other = chat.body.to;
+    const otherLog = readLogRaw(other);
+    const trimmed = otherLog.filter((item) => item.sig !== chat.sig);
+    if (trimmed.length !== otherLog.length) {
+      dropOrphanMedia(otherLog, trimmed);
+      writeLogRaw(other, trimmed);
+    }
+  }
+  const dropped = [...dropPosts, ...dropChats];
+  for (const listener of trimListeners) listener(dropped);
+  return dropped;
+}
+
+function relieveQuota(): void {
+  for (const rpub of listKnownRpubs()) freeQuarter(rpub);
+}
+
+export function saveLog(rpub: string, log: Envelope[]): void {
+  try {
+    writeLogRaw(rpub, log);
+  } catch (error) {
+    if (!isQuotaError(error)) throw error;
+    relieveQuota();
+    writeLogRaw(rpub, pruneLog(log));
+  }
+}
+
+export function forgetTarget(sig: string): void {
+  if (!sig) return;
+  dropSavedPosts([sig]);
+  for (const rpub of listKnownRpubs()) {
+    const log = readLogRaw(rpub);
+    const next = log.filter((item) => item.sig !== sig);
+    if (next.length !== log.length) {
+      dropOrphanMedia(log, next);
+      writeLogRaw(rpub, next);
+    }
+  }
 }
 
 export function appendEnvelope(rpub: string, envelope: Envelope): Envelope[] {
@@ -71,6 +182,7 @@ export function appendEnvelope(rpub: string, envelope: Envelope): Envelope[] {
     [...current.filter((item) => item.sig !== envelope.sig), envelope].sort((a, b) => a.ts - b.ts),
   );
   saveLog(rpub, next);
+  if (envelope.type === "delete") forgetTarget(envelope.body.target);
   if (envelope.type === "chat_text") pruneChatThread(envelope.author, envelope.body.to);
   return loadLog(rpub);
 }
@@ -206,17 +318,23 @@ export function applyAuthorGone(envelope: Envelope): boolean {
   if (envelope.type !== "gone" || !verifyEnvelope(envelope)) return false;
   const previous = loadLog(envelope.author);
   if (previous.some((item) => item.type === "gone")) return false;
-  const postSigs = previous.filter((item) => item.type === "post" && item.sig).map((item) => item.sig);
-  try {
-    saveLog(envelope.author, [envelope]);
-  } catch {
-    return false;
-  }
+  const postSigs = previous
+    .filter((item) => item.type === "post" && item.sig)
+    .map((item) => item.sig)
+    .filter((sig): sig is string => Boolean(sig));
+  dropOrphanMedia(previous, [envelope]);
   dropSavedPosts(postSigs);
   try {
-    saveLikeIndex(dropAuthorFromLikes(loadLikeIndex(), envelope.author, postSigs));
+    localStorage.removeItem(`magicrita.saves.${envelope.author}`);
   } catch {
     // ignore
   }
+  saveLikeIndex(dropAuthorFromLikes(loadLikeIndex(), envelope.author, postSigs));
+  saveLog(envelope.author, [envelope]);
   return true;
 }
+
+setQuotaReliever(() => {
+  for (const rpub of listKnownRpubs()) freeQuarter(rpub);
+});
+

@@ -17,6 +17,7 @@ export type ChatLine = {
   ts: number;
   text: string | null;
   audio?: MediaRef;
+  video?: MediaRef;
 };
 
 function sharedKey(secret: Uint8Array, theirRpub: string): Uint8Array {
@@ -99,20 +100,28 @@ export function chatPeersWithMessages(events: Envelope[], me: string): string[] 
 
 export function chatLines(events: Envelope[], identity: Identity, them: string): ChatLine[] {
   const me = identity.rpub;
+  const deleted = new Set<string>();
+  for (const event of events) {
+    if (event.type === "delete") deleted.add(event.body.target);
+  }
   const lines: ChatLine[] = [];
   for (const event of events) {
     if (event.type !== "chat_text") continue;
+    if (event.sig && deleted.has(event.sig)) continue;
     const mine = event.author === me && event.body.to === them;
     const theirs = event.author === them && event.body.to === me;
     if (!mine && !theirs) continue;
     const audio = event.body.media?.find((item) => item.mime.startsWith("audio/"));
+    const video = event.body.media?.find((item) => item.mime.startsWith("video/"));
     const raw = openChat(identity, them, event.body.n, event.body.box);
+    const clip = Boolean(audio || video);
     lines.push({
       sig: event.sig,
       author: event.author,
       ts: event.ts,
-      text: audio ? (raw && raw.trim() ? raw : null) : raw,
+      text: clip ? (raw && raw.trim() ? raw : null) : raw,
       audio,
+      video,
     });
   }
   return lines.sort((a, b) => a.ts - b.ts).slice(-MAX_STORED_CHATS);

@@ -43,6 +43,35 @@ const HOST = process.env.HOST || "0.0.0.0";
 const ADMIN_USER = process.env.ADMIN_USER || "";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 const BETA_INVITE = process.env.BETA_INVITE || "";
+const RESERVED_ADMIN = new Set([
+  "welcome",
+  "unlock",
+  "legal",
+  "people",
+  "saved",
+  "protocolo",
+  "discover",
+  "compose",
+  "messages",
+  "settings",
+  "n",
+  "p",
+  "brand",
+  "beta",
+  "signal",
+  "admin-api",
+  "moderation",
+  "assets",
+]);
+function adminPanelPath() {
+  const value = String(process.env.RUTA_ADMINISTRACION || process.env.ADMIN_PATH || "")
+    .trim()
+    .replace(/^\/+|\/+$/g, "");
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(value)) return "topogue";
+  if (RESERVED_ADMIN.has(value.toLowerCase())) return "topogue";
+  return value;
+}
+const ADMIN_PATH = adminPanelPath();
 const BLOCKS_PATH = path.join(ROOT, "..", "data", "admin-blocks.json");
 const BRAND_DIR = path.join(ROOT, "..", "data", "brand");
 const BRAND_META_PATH = path.join(BRAND_DIR, "meta.json");
@@ -83,8 +112,18 @@ function clientIp(req) {
   return req.socket?.remoteAddress || "0.0.0.0";
 }
 
-function inviteOk(code) {
+function isLoopback(ip) {
+  return (
+    ip === "127.0.0.1" ||
+    ip === "::1" ||
+    ip === ":ffff:127.0.0.1" ||
+    ip === "::ffff:127.0.0.1"
+  );
+}
+
+function inviteOk(code, ip) {
   if (!BETA_INVITE) return true;
+  if (ip && isLoopback(ip)) return true;
   const got = crypto.createHash("sha256").update(String(code || "")).digest();
   const expect = crypto.createHash("sha256").update(BETA_INVITE).digest();
   return crypto.timingSafeEqual(got, expect);
@@ -263,7 +302,7 @@ async function onHttp(req, res) {
   }
   if (req.method === "POST" && url.pathname === "/beta/check") {
     const body = await readBody(req);
-    if (!inviteOk(body.invite)) {
+    if (!inviteOk(body.invite, clientIp(req))) {
       json(res, 403, { error: "invite_bad" });
       return;
     }
@@ -545,7 +584,10 @@ wss.on("connection", (ws, req) => {
     if (msg.type === "hello" && typeof msg.rpub === "string") {
       if (tooMany(`hello:${ws.clientIp}`, 10, 60_000)) return;
       if (!powOk(msg.rpub, msg.pow)) return;
-      if (!inviteOk(msg.invite)) return;
+      if (!inviteOk(msg.invite, ws.clientIp)) {
+        send(ws, { type: "error", error: "invite_bad" });
+        return;
+      }
       const ipKeys = rpubsForIp(ws.clientIp);
       if (!ipKeys.has(msg.rpub) && ipKeys.size >= MAX_IP_RPUBS) return;
       const previousWs = byRpub.get(msg.rpub);
@@ -671,8 +713,8 @@ heartbeat.unref?.();
 httpServer.listen(PORT, HOST, () => {
   console.log(`MagicRita signal (RAM only, no store) ws://${HOST}:${PORT}`);
   if (!ADMIN_USER || !ADMIN_PASSWORD) {
-    console.warn("Define ADMIN_USER y ADMIN_PASSWORD en .env para el panel /topogue");
+    console.warn(`Define ADMIN_USER y ADMIN_PASSWORD en .env para el panel /${ADMIN_PATH}`);
   } else {
-    console.log(`Admin panel: http://localhost:5173/topogue`);
+    console.log(`Admin panel: http://localhost:5173/${ADMIN_PATH}`);
   }
 });

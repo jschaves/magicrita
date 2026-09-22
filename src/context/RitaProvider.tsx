@@ -22,6 +22,7 @@ import {
   listKnownRpubs,
   loadLog,
   appendEnvelope,
+  onStorageTrim,
 } from "@/lib/protocol/store";
 import {
   signBlocks,
@@ -107,6 +108,7 @@ import {
   loadNotices,
   noticeFromEnvelope,
   pingDesktop,
+  playNoticeBeep,
   pushNotice,
   type Notice,
   type NoticeKind,
@@ -293,6 +295,19 @@ export function RitaProvider({ children }: { children: ReactNode }) {
     [hydrate],
   );
 
+  useEffect(() => {
+    if (!identity) return;
+    return onStorageTrim((dropped) => {
+      for (const event of dropped) {
+        if (event.author !== identity.rpub || !event.sig) continue;
+        if (event.type !== "post" && event.type !== "chat_text" && event.type !== "comment") continue;
+        emit(signDelete(identity, event.sig));
+      }
+      setSaves(loadSaves(identity.rpub));
+      bump();
+    });
+  }, [emit, identity]);
+
   const importSecret = useCallback(
     async (secret: string, password: string) => {
       await assertBetaInvite();
@@ -360,7 +375,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       if (countLinks(text) > MAX_TEXT_LINKS) {
         throw new ProtocolError("too_many_links");
       }
-      if (media && media.length > MAX_PHOTOS) {
+      if (media && media.filter((item) => item.mime.startsWith("image/")).length > MAX_PHOTOS) {
         throw new ProtocolError("media_too_many");
       }
       emit(signPost(identity, { text, media }));
@@ -680,6 +695,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
         return;
       }
       setNotices(pushNotice(identity.rpub, notice));
+      if (notice.kind === "chat") playNoticeBeep();
       pingDesktop(
         "MagicRita",
         notice.kind === "chat"

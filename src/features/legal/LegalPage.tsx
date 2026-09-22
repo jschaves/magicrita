@@ -4,7 +4,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { LanguageSwitch } from "@/components/ui/LanguageSwitch";
 import { SiteMark } from "@/components/ui/SiteMark";
 
-const CONTACT = "beta@magicrita.com";
+const CONTACT = "magicrita.beta@gmail.com";
 
 export function LegalPage() {
   const { status } = useRita();

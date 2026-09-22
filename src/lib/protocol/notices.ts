@@ -82,6 +82,31 @@ export function noticeFromEnvelope(envelope: Envelope, me: string): Notice | nul
   return null;
 }
 
+let beepCtx: AudioContext | null = null;
+
+export function playNoticeBeep(): void {
+  try {
+    const AC =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AC) return;
+    if (!beepCtx) beepCtx = new AC();
+    if (beepCtx.state === "suspended") void beepCtx.resume();
+    const osc = beepCtx.createOscillator();
+    const gain = beepCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.07, beepCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, beepCtx.currentTime + 0.16);
+    osc.connect(gain);
+    gain.connect(beepCtx.destination);
+    osc.start();
+    osc.stop(beepCtx.currentTime + 0.16);
+  } catch {
+    // ignore
+  }
+}
+
 export function pingDesktop(title: string, body: string, tag: string): void {
   if (typeof Notification === "undefined") return;
   if (Notification.permission !== "granted") return;

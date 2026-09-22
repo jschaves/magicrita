@@ -10,6 +10,7 @@ import { CharCount } from "@/components/ui/Field";
 import { EmojiInsert } from "@/components/ui/EmojiInsert";
 import { VoiceMic } from "@/components/ui/VoiceMic";
 import { VoiceNote } from "./VoiceNote";
+import { VideoNote } from "./VideoNote";
 import { ingestPhoto, ingestVoice, isAcceptedPhoto, type MediaRef } from "@/lib/protocol/media";
 import { commentLineageSigs, postLineageSigs } from "@/lib/protocol/social";
 import { Avatar } from "./Avatar";
@@ -315,6 +316,8 @@ export function NoteCard({
                 <div key={item.hash} className="mt-3">
                   {item.mime.startsWith("audio/") ? (
                     <VoiceNote media={item} />
+                  ) : item.mime.startsWith("video/") ? (
+                    <VideoNote media={item} />
                   ) : (
                     <Photo hash={item.hash} alt={item.name} preview={item.preview} />
                   )}

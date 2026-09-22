@@ -56,7 +56,9 @@ export function AppShell() {
               <span className="relative">
                 <Icon size={18} />
                 {to === "/messages" && chatBadge ? (
-                  <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-accent" />
+                  <span className="absolute -right-2 -top-2 min-w-4 rounded-full bg-ink px-1 text-center text-[10px] font-bold leading-4 text-cream">
+                    {chatBadge > 9 ? "9+" : chatBadge}
+                  </span>
                 ) : null}
                 {to === "/people" && peopleBadge ? (
                   <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-accent" />
@@ -144,7 +146,9 @@ export function AppShell() {
             <span className="relative">
               <Icon size={18} />
               {to === "/messages" && chatBadge ? (
-                <span className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full bg-accent" />
+                <span className="absolute -right-2 -top-2 min-w-4 rounded-full bg-ink px-1 text-center text-[10px] font-bold leading-4 text-cream">
+                  {chatBadge > 9 ? "9+" : chatBadge}
+                </span>
               ) : null}
               {to === "/people" && peopleBadge ? (
                 <span className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full bg-accent" />

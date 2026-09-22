@@ -1,29 +1,29 @@
-# Protocolo MagicRita
+# MagicRita protocol
 
-Red propia. No usamos Nostr, ActivityPub, Farcaster ni ningún grafo social de terceros.
-Las librerías `@noble/*` son solo matemáticas (firmas y cifrado), no una red.
+A network of our own. We do not use Nostr, ActivityPub, Farcaster, or any third-party social graph.
+The `@noble/*` libraries are math only (signatures and encryption), not a network.
 
-## Cómo se construye (pasos)
+## How it is built (steps)
 
-1. **Identidad y log local** — hecho  
-   Cada persona genera un par Ed25519. Todo lo que publica es un *sobre* firmado y se guarda en este dispositivo.
-2. **Llevar tus datos a otro entorno** — hecho  
-   Exportas un archivo con tu identidad cifrada, notas y fotos, y lo importas en otro navegador o dispositivo. Es tu copia, no la sesión de otra persona.
-3. **Relé propio** — hecho  
-   Señalización WebRTC, lista de conectados y buzón en RAM. No guarda notas ni claves. El intercambio en vivo va entre navegadores.
-4. **Chat** — hecho  
-   Se pide chat a cualquiera; el receptor acepta. Cualquiera puede revocar o bloquear. El texto va cifrado (X25519 + XChaCha20) en un sobre firmado; el relé no lo lee.
-5. **Fotos** — hecho  
-   Hash SHA-256 en el sobre, una foto por nota, viaja entre pares y en el archivo portable. No se ampliará el tratamiento de imágenes.
+1. **Identity and local log** — done  
+   Each person generates an Ed25519 pair. Everything they publish is a signed *envelope* and is stored on this device.
+2. **Take your data to another environment** — done  
+   You export a file with your encrypted identity, notes, and photos, then import it in another browser or device. It is your copy, not someone else’s session.
+3. **Own relay** — done  
+   WebRTC signaling, live peer list, and a RAM mailbox. It does not store notes or keys. Live exchange goes between browsers.
+4. **Chat** — done  
+   You ask anyone to chat; the other person accepts. Either of you can revoke or block. Text is encrypted (X25519 + XChaCha20) in a signed envelope; the relay cannot read it.
+5. **Photos** — done  
+   SHA-256 hash in the envelope, one photo per note, travels between peers and in the portable file. Image handling will not be expanded.
 
-## Paso 1 — formato
+## Step 1 — format
 
-Identidad:
+Identity:
 
-- `rpub_` + 64 hex — clave pública (tu ID)
-- `rsec_` + 64 hex — clave secreta (si se pierde, se pierde la identidad)
+- `rpub_` + 64 hex — public key (your ID)
+- `rsec_` + 64 hex — secret key (if it is lost, the identity is lost)
 
-Sobre firmado:
+Signed envelope:
 
 ```json
 {
@@ -36,21 +36,21 @@ Sobre firmado:
 }
 ```
 
-Se firma el JSON canónico de `v`, `type`, `author`, `ts` y `body` (sin `sig`).
+The canonical JSON of `v`, `type`, `author`, `ts`, and `body` is signed (without `sig`).
 
-## Paso 2 — archivo
+## Step 2 — file
 
-Paquete `magicrita-bundle`:
+Package `magicrita-bundle`:
 
-- `kind: "backup"` — tu identidad cifrada, notas y fotos, para continuar en otro entorno.
+- `kind: "backup"` — your encrypted identity, notes, and photos, to continue in another environment.
 
-Al importar se verifica cada firma Ed25519 y el hash SHA-256 de cada foto.
+On import, every Ed25519 signature and every photo SHA-256 hash is verified.
 
-No hay servidor de cuentas ni de contenidos.
+There is no account server and no content server.
 
-## Antispam (sin disco en el relé)
+## Anti-spam (no disk on the relay)
 
-- Cada `hello` al relé lleva una prueba de trabajo SHA-256 (`rita-pow-v1:rpub:nonce`). El relé la comprueba en RAM y corta IPs o claves que disparan.
-- Sobre `invite`: alguien de tu red firma un vale de 7 días hacia una `rpub`. Quien te sigue deja de poner en cuarentena a esa persona. No hay lista de invitaciones en el servidor.
-- Cuentas jóvenes (menos de 12 h y sin seguimiento ni invitación) no entran en el inicio. Con 3 denuncias se ocultan; las demás, a las 10.
-- Como máximo dos enlaces por nota o comentario. El mismo texto repetido se descarta.
+- Every `hello` to the relay carries a SHA-256 proof of work (`rita-pow-v1:rpub:nonce`). The relay checks it in RAM and cuts IPs or keys that fire too often.
+- `invite` envelope: someone in your network signs a 7-day voucher toward an `rpub`. People you follow stop quarantining that person. There is no invite list on the server.
+- Young accounts (under 12 h, with no follow and no invite) do not enter the home feed. With 3 reports they are hidden; others, at 10.
+- At most two links per note or comment. The same text repeated is dropped.

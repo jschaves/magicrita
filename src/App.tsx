@@ -18,6 +18,7 @@ import { PeoplePage } from "@/features/people/PeoplePage";
 import { SavedPage } from "@/features/saved/SavedPage";
 import { AdminPage } from "@/features/admin/AdminPage";
 import { LegalPage } from "@/features/legal/LegalPage";
+import { adminHref } from "@/lib/adminPath";
 
 export default function App() {
   return (
@@ -31,7 +32,7 @@ export default function App() {
             <Route path="/welcome/create" element={<CreateAccountPage />} />
             <Route path="/welcome/import" element={<ImportKeyPage />} />
             <Route path="/unlock" element={<UnlockPage />} />
-            <Route path="/topogue" element={<AdminPage />} />
+            <Route path={adminHref()} element={<AdminPage />} />
             <Route element={<AppShell />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/people" element={<PeoplePage />} />

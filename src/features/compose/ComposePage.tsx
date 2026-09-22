@@ -5,10 +5,13 @@ import { Button } from "@/components/ui/Button";
 import { TextArea } from "@/components/ui/Field";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n } from "@/i18n/I18nProvider";
-import { ingestPhoto, ingestVoice, isAcceptedPhoto, MAX_PHOTOS, type MediaRef } from "@/lib/protocol/media";
+import { ingestPhoto, ingestVideo, ingestVoice, isAcceptedPhoto, MAX_PHOTOS, type MediaRef } from "@/lib/protocol/media";
 import { MAX_POST_CHARS } from "@/lib/protocol/envelope";
 import { VoiceMic } from "@/components/ui/VoiceMic";
 import { VoiceNote } from "@/components/note/VoiceNote";
+import { VideoClip } from "@/components/ui/VideoClip";
+import { VideoNote } from "@/components/note/VideoNote";
+
 
 type Preview = {
   file: File;
@@ -23,6 +26,7 @@ export function ComposePage() {
   const [content, setContent] = useState("");
   const [previews, setPreviews] = useState<Preview[]>([]);
   const [voice, setVoice] = useState<MediaRef | null>(null);
+  const [video, setVideo] = useState<MediaRef | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -56,7 +60,7 @@ export function ComposePage() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!content.trim() && previews.length === 0 && !voice) return;
+    if (!content.trim() && previews.length === 0 && !voice && !video) return;
     setBusy(true);
     setError(null);
     try {
@@ -65,6 +69,7 @@ export function ComposePage() {
         media.push(await ingestPhoto(preview.file));
       }
       if (voice) media.push(voice);
+      if (video) media.push(video);
       publishPost(content, media);
       previews.forEach((item) => URL.revokeObjectURL(item.url));
       navigate("/");
@@ -190,9 +195,40 @@ export function ComposePage() {
           <p className="mt-1 text-xs text-muted">{t("compose.voiceHint")}</p>
         </div>
 
+        <div>
+          <p className="mb-1.5 text-sm font-semibold">{t("compose.video")}</p>
+          {video ? (
+            <div className="mb-2">
+              <VideoNote media={video} />
+              <button
+                type="button"
+                className="mt-1 text-xs font-semibold text-accent"
+                onClick={() => setVideo(null)}
+              >
+                {t("compose.removeVideo")}
+              </button>
+            </div>
+          ) : (
+            <VideoClip
+              onError={setError}
+              onFile={(file) => {
+                void (async () => {
+                  try {
+                    setVideo(await ingestVideo(file));
+                    setError(null);
+                  } catch (err) {
+                    setError(errorMessage(err, "compose.failed"));
+                  }
+                })();
+              }}
+            />
+          )}
+          <p className="mt-1 text-xs text-muted">{t("compose.videoHint")}</p>
+        </div>
+
         {error ? <p className="text-sm text-accent">{error}</p> : null}
         <div className="flex justify-end">
-          <Button type="submit" disabled={busy || (!content.trim() && previews.length === 0 && !voice)}>
+          <Button type="submit" disabled={busy || (!content.trim() && previews.length === 0 && !voice && !video)}>
             {busy ? t("compose.saving") : t("compose.submit")}
           </Button>
         </div>

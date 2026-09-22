@@ -6,6 +6,8 @@ export const MAX_PHOTOS = 1;
 export const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 export const MAX_VOICE_BYTES = 1_200_000;
 export const MAX_VOICE_MS = 30_000;
+export const MAX_VIDEO_BYTES = 8 * 1024 * 1024;
+export const MAX_VIDEO_MS = 10_000;
 export const ACCEPTED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 
 export type MediaRef = {
@@ -147,7 +149,17 @@ export async function makePreviewDataUrl(bytes: Uint8Array, mime: string): Promi
   }
 }
 
-async function putRecord(hash: string, mime: string, bytes: Uint8Array): Promise<void> {
+let quotaReliever: (() => void) | null = null;
+
+export function setQuotaReliever(fn: () => void): void {
+  quotaReliever = fn;
+}
+
+function isQuotaError(error: unknown): boolean {
+  return error instanceof DOMException && (error.name === "QuotaExceededError" || error.code === 22);
+}
+
+async function writeRecord(hash: string, mime: string, bytes: Uint8Array): Promise<void> {
   rememberBytes(hash, mime, bytes);
   const record: MediaRecord = { hash, mime, bytes: tightBuffer(bytes) };
   const db = await openDb();
@@ -202,6 +214,16 @@ export function stripBlobText(text: string): string {
     .replace(/data:image\/[^\s]+/gi, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+async function putRecord(hash: string, mime: string, bytes: Uint8Array): Promise<void> {
+  try {
+    await writeRecord(hash, mime, bytes);
+  } catch (error) {
+    if (!isQuotaError(error) || !quotaReliever) throw error;
+    quotaReliever();
+    await writeRecord(hash, mime, bytes);
+  }
 }
 
 export async function ingestPhoto(file: File): Promise<MediaRef> {
@@ -265,6 +287,31 @@ export async function ingestVoice(blob: Blob): Promise<MediaRef> {
   rememberLiveUrl(hash, URL.createObjectURL(blob));
   notifyMedia(hash);
   return { hash, mime, name: "voice" };
+}
+
+export async function ingestVideo(file: Blob): Promise<MediaRef> {
+  if (file.size > MAX_VIDEO_BYTES) throw new ProtocolError("media_too_large");
+  const rawType = (file.type || "video/mp4").split(";")[0];
+  const mime = rawType.startsWith("video/") ? rawType : "video/mp4";
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (bytes.byteLength < 32) throw new ProtocolError("media_type");
+  const hash = bytesToHex(sha256(bytes));
+  await putRecord(hash, mime, bytes);
+  rememberLiveUrl(hash, URL.createObjectURL(file));
+  notifyMedia(hash);
+  const name = file instanceof File && file.name ? file.name : "video";
+  return { hash, mime, name };
+}
+
+export async function dropMedia(hash: string): Promise<void> {
+  liveUrls.delete(hash);
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.objectStore(STORE).delete(hash);
+  });
 }
 
 export async function loadMediaRecord(hash: string): Promise<MediaRecord | null> {
