@@ -3,35 +3,6 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { ensurePhotoSrc, onMediaStored, type MediaRef } from "@/lib/protocol/media";
 import { requestMedia } from "@/lib/protocol/mesh";
 
-const bound = new WeakSet<HTMLMediaElement>();
-
-function bindPlayable(el: HTMLMediaElement | null) {
-  if (!el || bound.has(el)) return;
-  bound.add(el);
-  const snap = () => {
-    if (el.currentTime > 1e6) {
-      el.currentTime = 0;
-    }
-  };
-  const fix = () => {
-    if (el.duration === Infinity || Number.isNaN(el.duration)) {
-      try {
-        el.currentTime = 1e101;
-      } catch {
-        // ignore
-      }
-    }
-  };
-  el.addEventListener("loadedmetadata", fix);
-  el.addEventListener("timeupdate", snap);
-  if (el.readyState >= 1) fix();
-  try {
-    el.load();
-  } catch {
-    // ignore
-  }
-}
-
 export function VoiceNote({
   media,
   light,
@@ -71,16 +42,7 @@ export function VoiceNote({
   }
   return (
     <span className="block">
-      <audio
-        key={src}
-        ref={bindPlayable}
-        controls
-        preload="auto"
-        playsInline
-        className="w-full max-w-full"
-      >
-        <source src={src} type={mime} />
-      </audio>
+      <audio src={src} controls preload="auto" className="w-full max-w-full" />
       {onRemove ? (
         <button
           type="button"

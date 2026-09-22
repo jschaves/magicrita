@@ -3,33 +3,6 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { ensurePhotoSrc, onMediaStored, type MediaRef } from "@/lib/protocol/media";
 import { requestMedia } from "@/lib/protocol/mesh";
 
-const bound = new WeakSet<HTMLMediaElement>();
-
-function bindPlayable(el: HTMLVideoElement | null) {
-  if (!el || bound.has(el)) return;
-  bound.add(el);
-  const snap = () => {
-    if (el.currentTime > 1e6) el.currentTime = 0;
-  };
-  const fix = () => {
-    if (el.duration === Infinity || Number.isNaN(el.duration)) {
-      try {
-        el.currentTime = 1e101;
-      } catch {
-        // ignore
-      }
-    }
-  };
-  el.addEventListener("loadedmetadata", fix);
-  el.addEventListener("timeupdate", snap);
-  if (el.readyState >= 1) fix();
-  try {
-    el.load();
-  } catch {
-    // ignore
-  }
-}
-
 export function VideoNote({
   media,
   onRemove,
@@ -68,15 +41,12 @@ export function VideoNote({
   return (
     <span className="block">
       <video
-        key={src}
-        ref={bindPlayable}
+        src={src}
         controls
         playsInline
         preload="auto"
         className="mt-1 max-h-[32rem] w-full rounded-2xl border border-line bg-ink"
-      >
-        <source src={src} type={mime} />
-      </video>
+      />
       {onRemove ? (
         <button type="button" className="mt-1 text-[11px] font-semibold text-accent" onClick={onRemove}>
           {removeLabel}
