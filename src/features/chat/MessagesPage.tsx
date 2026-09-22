@@ -31,6 +31,8 @@ export function MessagesPage() {
     acceptChat,
     revokeChat,
     sendChat,
+    stripChatMedia,
+    canStripChat,
     chatPhaseOf,
     chatLinesOf,
     chatPeerList,
@@ -176,8 +178,29 @@ export function MessagesPage() {
                       mine ? "bg-plum text-cream" : "border border-line bg-paper"
                     }`}
                   >
-                    {line.audio ? <VoiceNote media={line.audio} light={mine} /> : null}
-                    {line.video ? <VideoNote media={line.video} /> : null}
+                    {line.audio ? (
+                      <VoiceNote
+                        media={line.audio}
+                        light={mine}
+                        onRemove={
+                          them && canStripChat(line)
+                            ? () => run(() => stripChatMedia(them, line, line.audio!.hash))
+                            : undefined
+                        }
+                        removeLabel={t("compose.removeVoice")}
+                      />
+                    ) : null}
+                    {line.video ? (
+                      <VideoNote
+                        media={line.video}
+                        onRemove={
+                          them && canStripChat(line)
+                            ? () => run(() => stripChatMedia(them, line, line.video!.hash))
+                            : undefined
+                        }
+                        removeLabel={t("compose.removeVideo")}
+                      />
+                    ) : null}
                     {line.text ? (
                       <p className="whitespace-pre-wrap">{line.text}</p>
                     ) : !line.audio && !line.video ? (

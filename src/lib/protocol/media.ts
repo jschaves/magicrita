@@ -84,7 +84,7 @@ function tightBuffer(bytes: Uint8Array): ArrayBuffer {
 function blobFromBytes(bytes: Uint8Array, mime: string): Blob {
   const copy = new Uint8Array(bytes.byteLength);
   copy.set(bytes);
-  return new Blob([copy], { type: mime || "image/jpeg" });
+  return new Blob([copy.buffer], { type: mime || "application/octet-stream" });
 }
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -169,14 +169,15 @@ async function writeRecord(hash: string, mime: string, bytes: Uint8Array): Promi
     tx.onerror = () => reject(tx.error ?? new Error("indexeddb"));
     tx.objectStore(STORE).put(record);
   });
-  db.close();
 }
 
 const DB_NAME = "magicrita-media";
 const STORE = "blobs";
+let dbPromise: Promise<IDBDatabase> | null = null;
 
 function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
     request.onupgradeneeded = () => {
       const db = request.result;
@@ -184,9 +185,19 @@ function openDb(): Promise<IDBDatabase> {
         db.createObjectStore(STORE, { keyPath: "hash" });
       }
     };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error("indexeddb"));
+    request.onsuccess = () => {
+      const db = request.result;
+      db.onclose = () => {
+        dbPromise = null;
+      };
+      resolve(db);
+    };
+    request.onerror = () => {
+      dbPromise = null;
+      reject(request.error ?? new Error("indexeddb"));
+    };
   });
+  return dbPromise;
 }
 
 export function isAcceptedPhoto(file: File): boolean {
@@ -235,13 +246,19 @@ export async function ingestPhoto(file: File): Promise<MediaRef> {
   }
   const original = new Uint8Array(await file.arrayBuffer());
   const sourceUrl = URL.createObjectURL(blobFromBytes(original, file.type));
-  const hq = original;
-  const mime = file.type;
+  let hq: Uint8Array = original;
+  let mime = file.type;
   let mq: Uint8Array | null = null;
   let preview = "";
   try {
     const image = await loadImage(sourceUrl);
-    mq = await jpegFromImage(image, 1920, 0.92);
+    const compact = await jpegFromImage(image, 1440, 0.8);
+    if (compact.length && (compact.length < original.length || !file.type.includes("jpeg"))) {
+      hq = compact;
+      mime = "image/jpeg";
+    }
+    const mid = await jpegFromImage(image, 720, 0.7);
+    if (mid.length && mid.length < hq.length) mq = mid;
     const steps: Array<[number, number]> = [
       [720, 0.68],
       [560, 0.58],
@@ -326,7 +343,6 @@ export async function loadMediaRecord(hash: string): Promise<MediaRecord | null>
     request.onsuccess = () => resolve(request.result as MediaRecord | undefined);
     request.onerror = () => reject(request.error ?? new Error("indexeddb"));
   });
-  db.close();
   if (!record?.bytes) return null;
   rememberBytes(hash, record.mime, new Uint8Array(record.bytes));
   return record;
@@ -363,14 +379,20 @@ export function peekRamPhotoUrl(hash: string): string | null {
   return url;
 }
 
-export async function ensurePhotoSrc(hash: string, fresh = false): Promise<string | null> {
+export async function ensurePhotoSrc(hash: string, fresh = false, mimeHint?: string): Promise<string | null> {
   if (!fresh) {
     const existing = livePhotoUrl(hash);
     if (existing) return existing;
   }
   const rec = (await loadMediaRecord(hash)) ?? (await loadMediaRecord(mqKey(hash)));
   if (!rec?.bytes) return null;
-  const url = URL.createObjectURL(blobFromBytes(new Uint8Array(rec.bytes), rec.mime || "image/jpeg"));
+  const stored = (rec.mime || "").split(";")[0];
+  const hint = (mimeHint || "").split(";")[0];
+  const mime =
+    hint && (!stored || stored === "application/octet-stream" || (stored.startsWith("image/") && !hint.startsWith("image/")))
+      ? hint
+      : stored || hint || "application/octet-stream";
+  const url = URL.createObjectURL(blobFromBytes(new Uint8Array(rec.bytes), mime));
   liveUrls.set(hash, url);
   return url;
 }
@@ -423,7 +445,6 @@ export async function clearAllPhotos(): Promise<void> {
     tx.onerror = () => reject(tx.error ?? new Error("indexeddb"));
     tx.objectStore(STORE).clear();
   });
-  db.close();
 }
 
 export async function wipeMediaStore(): Promise<void> {

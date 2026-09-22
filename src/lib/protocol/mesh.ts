@@ -17,11 +17,7 @@ import { recipientsOf } from "./store";
 
 const OUTBOX_MAX = 250;
 const OUTBOX_KEY = "magicrita.outbox";
-const STUN = [
-  { urls: "stun:stun.l.google.com:19302" },
-  { urls: "stun:stun1.l.google.com:19302" },
-  { urls: "stun:stun.cloudflare.com:3478" },
-];
+const STUN = [{ urls: "stun:stun.cloudflare.com:3478" }];
 
 export type MeshPacket = {
   envelope: Envelope;
@@ -264,9 +260,21 @@ async function waitDrain(channel: RTCDataChannel): Promise<boolean> {
 }
 
 function binChunkSize(channel: RTCDataChannel): number {
-  const room = Math.floor((dcLimit(channel) - 240) * 3 / 4);
-  const aligned = room - (room % 3);
-  return Math.max(768, aligned);
+  const reported = Number((channel as RTCDataChannel & { maxMessageSize?: number }).maxMessageSize);
+  const cap = Number.isFinite(reported) && reported > 4096 ? reported : 65_536;
+  return Math.max(8_192, Math.min(48_000, cap - 256));
+}
+
+function sendBinary(channel: RTCDataChannel, bytes: Uint8Array): boolean {
+  if (channel.readyState !== "open") return false;
+  try {
+    const copy = new Uint8Array(bytes.byteLength);
+    copy.set(bytes);
+    channel.send(copy.buffer);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function sendBlobFromBytes(
@@ -280,6 +288,17 @@ async function sendBlobFromBytes(
   for (let i = 0; i < n; i++) {
     if (!(await waitDrain(channel))) return false;
     const slice = bytes.subarray(i * chunk, (i + 1) * chunk);
+    const header = JSON.stringify({
+      type: "media-bin",
+      hash: ref.hash,
+      mime: ref.mime,
+      name: (ref.name ?? "").slice(0, 80),
+      tier,
+      i,
+      n,
+      bytes: slice.byteLength,
+    });
+    if (sendRaw(channel, header) && sendBinary(channel, slice)) continue;
     const ok = sendRaw(
       channel,
       JSON.stringify({
@@ -361,7 +380,7 @@ async function sendEnvelopeJson(channel: RTCDataChannel, envelope: Envelope): Pr
   return true;
 }
 
-async function sendEnvelope(channel: RTCDataChannel, envelope: Envelope): Promise<boolean> {
+async function sendEnvelope(channel: RTCDataChannel, envelope: Envelope, attachMedia = true): Promise<boolean> {
   try {
     await queueChannel(channel, async () => {
       if (!(await sendEnvelopeJson(channel, envelope))) return;
@@ -369,6 +388,7 @@ async function sendEnvelope(channel: RTCDataChannel, envelope: Envelope): Promis
         if (channel.readyState !== "open") return;
         const preview = loadPreview(ref.hash);
         if (preview) await sendPreview(channel, ref.hash, preview);
+        if (!attachMedia) continue;
         const mid = await loadMediaRecord(mqKey(ref.hash));
         if (mid) {
           await sendBlobFromBytes(
@@ -378,6 +398,7 @@ async function sendEnvelope(channel: RTCDataChannel, envelope: Envelope): Promis
             "mq",
           );
         }
+        if (ref.mime.startsWith("video/") || ref.mime.startsWith("audio/")) continue;
         const record = await loadMediaRecord(ref.hash);
         if (!record) continue;
         await sendBlobFromBytes(
@@ -402,18 +423,19 @@ async function takeMediaPart(msg: {
   i?: number;
   n?: number;
   data?: string;
+  raw?: Uint8Array;
 }): Promise<void> {
-  if (
-    typeof msg.hash !== "string" ||
-    typeof msg.i !== "number" ||
-    typeof msg.n !== "number" ||
-    typeof msg.data !== "string" ||
-    msg.n < 1 ||
-    msg.i < 0 ||
-    msg.i >= msg.n
-  ) {
-    return;
+  if (typeof msg.hash !== "string" || typeof msg.i !== "number" || typeof msg.n !== "number") return;
+  if (msg.n < 1 || msg.i < 0 || msg.i >= msg.n) return;
+  let piece: Uint8Array | null = msg.raw ?? null;
+  if (!piece && typeof msg.data === "string") {
+    try {
+      piece = base64ToBytes(msg.data);
+    } catch {
+      return;
+    }
   }
+  if (!piece) return;
   const tier = msg.tier === "mq" ? "mq" : "hq";
   const key = `${msg.hash}:${tier}`;
   const now = Date.now();
@@ -433,11 +455,7 @@ async function takeMediaPart(msg: {
   } else if (typeof msg.mime === "string" && msg.mime) {
     slot.mime = msg.mime;
   }
-  try {
-    slot.parts[msg.i] = base64ToBytes(msg.data);
-  } catch {
-    return;
-  }
+  slot.parts[msg.i] = piece;
   slot.t = now;
   if (slot.parts.some((part) => !part)) return;
   assembling.delete(key);
@@ -581,15 +599,23 @@ export function requestMedia(hash: string): void {
   for (const channel of channels.values()) sendRaw(channel, msg);
 }
 
+let thumbMemo = { at: 0, data: "" };
+
 async function ownThumb(): Promise<string> {
   if (!self) return "";
+  if (Date.now() - thumbMemo.at < 60_000) return thumbMemo.data;
   try {
     const { latestProfile, loadLog } = await import("./store");
     const { avatarThumb } = await import("./media");
     const envelope = latestProfile(loadLog(self.rpub));
     const hash = envelope?.type === "profile" ? envelope.body.picture?.hash : undefined;
-    if (!hash) return "";
-    return (await avatarThumb(hash)) ?? "";
+    if (!hash) {
+      thumbMemo = { at: Date.now(), data: "" };
+      return "";
+    }
+    const data = (await avatarThumb(hash)) ?? "";
+    thumbMemo = { at: Date.now(), data };
+    return data;
   } catch {
     return "";
   }
@@ -604,7 +630,7 @@ async function sendProfile(channel: RTCDataChannel) {
   const { envelopesToSync } = await import("./store");
   for (const envelope of envelopesToSync(self.rpub)) {
     if (channel.readyState !== "open") break;
-    await sendEnvelope(channel, envelope);
+    await sendEnvelope(channel, envelope, false);
   }
 }
 
@@ -632,9 +658,29 @@ function setupChannel(rpub: string, channel: RTCDataChannel) {
   };
   channel.onopen = boot;
   if (channel.readyState === "open") boot();
+  let pendingBin: {
+    hash: string;
+    mime?: string;
+    name?: string;
+    tier?: string;
+    i: number;
+    n: number;
+    bytes?: number;
+  } | null = null;
   channel.onmessage = (event) => {
     void (async () => {
       try {
+        if (event.data instanceof ArrayBuffer || ArrayBuffer.isView(event.data)) {
+          const raw =
+            event.data instanceof ArrayBuffer
+              ? new Uint8Array(event.data)
+              : new Uint8Array(event.data.buffer, event.data.byteOffset, event.data.byteLength);
+          const header = pendingBin;
+          pendingBin = null;
+          if (header) void takeMediaPart({ ...header, raw });
+          return;
+        }
+        pendingBin = null;
         const parsed = JSON.parse(await messageToText(event.data)) as {
           type?: string;
           id?: string;
@@ -644,6 +690,8 @@ function setupChannel(rpub: string, channel: RTCDataChannel) {
           name?: string;
           i?: number;
           n?: number;
+          bytes?: number;
+          tier?: string;
           envelope?: MeshPacket["envelope"];
           media?: MeshPacket["media"];
         };
@@ -660,6 +708,18 @@ function setupChannel(rpub: string, channel: RTCDataChannel) {
         }
         if (parsed?.type === "preview") {
           takePreview(parsed);
+          return;
+        }
+        if (parsed?.type === "media-bin" && typeof parsed.hash === "string" && typeof parsed.i === "number" && typeof parsed.n === "number") {
+          pendingBin = {
+            hash: parsed.hash,
+            mime: parsed.mime,
+            name: parsed.name,
+            tier: parsed.tier,
+            i: parsed.i,
+            n: parsed.n,
+            bytes: parsed.bytes,
+          };
           return;
         }
         if (parsed?.type === "media") {
@@ -798,6 +858,7 @@ export async function publishMesh(envelope: Envelope): Promise<void> {
   for (const peer of live) tos.add(peer.rpub);
   tos.delete(envelope.author);
   for (const ref of mediaRefsOf(envelope)) {
+    if (ref.mime.startsWith("video/") || ref.mime.startsWith("audio/")) continue;
     for (const to of tos) void pushMediaViaSignal(to, ref.hash);
   }
 }

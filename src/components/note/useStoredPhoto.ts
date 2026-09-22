@@ -56,10 +56,12 @@ export function useStoredPhoto(hash?: string, src?: string) {
     const stop = onMediaStored((stored) => {
       if (stored === hash && !cancelled) void pull();
     });
+    let tries = 0;
     const retry = window.setInterval(() => {
-      if (cancelled || got) return;
+      if (cancelled || got || tries >= 6) return;
+      tries += 1;
       void pull();
-    }, 2000);
+    }, 4000);
     return () => {
       cancelled = true;
       stop();

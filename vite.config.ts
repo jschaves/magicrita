@@ -37,7 +37,7 @@ export default defineConfig(({ mode }) => {
       host: true,
       watch: {
         usePolling: true,
-        interval: 300,
+        interval: 1000,
       },
       proxy: {
         "/moderation": "http://127.0.0.1:8787",

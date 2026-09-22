@@ -6,7 +6,7 @@ import type { Envelope } from "./envelope";
 import type { MediaRef } from "./media";
 import { MAX_STORED_CHATS } from "./store";
 import { parseRpub, type Identity } from "./identity";
-import { latestBlocks } from "./social";
+import { EDIT_WINDOW_MS, latestBlocks } from "./social";
 import { loadLog } from "./store";
 
 export type ChatPhase = "none" | "outgoing" | "incoming" | "open" | "closed" | "blocked";
@@ -98,16 +98,39 @@ export function chatPeersWithMessages(events: Envelope[], me: string): string[] 
   return [...set];
 }
 
+export function rootChatTs(events: Envelope[], sig: string): number {
+  const bySig = new Map(
+    events.filter((event) => event.type === "chat_text" && event.sig).map((event) => [event.sig, event]),
+  );
+  let current = bySig.get(sig);
+  const seen = new Set<string>();
+  while (current?.type === "chat_text" && current.body.replaces && current.sig && !seen.has(current.sig)) {
+    seen.add(current.sig);
+    const previous = bySig.get(current.body.replaces);
+    if (!previous || previous.type !== "chat_text") break;
+    current = previous;
+  }
+  return current?.ts ?? 0;
+}
+
+export function canStripChatMedia(events: Envelope[], me: string, line: ChatLine, now = Date.now()): boolean {
+  if (line.author !== me) return false;
+  if (!line.audio && !line.video) return false;
+  return now - rootChatTs(events, line.sig) <= EDIT_WINDOW_MS;
+}
+
 export function chatLines(events: Envelope[], identity: Identity, them: string): ChatLine[] {
   const me = identity.rpub;
   const deleted = new Set<string>();
+  const replaced = new Set<string>();
   for (const event of events) {
     if (event.type === "delete") deleted.add(event.body.target);
+    if (event.type === "chat_text" && event.body.replaces) replaced.add(event.body.replaces);
   }
   const lines: ChatLine[] = [];
   for (const event of events) {
     if (event.type !== "chat_text") continue;
-    if (event.sig && deleted.has(event.sig)) continue;
+    if (event.sig && (deleted.has(event.sig) || replaced.has(event.sig))) continue;
     const mine = event.author === me && event.body.to === them;
     const theirs = event.author === them && event.body.to === me;
     if (!mine && !theirs) continue;

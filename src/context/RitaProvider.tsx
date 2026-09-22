@@ -43,6 +43,7 @@ import {
   type ReactionKind,
 } from "@/lib/protocol/envelope";
 import {
+  canStripChatMedia as chatMediaStillEditable,
   chatLines,
   chatPeers,
   chatPhase,
@@ -50,7 +51,7 @@ import {
   type ChatLine,
   type ChatPhase,
 } from "@/lib/protocol/chat";
-import { MAX_PHOTOS, onMediaStored, type MediaRef } from "@/lib/protocol/media";
+import { dropMedia, MAX_PHOTOS, onMediaStored, type MediaRef } from "@/lib/protocol/media";
 import { applyBundle, buildBundle, downloadBundle, parseBundle } from "@/lib/protocol/bundle";
 import {
   loadVault,
@@ -167,6 +168,8 @@ type RitaContextValue = {
   acceptChat: (rpub: string) => void;
   revokeChat: (rpub: string) => void;
   sendChat: (rpub: string, text: string, media?: MediaRef) => void;
+  stripChatMedia: (rpub: string, line: ChatLine, hash: string) => void;
+  canStripChat: (line: ChatLine) => boolean;
   chatPhaseOf: (rpub: string) => ChatPhase;
   chatLinesOf: (rpub: string) => ChatLine[];
   chatPeerList: string[];
@@ -175,7 +178,7 @@ type RitaContextValue = {
   dismissNoticesFor: (match: { kind?: NoticeKind | NoticeKind[]; from?: string }) => void;
   toggleLike: (target: string, kind: ReactionKind) => void;
   addComment: (postSig: string, text: string, parent?: string, media?: MediaRef) => void;
-  editComment: (comment: Envelope, text: string) => void;
+  editComment: (comment: Envelope, text: string, media?: MediaRef[]) => void;
   deleteComment: (comment: Envelope) => void;
   canMutateComment: (comment: Envelope) => boolean;
   report: (target: string, kind: ReactionKind) => void;
@@ -554,14 +557,15 @@ export function RitaProvider({ children }: { children: ReactNode }) {
   );
 
   const editComment = useCallback(
-    (comment: Envelope, text: string) => {
+    (comment: Envelope, text: string, media?: MediaRef[]) => {
       if (!identity) throw new ProtocolError("not_unlocked");
       if (comment.type !== "comment" || !comment.sig) throw new ProtocolError("invalid_envelope");
       if (comment.author !== identity.rpub) throw new ProtocolError("cannot_edit_other");
       if (!canMutateComment(allEnvelopes(), comment) && !canMutateComment(log, comment)) {
         throw new ProtocolError("comment_too_late");
       }
-      if (!text.trim()) throw new ProtocolError("empty_comment");
+      const nextMedia = media !== undefined ? media : comment.body.media;
+      if (!text.trim() && !(nextMedia && nextMedia.length > 0)) throw new ProtocolError("empty_comment");
       if (countLinks(text) > MAX_TEXT_LINKS) throw new ProtocolError("too_many_links");
       emit(
         signComment(identity, {
@@ -569,6 +573,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
           text,
           parent: comment.body.parent,
           replaces: comment.sig,
+          media: nextMedia && nextMedia.length > 0 ? nextMedia : undefined,
         }),
       );
     },
@@ -809,6 +814,43 @@ export function RitaProvider({ children }: { children: ReactNode }) {
     [allEvents, blocks, emit, identity],
   );
 
+  const canStripChat = useCallback(
+    (line: ChatLine) => {
+      if (!identity) return false;
+      return chatMediaStillEditable(allEvents, identity.rpub, line);
+    },
+    [allEvents, identity],
+  );
+
+  const stripChatMedia = useCallback(
+    (raw: string, line: ChatLine, hash: string) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      if (!chatMediaStillEditable(allEvents, identity.rpub, line)) {
+        throw new ProtocolError("edit_too_late");
+      }
+      const rpub = raw.trim();
+      const remaining: MediaRef[] = [];
+      if (line.audio && line.audio.hash !== hash) remaining.push(line.audio);
+      if (line.video && line.video.hash !== hash) remaining.push(line.video);
+      const text = line.text?.trim() ?? "";
+      if (!text && remaining.length === 0) {
+        emit(signDelete(identity, line.sig));
+      } else {
+        const sealed = sealChat(identity, rpub, text || " ");
+        emit(
+          signChatText(identity, {
+            to: rpub,
+            ...sealed,
+            media: remaining.length > 0 ? remaining : undefined,
+            replaces: line.sig,
+          }),
+        );
+      }
+      void dropMedia(hash);
+    },
+    [allEvents, emit, identity],
+  );
+
   const chatPhaseOf = useCallback(
     (rpub: string): ChatPhase => {
       if (!identity) return "none";
@@ -984,6 +1026,8 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       acceptChat,
       revokeChat,
       sendChat,
+      stripChatMedia,
+      canStripChat,
       chatPhaseOf,
       chatLinesOf,
       chatPeerList,
@@ -1028,6 +1072,8 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       acceptChat,
       revokeChat,
       sendChat,
+      stripChatMedia,
+      canStripChat,
       chatPhaseOf,
       chatLinesOf,
       chatPeerList,

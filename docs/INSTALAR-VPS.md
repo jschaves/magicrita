@@ -323,6 +323,30 @@ sudo systemctl reload nginx
 
 Open `https://YOUR-DOMAIN`. Port 80 redirects to 443.
 
+After HTTPS is on, hide the nginx version and add headers so endpoint antivirus trusts the origin (no third-party scripts). In `/etc/nginx/nginx.conf` inside `http {`:
+
+```nginx
+server_tokens off;
+```
+
+In the **443** `server {` block (the one certbot created), add:
+
+```nginx
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+add_header X-Content-Type-Options nosniff always;
+add_header Referrer-Policy strict-origin-when-cross-origin always;
+add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=()" always;
+add_header Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' wss: ws:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; worker-src 'self' blob:; base-uri 'self'; form-action 'self'" always;
+```
+
+```bash
+sudo nginx -t
+```
+
+```bash
+sudo systemctl reload nginx
+```
+
 ## 8. Check
 
 ```bash

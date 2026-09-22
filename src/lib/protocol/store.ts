@@ -7,6 +7,8 @@ import { dropSavedPosts } from "./saves";
 export const MAX_STORED_POSTS = 100;
 export const MAX_STORED_CHATS = 100;
 
+const logCache = new Map<string, Envelope[]>();
+
 function logKey(rpub: string): string {
   return `magicrita.log.${rpub}`;
 }
@@ -72,13 +74,22 @@ function pruneChatThread(a: string, b: string): void {
 }
 
 export function loadLog(rpub: string): Envelope[] {
+  const cached = logCache.get(rpub);
+  if (cached) return cached;
   try {
     const raw = localStorage.getItem(logKey(rpub));
-    if (!raw) return [];
+    if (!raw) {
+      logCache.set(rpub, []);
+      return [];
+    }
     const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) {
+      logCache.set(rpub, []);
+      return [];
+    }
     const events = parsed.filter((item): item is Envelope => isEnvelope(item) && verifyEnvelope(item));
     const pruned = pruneLog(events.filter((item) => item.type !== "presence"));
+    logCache.set(rpub, pruned);
     if (pruned.length !== events.length) {
       try {
         saveLog(rpub, pruned);
@@ -104,19 +115,12 @@ function isQuotaError(error: unknown): boolean {
 }
 
 function writeLogRaw(rpub: string, log: Envelope[]): void {
+  logCache.set(rpub, log);
   localStorage.setItem(logKey(rpub), JSON.stringify(log));
 }
 
 function readLogRaw(rpub: string): Envelope[] {
-  try {
-    const raw = localStorage.getItem(logKey(rpub));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is Envelope => isEnvelope(item) && verifyEnvelope(item));
-  } catch {
-    return [];
-  }
+  return loadLog(rpub);
 }
 
 function freeQuarter(rpub: string): Envelope[] {
@@ -173,11 +177,25 @@ export function forgetTarget(sig: string): void {
   }
 }
 
+function dropReplacedMedia(previous: Envelope | undefined, next: Envelope): void {
+  if (!previous) return;
+  const keep = new Set(mediaRefsOf(next).map((ref) => ref.hash));
+  for (const ref of mediaRefsOf(previous)) {
+    if (!keep.has(ref.hash)) void dropMedia(ref.hash);
+  }
+}
+
 export function appendEnvelope(rpub: string, envelope: Envelope): Envelope[] {
   if (!verifyEnvelope(envelope) || envelope.author !== rpub) {
     throw new ProtocolError("invalid_envelope");
   }
   const current = loadLog(rpub);
+  const replaced =
+    (envelope.type === "post" || envelope.type === "comment" || envelope.type === "chat_text") &&
+    envelope.body.replaces
+      ? current.find((item) => item.sig === envelope.body.replaces)
+      : undefined;
+  dropReplacedMedia(replaced, envelope);
   const next = pruneLog(
     [...current.filter((item) => item.sig !== envelope.sig), envelope].sort((a, b) => a.ts - b.ts),
   );
@@ -307,6 +325,7 @@ export function mergeEnvelopes(envelopes: Envelope[]): string[] {
 }
 
 export function clearLog(rpub: string): void {
+  logCache.delete(rpub);
   localStorage.removeItem(logKey(rpub));
 }
 

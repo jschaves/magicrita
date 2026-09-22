@@ -312,17 +312,38 @@ export function NoteCard({
                   <FilteredText text={event.body.text} />
                 </p>
               ) : null}
-              {photos.map((item) => (
-                <div key={item.hash} className="mt-3">
-                  {item.mime.startsWith("audio/") ? (
-                    <VoiceNote media={item} />
-                  ) : item.mime.startsWith("video/") ? (
-                    <VideoNote media={item} />
-                  ) : (
-                    <Photo hash={item.hash} alt={item.name} preview={item.preview} />
-                  )}
-                </div>
-              ))}
+              {photos.map((item) => {
+                const stripClip = canEdit(event)
+                  ? () => {
+                      try {
+                        const next = photos.filter((media) => media.hash !== item.hash);
+                        if (!event.body.text.trim() && next.length === 0) deletePost(event);
+                        else editPost(event, event.body.text, next);
+                      } catch (err) {
+                        setError(errorMessage(err, "live.editFailed"));
+                      }
+                    }
+                  : undefined;
+                return (
+                  <div key={item.hash} className="mt-3">
+                    {item.mime.startsWith("audio/") ? (
+                      <VoiceNote
+                        media={item}
+                        onRemove={stripClip}
+                        removeLabel={t("compose.removeVoice")}
+                      />
+                    ) : item.mime.startsWith("video/") ? (
+                      <VideoNote
+                        media={item}
+                        onRemove={stripClip}
+                        removeLabel={t("compose.removeVideo")}
+                      />
+                    ) : (
+                      <Photo hash={item.hash} alt={item.name} preview={item.preview} />
+                    )}
+                  </div>
+                );
+              })}
             </>
           )}
           <div className="mt-3 flex flex-wrap gap-4">
@@ -533,7 +554,22 @@ function CommentBlock({
         ) : (
           <div className="mt-1 space-y-2">
             {item.type === "comment" && item.body.media?.[0]?.mime.startsWith("audio/") ? (
-              <VoiceNote media={item.body.media[0]} />
+              <VoiceNote
+                media={item.body.media[0]}
+                onRemove={
+                  canChange
+                    ? () => {
+                        try {
+                          if (!item.body.text.trim()) deleteComment(item);
+                          else editComment(item, item.body.text, []);
+                        } catch (err) {
+                          console.warn(errorMessage(err, "live.editFailed"));
+                        }
+                      }
+                    : undefined
+                }
+                removeLabel={t("compose.removeVoice")}
+              />
             ) : null}
             {item.body.text.trim() ? (
               <p className="whitespace-pre-wrap">
