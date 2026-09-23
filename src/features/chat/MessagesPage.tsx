@@ -8,6 +8,7 @@ import { VoiceMic } from "@/components/ui/VoiceMic";
 import { VoiceNote } from "@/components/note/VoiceNote";
 import { VideoNote } from "@/components/note/VideoNote";
 import { VideoClip } from "@/components/ui/VideoClip";
+import { ResponsiveDock } from "@/components/ui/MobileDock";
 import { ingestVideo, ingestVoice } from "@/lib/protocol/media";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n, type MessageKey } from "@/i18n/I18nProvider";
@@ -235,7 +236,8 @@ export function MessagesPage() {
             })}
           </div>
           {phase === "open" ? (
-            <form className="border-t border-line p-4" onSubmit={onSend}>
+            <ResponsiveDock className="border-t border-line p-4" mobileClassName="border-t border-line p-3">
+            <form onSubmit={onSend}>
               {replyTo ? (
                 <div className="mb-2 flex items-center justify-between gap-2 rounded-xl bg-cream px-3 py-1.5 text-xs">
                   <p className="min-w-0 truncate font-semibold text-plum">
@@ -254,6 +256,8 @@ export function MessagesPage() {
                 onChange={(e) => setDraft(e.target.value.slice(0, MAX_CHAT_CHARS))}
                 maxLength={MAX_CHAT_CHARS}
                 rows={2}
+                enterKeyHint="send"
+                autoComplete="off"
                 placeholder={t("messages.write")}
                 className="w-full rounded-2xl border border-line bg-paper px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30"
               />
@@ -295,6 +299,7 @@ export function MessagesPage() {
                 </div>
               </div>
             </form>
+            </ResponsiveDock>
           ) : null}
         </div>
       )}

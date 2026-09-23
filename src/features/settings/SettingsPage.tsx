@@ -9,6 +9,8 @@ import { useRita } from "@/context/RitaProvider";
 import { useI18n } from "@/i18n/I18nProvider";
 import { ingestPhoto, isAcceptedPhoto } from "@/lib/protocol/media";
 import { MAX_BIO_CHARS, MAX_NAME_CHARS } from "@/lib/protocol/envelope";
+import { MobileDock } from "@/components/ui/MobileDock";
+import { useVisualViewport } from "@/lib/useVisualViewport";
 
 export function SettingsPage() {
   const {
@@ -35,6 +37,8 @@ export function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [wipeOpen, setWipeOpen] = useState(false);
+  const view = useVisualViewport();
+  const pinSave = view.mobile && view.keyboard;
 
   function pickFile(list: FileList | null) {
     const next = list?.[0];
@@ -110,7 +114,7 @@ export function SettingsPage() {
           ) : null}
         </div>
 
-        <form className="space-y-3" onSubmit={(event) => void onProfile(event)}>
+        <form id="profile-form" className="space-y-3" onSubmit={(event) => void onProfile(event)}>
           <h2 className="font-display text-xl">{t("settings.publicProfile")}</h2>
           <div className="flex items-center gap-4">
             {previewUrl ? (
@@ -172,10 +176,15 @@ export function SettingsPage() {
             hint={t("settings.interestsHint")}
           />
           {error ? <p className="text-sm text-accent">{error}</p> : null}
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy} className={pinSave ? "hidden" : ""}>
             {busy ? t("compose.saving") : t("settings.signProfile")}
           </Button>
         </form>
+        <MobileDock enabled={pinSave} role="composer" className="border-t border-line p-3">
+          <Button type="submit" form="profile-form" disabled={busy} className="w-full">
+            {busy ? t("compose.saving") : t("settings.signProfile")}
+          </Button>
+        </MobileDock>
 
         {message ? <p className="text-sm text-plum">{message}</p> : null}
 

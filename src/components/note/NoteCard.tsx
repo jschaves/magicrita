@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ImagePlus, Pencil, Trash2, X } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -20,6 +19,7 @@ import { Photo } from "./Photo";
 import { FilteredText } from "./FilteredText";
 import { CommentButton, HeartButton, ReportButton, SaveButton } from "./ActionBar";
 import { useVisualViewport } from "@/lib/useVisualViewport";
+import { MobileDock } from "@/components/ui/MobileDock";
 
 export function NoteCard({
   event,
@@ -62,6 +62,7 @@ export function NoteCard({
   const commentRef = useRef<HTMLInputElement>(null);
   const viewport = useVisualViewport();
   const mobile = viewport.mobile;
+  const cardId = useId();
 
   function openPostReply() {
     setReplyTo(mobile ? "post" : null);
@@ -69,8 +70,19 @@ export function NoteCard({
   }
 
   useEffect(() => {
-    if (replyTo) window.setTimeout(() => commentRef.current?.focus(), 50);
-  }, [replyTo]);
+    const onOther = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail;
+      if (detail !== cardId) setReplyTo(null);
+    };
+    window.addEventListener("rita-composer", onOther);
+    return () => window.removeEventListener("rita-composer", onOther);
+  }, [cardId]);
+
+  useEffect(() => {
+    if (!replyTo) return;
+    window.dispatchEvent(new CustomEvent("rita-composer", { detail: cardId }));
+    window.setTimeout(() => commentRef.current?.focus(), 50);
+  }, [replyTo, cardId]);
 
   if (event.type !== "post" || !event.sig) return null;
 
@@ -458,57 +470,48 @@ export function NoteCard({
           </div>
         </div>
       </div>
-      {identity && replyTo && mobile
-        ? createPortal(
-            <div
-              className="fixed z-50 box-border border-t border-line bg-white p-3 shadow-[0_-8px_24px_rgba(42,21,32,0.08)]"
-              style={{
-                left: viewport.offsetLeft,
-                width: viewport.width,
-                top: viewport.offsetTop + viewport.height,
-                transform: "translateY(-100%)",
-                maxWidth: "100%",
-              }}
-            >
-              <div className="mb-2 flex items-center justify-between gap-2 text-xs">
-                <p className="font-semibold text-plum">
-                  {replyTo === "post" ? t("live.writeComment") : t("live.replyTo")}
-                </p>
-                <button type="button" className="text-muted" onClick={() => setReplyTo(null)}>
-                  {t("live.cancelReply")}
-                </button>
-              </div>
-              <CommentForm
-                inputRef={commentRef}
-                value={draft}
-                onChange={setDraft}
-                onSubmit={() => {
-                  if (replyTo !== "post") submitComment(draft, replyTo);
-                  else submitComment(draft);
-                  setReplyTo(null);
-                }}
-                onVoice={(blob) => {
-                  void (async () => {
-                    if (replyTo !== "post") await submitVoice(blob, replyTo);
-                    else await submitVoice(blob);
-                    setReplyTo(null);
-                  })();
-                }}
-                onVideo={(file) => {
-                  void (async () => {
-                    if (replyTo !== "post") await submitVideo(file, replyTo);
-                    else await submitVideo(file);
-                    setReplyTo(null);
-                  })();
-                }}
-                onVoiceError={setError}
-                placeholder={replyTo === "post" ? t("live.writeComment") : t("live.replyTo")}
-                sendLabel={t("live.send")}
-              />
-            </div>,
-            document.body,
-          )
-        : null}
+      <MobileDock
+        enabled={Boolean(identity && replyTo)}
+        role="composer"
+        className="border-t border-line p-3"
+      >
+        <div className="mb-2 flex items-center justify-between gap-2 text-xs">
+          <p className="font-semibold text-plum">
+            {replyTo === "post" ? t("live.writeComment") : t("live.replyTo")}
+          </p>
+          <button type="button" className="text-muted" onClick={() => setReplyTo(null)}>
+            {t("live.cancelReply")}
+          </button>
+        </div>
+        <CommentForm
+          inputRef={commentRef}
+          value={draft}
+          onChange={setDraft}
+          onSubmit={() => {
+            if (replyTo && replyTo !== "post") submitComment(draft, replyTo);
+            else submitComment(draft);
+            setReplyTo(null);
+          }}
+          onVoice={(blob) => {
+            void (async () => {
+              if (replyTo && replyTo !== "post") await submitVoice(blob, replyTo);
+              else await submitVoice(blob);
+              setReplyTo(null);
+            })();
+          }}
+          onVideo={(file) => {
+            void (async () => {
+              if (replyTo && replyTo !== "post") await submitVideo(file, replyTo);
+              else await submitVideo(file);
+              setReplyTo(null);
+            })();
+          }}
+          onVoiceError={setError}
+          placeholder={replyTo === "post" ? t("live.writeComment") : t("live.replyTo")}
+          sendLabel={t("live.send")}
+          autoFocus
+        />
+      </MobileDock>
     </article>
   );
 }
@@ -792,6 +795,7 @@ function CommentForm({
   placeholder,
   sendLabel,
   inputRef,
+  autoFocus,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -802,6 +806,7 @@ function CommentForm({
   placeholder: string;
   sendLabel: string;
   inputRef?: { current: HTMLInputElement | null };
+  autoFocus?: boolean;
 }) {
   return (
     <form
@@ -815,6 +820,9 @@ function CommentForm({
         <input
           ref={inputRef}
           value={value}
+          autoFocus={autoFocus}
+          enterKeyHint="send"
+          autoComplete="off"
           onChange={(e) => onChange(e.target.value.slice(0, MAX_COMMENT_CHARS))}
           placeholder={placeholder}
           maxLength={MAX_COMMENT_CHARS}

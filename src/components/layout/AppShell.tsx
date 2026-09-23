@@ -1,4 +1,4 @@
-import { Link, NavLink, Navigate, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Bookmark, Compass, Home, LogOut, MessageCircle, PenLine, Settings, UserRound, Users } from "lucide-react";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -7,12 +7,10 @@ import { NoticeBell } from "@/components/ui/NoticeBell";
 import { SiteMark } from "@/components/ui/SiteMark";
 import { shortenId } from "@/lib/protocol/identity";
 import { useVisualViewport } from "@/lib/useVisualViewport";
+import { DockProvider, MobileDock, useDockOccupied } from "@/components/ui/MobileDock";
 
 export function AppShell() {
-  const { status, vault, identity, profile, logout, notices } = useRita();
-  const { t } = useI18n();
-  const navigate = useNavigate();
-  const viewport = useVisualViewport();
+  const { status, vault } = useRita();
 
   if (status === "anonymous" && !vault) {
     return <Navigate to="/welcome" replace />;
@@ -20,6 +18,24 @@ export function AppShell() {
   if (status === "locked") {
     return <Navigate to="/unlock" replace />;
   }
+
+  return (
+    <DockProvider>
+      <ShellLayout />
+    </DockProvider>
+  );
+}
+
+function ShellLayout() {
+  const { identity, profile, logout, notices } = useRita();
+  const { t } = useI18n();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const viewport = useVisualViewport();
+  const occupied = useDockOccupied();
+  const inThread = /\/messages\/.+/.test(location.pathname);
+  const hideNav = viewport.keyboard || occupied || inThread;
+  const padDock = !hideNav || occupied;
 
   const rpub = identity?.rpub ?? "";
   const inbox = notices ?? [];
@@ -111,7 +127,11 @@ export function AppShell() {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip md:contents">
-        <main className="min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto border-r border-line bg-paper/40 md:min-h-dvh">
+        <main
+          className={`min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto border-r border-line bg-paper/40 md:min-h-dvh md:pb-0 ${
+            padDock ? "pb-[var(--rita-dock,4.5rem)]" : "pb-0"
+          }`}
+        >
           <div className="flex items-center justify-between border-b border-line px-4 py-3 pr-14 md:hidden">
             <Link to="/">
               <SiteMark size="sm" />
@@ -119,46 +139,46 @@ export function AppShell() {
           </div>
           <Outlet />
         </main>
-
-        <nav
-          className={`w-full max-w-full shrink-0 border-t border-line bg-white px-1 pt-1 pb-[max(0.35rem,env(safe-area-inset-bottom))] md:hidden ${
-            viewport.keyboard ? "hidden" : ""
-          }`}
-        >
-          <div className="flex w-full max-w-full items-center justify-around">
-            {links.map(({ to, label, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={to === "/"}
-                aria-label={label}
-                className={({ isActive }) =>
-                  `relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                    isActive ? "bg-accent/10 text-accent" : "text-muted"
-                  }`
-                }
-              >
-                <Icon size={22} strokeWidth={1.75} />
-                {to === "/messages" && chatBadge ? (
-                  <span className="absolute right-0.5 top-0.5 min-w-3.5 rounded-full bg-ink px-1 text-center text-[9px] font-bold leading-3 text-white">
-                    {chatBadge > 9 ? "9+" : chatBadge}
-                  </span>
-                ) : null}
-                {to === "/people" && peopleBadge ? (
-                  <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-accent" />
-                ) : null}
-              </NavLink>
-            ))}
-            <NavLink
-              to="/compose"
-              aria-label={t("nav.publish")}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-white"
-            >
-              <PenLine size={18} strokeWidth={2} />
-            </NavLink>
-          </div>
-        </nav>
       </div>
+
+      <MobileDock
+        enabled={!hideNav}
+        role="nav"
+        className="border-t border-line px-1 pt-1 pb-[max(0.35rem,env(safe-area-inset-bottom))]"
+      >
+        <div className="flex w-full items-center justify-around">
+          {links.map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === "/"}
+              aria-label={label}
+              className={({ isActive }) =>
+                `relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                  isActive ? "bg-accent/10 text-accent" : "text-muted"
+                }`
+              }
+            >
+              <Icon size={22} strokeWidth={1.75} />
+              {to === "/messages" && chatBadge ? (
+                <span className="absolute right-0.5 top-0.5 min-w-3.5 rounded-full bg-ink px-1 text-center text-[9px] font-bold leading-3 text-white">
+                  {chatBadge > 9 ? "9+" : chatBadge}
+                </span>
+              ) : null}
+              {to === "/people" && peopleBadge ? (
+                <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-accent" />
+              ) : null}
+            </NavLink>
+          ))}
+          <NavLink
+            to="/compose"
+            aria-label={t("nav.publish")}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-white"
+          >
+            <PenLine size={18} strokeWidth={2} />
+          </NavLink>
+        </div>
+      </MobileDock>
 
       <aside className="hidden p-6 lg:block">
         <div className="rounded-3xl border border-line bg-paper p-4">

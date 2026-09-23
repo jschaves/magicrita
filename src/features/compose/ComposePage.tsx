@@ -11,6 +11,8 @@ import { VoiceMic } from "@/components/ui/VoiceMic";
 import { VoiceNote } from "@/components/note/VoiceNote";
 import { VideoClip } from "@/components/ui/VideoClip";
 import { VideoNote } from "@/components/note/VideoNote";
+import { MobileDock } from "@/components/ui/MobileDock";
+import { useVisualViewport } from "@/lib/useVisualViewport";
 
 
 type Preview = {
@@ -29,6 +31,8 @@ export function ComposePage() {
   const [video, setVideo] = useState<MediaRef | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const view = useVisualViewport();
+  const pinSubmit = view.mobile && view.keyboard;
 
   function addFiles(list: FileList | null) {
     if (!list) return;
@@ -89,6 +93,7 @@ export function ComposePage() {
         <p className="mt-1 text-xs leading-5 text-muted">{t("profile.capNote")}</p>
       </header>
       <form
+        id="compose-form"
         className="space-y-4 p-4"
         onSubmit={(event) => void onSubmit(event)}
         onDragOver={(event) => {
@@ -227,12 +232,23 @@ export function ComposePage() {
         </div>
 
         {error ? <p className="text-sm text-accent">{error}</p> : null}
-        <div className="flex justify-end">
+        <div className={pinSubmit ? "hidden" : "flex justify-end"}>
           <Button type="submit" disabled={busy || (!content.trim() && previews.length === 0 && !voice && !video)}>
             {busy ? t("compose.saving") : t("compose.submit")}
           </Button>
         </div>
       </form>
+      <MobileDock enabled={pinSubmit} role="composer" className="border-t border-line p-3">
+        <div className="flex justify-end">
+          <Button
+            type="submit"
+            form="compose-form"
+            disabled={busy || (!content.trim() && previews.length === 0 && !voice && !video)}
+          >
+            {busy ? t("compose.saving") : t("compose.submit")}
+          </Button>
+        </div>
+      </MobileDock>
     </section>
   );
 }
