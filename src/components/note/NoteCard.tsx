@@ -452,7 +452,7 @@ export function NoteCard({
               />
             ))}
             {identity && !replyTo ? (
-              <div className="hidden md:block">
+              <div>
                 <CommentForm
                   inputRef={commentRef}
                   value={draft}
@@ -461,6 +461,9 @@ export function NoteCard({
                   onVoice={(blob) => void submitVoice(blob)}
                   onVideo={(file) => void submitVideo(file)}
                   onVoiceError={setError}
+                  onFocus={() => {
+                    if (mobile) setReplyTo("post");
+                  }}
                   placeholder={t("live.writeComment")}
                   sendLabel={t("live.send")}
                 />
@@ -796,6 +799,7 @@ function CommentForm({
   sendLabel,
   inputRef,
   autoFocus,
+  onFocus,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -803,6 +807,7 @@ function CommentForm({
   onVoice?: (blob: Blob) => void;
   onVideo?: (file: File) => void;
   onVoiceError?: (message: string) => void;
+  onFocus?: () => void;
   placeholder: string;
   sendLabel: string;
   inputRef?: { current: HTMLInputElement | null };
@@ -823,13 +828,14 @@ function CommentForm({
           autoFocus={autoFocus}
           enterKeyHint="send"
           autoComplete="off"
+          onFocus={onFocus}
           onChange={(e) => onChange(e.target.value.slice(0, MAX_COMMENT_CHARS))}
           placeholder={placeholder}
           maxLength={MAX_COMMENT_CHARS}
           className="w-full rounded-full border border-line bg-paper px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30"
         />
-        <div className="mt-1 flex items-center justify-between px-1">
-          <span className="flex items-center gap-1">
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-1 px-1">
+          <span className="flex min-w-0 items-center gap-1">
             <EmojiInsert value={value} max={MAX_COMMENT_CHARS} onChange={onChange} />
             {onVoice ? <VoiceMic onBlob={onVoice} onError={onVoiceError} /> : null}
             {onVideo ? <VideoClip onFile={onVideo} onError={onVoiceError} /> : null}
