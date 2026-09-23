@@ -52,7 +52,7 @@ export function LiveFeed({
           setShown((n) => n + FEED_VISIBLE);
         }
       },
-      { root, rootMargin: "400px" },
+      { root: null, rootMargin: "400px" },
     );
     io.observe(target);
     return () => io.disconnect();
@@ -85,7 +85,7 @@ export function LiveFeed({
           {paused ? t("live.resume") : t("live.pause")}
         </button>
       </header>
-      <div ref={scrollerRef} className="max-h-[calc(100dvh-8rem)] overflow-y-auto">
+      <div ref={scrollerRef} className="overflow-x-clip">
         {banner}
         {source.length === 0 ? (
           <div className="px-6 py-16 text-center">

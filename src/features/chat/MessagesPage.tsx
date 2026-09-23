@@ -150,7 +150,7 @@ export function MessagesPage() {
           </div>
         </div>
       ) : (
-        <div className="flex min-h-[70dvh] flex-col">
+        <div className="flex min-h-0 flex-col">
           <div className="border-b border-line px-4 py-3">
             <Link to="/messages" className="text-sm text-muted hover:text-ink">
               {t("common.back")}

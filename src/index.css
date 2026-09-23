@@ -45,7 +45,16 @@ body,
 #root {
   min-height: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+@media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
 }
 
 body {
@@ -57,6 +66,13 @@ body {
 
 #root {
   min-height: 100dvh;
+}
+
+@media (max-width: 767px) {
+  #root {
+    height: 100%;
+    min-height: 0;
+  }
 }
 
 ::selection {
