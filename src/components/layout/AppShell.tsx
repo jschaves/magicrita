@@ -6,11 +6,13 @@ import { Avatar } from "@/components/note/Avatar";
 import { NoticeBell } from "@/components/ui/NoticeBell";
 import { SiteMark } from "@/components/ui/SiteMark";
 import { shortenId } from "@/lib/protocol/identity";
+import { useVisualViewport } from "@/lib/useVisualViewport";
 
 export function AppShell() {
   const { status, vault, identity, profile, logout, notices } = useRita();
   const { t } = useI18n();
   const navigate = useNavigate();
+  const viewport = useVisualViewport();
 
   if (status === "anonymous" && !vault) {
     return <Navigate to="/welcome" replace />;
@@ -118,7 +120,11 @@ export function AppShell() {
           <Outlet />
         </main>
 
-        <nav className="w-full max-w-full shrink-0 border-t border-line bg-white px-1 pt-1 pb-[max(0.35rem,env(safe-area-inset-bottom))] md:hidden">
+        <nav
+          className={`w-full max-w-full shrink-0 border-t border-line bg-white px-1 pt-1 pb-[max(0.35rem,env(safe-area-inset-bottom))] md:hidden ${
+            viewport.keyboard ? "hidden" : ""
+          }`}
+        >
           <div className="flex w-full max-w-full items-center justify-around">
             {links.map(({ to, label, icon: Icon }) => (
               <NavLink

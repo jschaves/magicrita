@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { ImagePlus, Pencil, Trash2, X } from "lucide-react";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -18,6 +19,7 @@ import { Avatar } from "./Avatar";
 import { Photo } from "./Photo";
 import { FilteredText } from "./FilteredText";
 import { CommentButton, HeartButton, ReportButton, SaveButton } from "./ActionBar";
+import { useVisualViewport } from "@/lib/useVisualViewport";
 
 export function NoteCard({
   event,
@@ -58,11 +60,17 @@ export function NoteCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const editPhotoRef = useRef<HTMLInputElement>(null);
   const commentRef = useRef<HTMLInputElement>(null);
+  const viewport = useVisualViewport();
+  const mobile = viewport.mobile;
 
   function openPostReply() {
-    setReplyTo(null);
-    window.setTimeout(() => commentRef.current?.focus(), 0);
+    setReplyTo(mobile ? "post" : null);
+    window.setTimeout(() => commentRef.current?.focus(), 50);
   }
+
+  useEffect(() => {
+    if (replyTo) window.setTimeout(() => commentRef.current?.focus(), 50);
+  }, [replyTo]);
 
   if (event.type !== "post" || !event.sig) return null;
 
@@ -432,7 +440,7 @@ export function NoteCard({
               />
             ))}
             {identity && !replyTo ? (
-              <>
+              <div className="hidden md:block">
                 <CommentForm
                   inputRef={commentRef}
                   value={draft}
@@ -445,11 +453,62 @@ export function NoteCard({
                   sendLabel={t("live.send")}
                 />
                 <p className="text-[11px] text-muted">{t("live.commentWindow")}</p>
-              </>
+              </div>
             ) : null}
           </div>
         </div>
       </div>
+      {identity && replyTo && mobile
+        ? createPortal(
+            <div
+              className="fixed z-50 box-border border-t border-line bg-white p-3 shadow-[0_-8px_24px_rgba(42,21,32,0.08)]"
+              style={{
+                left: viewport.offsetLeft,
+                width: viewport.width,
+                top: viewport.offsetTop + viewport.height,
+                transform: "translateY(-100%)",
+                maxWidth: "100%",
+              }}
+            >
+              <div className="mb-2 flex items-center justify-between gap-2 text-xs">
+                <p className="font-semibold text-plum">
+                  {replyTo === "post" ? t("live.writeComment") : t("live.replyTo")}
+                </p>
+                <button type="button" className="text-muted" onClick={() => setReplyTo(null)}>
+                  {t("live.cancelReply")}
+                </button>
+              </div>
+              <CommentForm
+                inputRef={commentRef}
+                value={draft}
+                onChange={setDraft}
+                onSubmit={() => {
+                  if (replyTo !== "post") submitComment(draft, replyTo);
+                  else submitComment(draft);
+                  setReplyTo(null);
+                }}
+                onVoice={(blob) => {
+                  void (async () => {
+                    if (replyTo !== "post") await submitVoice(blob, replyTo);
+                    else await submitVoice(blob);
+                    setReplyTo(null);
+                  })();
+                }}
+                onVideo={(file) => {
+                  void (async () => {
+                    if (replyTo !== "post") await submitVideo(file, replyTo);
+                    else await submitVideo(file);
+                    setReplyTo(null);
+                  })();
+                }}
+                onVoiceError={setError}
+                placeholder={replyTo === "post" ? t("live.writeComment") : t("live.replyTo")}
+                sendLabel={t("live.send")}
+              />
+            </div>,
+            document.body,
+          )
+        : null}
     </article>
   );
 }
@@ -666,7 +725,7 @@ function CommentBlock({
           />
         </div>
         {identity && replyTo === item.sig ? (
-          <div className="mt-2">
+          <div className="mt-2 hidden md:block">
             <CommentForm
               value={text}
               onChange={setText}

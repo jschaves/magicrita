@@ -54,6 +54,13 @@ body,
   #root {
     height: 100%;
     overflow: hidden;
+    overscroll-behavior-x: none;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
   }
 }
 
