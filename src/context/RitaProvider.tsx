@@ -167,7 +167,7 @@ type RitaContextValue = {
   requestChat: (rpub: string) => void;
   acceptChat: (rpub: string) => void;
   revokeChat: (rpub: string) => void;
-  sendChat: (rpub: string, text: string, media?: MediaRef) => void;
+  sendChat: (rpub: string, text: string, media?: MediaRef, replies?: string) => void;
   stripChatMedia: (rpub: string, line: ChatLine, hash: string) => void;
   canStripChat: (line: ChatLine) => boolean;
   chatPhaseOf: (rpub: string) => ChatPhase;
@@ -336,7 +336,6 @@ export function RitaProvider({ children }: { children: ReactNode }) {
 
   const unlock = useCallback(
     async (password: string) => {
-      await assertBetaInvite();
       const record = loadVault();
       if (!record) {
         throw new ProtocolError("no_vault");
@@ -799,7 +798,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
   }, [catalog, log]);
 
   const sendChat = useCallback(
-    (raw: string, text: string, media?: MediaRef) => {
+    (raw: string, text: string, media?: MediaRef, replies?: string) => {
       if (!identity) throw new ProtocolError("not_unlocked");
       parseRpub(raw);
       const rpub = raw.trim();
@@ -810,7 +809,14 @@ export function RitaProvider({ children }: { children: ReactNode }) {
         throw new ProtocolError("chat_closed");
       }
       const sealed = sealChat(identity, rpub, clipped || " ");
-      emit(signChatText(identity, { to: rpub, ...sealed, media: media ? [media] : undefined }));
+      emit(
+        signChatText(identity, {
+          to: rpub,
+          ...sealed,
+          media: media ? [media] : undefined,
+          replies,
+        }),
+      );
     },
     [allEvents, blocks, emit, identity],
   );
@@ -923,7 +929,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       seen.add(identity.rpub);
       list.push({
         rpub: identity.rpub,
-        online: true,
+        online: signalOn,
         profile: profile ?? personFrom(identity.rpub, allEvents).profile,
         avatarUrl: undefined,
       });

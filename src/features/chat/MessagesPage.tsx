@@ -41,6 +41,7 @@ export function MessagesPage() {
   const { t, locale, errorMessage } = useI18n();
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<{ sig: string; text: string | null; author: string } | null>(null);
 
   useEffect(() => {
     if (them) dismissNoticesFor({ kind: ["chat", "request"], from: them });
@@ -82,8 +83,9 @@ export function MessagesPage() {
     event.preventDefault();
     if (!them) return;
     run(() => {
-      sendChat(them, draft);
+      sendChat(them, draft, undefined, replyTo?.sig);
       setDraft("");
+      setReplyTo(null);
     });
   }
 
@@ -175,7 +177,7 @@ export function MessagesPage() {
                 <div key={line.sig} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div
                     className={`rounded-2xl px-3 py-2 text-sm leading-5 ${
-                      line.audio ? "w-[min(22rem,85%)] min-w-[16.5rem]" : "max-w-[80%]"
+                      line.audio ? "w-[min(22rem,calc(100%-1.5rem))] min-w-0" : "max-w-[80%] min-w-0"
                     } ${mine ? "bg-plum text-cream" : "border border-line bg-paper"}`}
                   >
                     {line.audio ? (
@@ -201,10 +203,28 @@ export function MessagesPage() {
                         removeLabel={t("compose.removeVideo")}
                       />
                     ) : null}
+                    {line.quote ? (
+                      <p
+                        className={`mb-1 truncate border-l-2 pl-2 text-[11px] ${
+                          mine ? "border-cream/50 text-cream/80" : "border-plum/40 text-muted"
+                        }`}
+                      >
+                        {line.quote.text?.trim() || t("live.voice")}
+                      </p>
+                    ) : null}
                     {line.text ? (
                       <p className="whitespace-pre-wrap">{line.text}</p>
                     ) : !line.audio && !line.video ? (
                       <p className="whitespace-pre-wrap">{t("messages.decryptFail")}</p>
+                    ) : null}
+                    {phase === "open" ? (
+                      <button
+                        type="button"
+                        className={`mt-1 text-[11px] font-semibold ${mine ? "text-cream/80" : "text-plum"}`}
+                        onClick={() => setReplyTo({ sig: line.sig, text: line.text, author: line.author })}
+                      >
+                        {t("live.reply")}
+                      </button>
                     ) : null}
                     <p className={`mt-1 text-[10px] ${mine ? "text-cream/70" : "text-muted"}`}>
                       {timeAgo(line.ts, t, locale)}
@@ -216,6 +236,19 @@ export function MessagesPage() {
           </div>
           {phase === "open" ? (
             <form className="border-t border-line p-4" onSubmit={onSend}>
+              {replyTo ? (
+                <div className="mb-2 flex items-center justify-between gap-2 rounded-xl bg-cream px-3 py-1.5 text-xs">
+                  <p className="min-w-0 truncate font-semibold text-plum">
+                    {t("messages.replying", {
+                      name: profileOf(replyTo.author)?.name || shortenId(replyTo.author),
+                    })}
+                    {replyTo.text ? ` · ${replyTo.text}` : ""}
+                  </p>
+                  <button type="button" className="shrink-0 text-muted" onClick={() => setReplyTo(null)}>
+                    {t("live.cancelReply")}
+                  </button>
+                </div>
+              ) : null}
               <textarea
                 value={draft}
                 onChange={(e) => setDraft(e.target.value.slice(0, MAX_CHAT_CHARS))}
@@ -233,7 +266,8 @@ export function MessagesPage() {
                       void (async () => {
                         try {
                           const media = await ingestVoice(blob);
-                          sendChat(them, "", media);
+                          sendChat(them, "", media, replyTo?.sig);
+                          setReplyTo(null);
                         } catch (err) {
                           setError(errorMessage(err, "messages.failed"));
                         }
@@ -246,7 +280,8 @@ export function MessagesPage() {
                       void (async () => {
                         try {
                           const media = await ingestVideo(file);
-                          sendChat(them, "", media);
+                          sendChat(them, "", media, replyTo?.sig);
+                          setReplyTo(null);
                         } catch (err) {
                           setError(errorMessage(err, "messages.failed"));
                         }

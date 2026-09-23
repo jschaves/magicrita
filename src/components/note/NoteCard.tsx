@@ -9,9 +9,10 @@ import { MAX_COMMENT_CHARS, MAX_POST_CHARS, type Envelope } from "@/lib/protocol
 import { CharCount } from "@/components/ui/Field";
 import { EmojiInsert } from "@/components/ui/EmojiInsert";
 import { VoiceMic } from "@/components/ui/VoiceMic";
+import { VideoClip } from "@/components/ui/VideoClip";
 import { VoiceNote } from "./VoiceNote";
 import { VideoNote } from "./VideoNote";
-import { ingestPhoto, ingestVoice, isAcceptedPhoto, type MediaRef } from "@/lib/protocol/media";
+import { ingestPhoto, ingestVideo, ingestVoice, isAcceptedPhoto, type MediaRef } from "@/lib/protocol/media";
 import { commentLineageSigs, postLineageSigs } from "@/lib/protocol/social";
 import { Avatar } from "./Avatar";
 import { Photo } from "./Photo";
@@ -56,6 +57,12 @@ export function NoteCard({
   const [editBusy, setEditBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const editPhotoRef = useRef<HTMLInputElement>(null);
+  const commentRef = useRef<HTMLInputElement>(null);
+
+  function openPostReply() {
+    setReplyTo(null);
+    window.setTimeout(() => commentRef.current?.focus(), 0);
+  }
 
   if (event.type !== "post" || !event.sig) return null;
 
@@ -95,6 +102,15 @@ export function NoteCard({
   async function submitVoice(blob: Blob, parent?: string) {
     try {
       const media = await ingestVoice(blob);
+      submitComment("", parent, media);
+    } catch (err) {
+      setError(errorMessage(err, "live.commentFailed"));
+    }
+  }
+
+  async function submitVideo(file: File, parent?: string) {
+    try {
+      const media = await ingestVideo(file);
       submitComment("", parent, media);
     } catch (err) {
       setError(errorMessage(err, "live.commentFailed"));
@@ -312,6 +328,26 @@ export function NoteCard({
                   <FilteredText text={event.body.text} />
                 </p>
               ) : null}
+              {identity?.rpub === author && canEdit(event) && !photos.some((item) => item.mime.startsWith("video/")) ? (
+                <div className="mt-3">
+                  <p className="mb-1 text-xs font-semibold text-ink">{t("compose.video")}</p>
+                  <VideoClip
+                    onError={setError}
+                    onFile={(file) => {
+                      void (async () => {
+                        try {
+                          const clip = await ingestVideo(file);
+                          editPost(event, event.body.text, [...photos, clip]);
+                          setError(null);
+                        } catch (err) {
+                          setError(errorMessage(err, "live.editFailed"));
+                        }
+                      })();
+                    }}
+                  />
+                  <p className="mt-1 text-[11px] text-muted">{t("compose.videoHint")}</p>
+                </div>
+              ) : null}
               {photos.map((item) => {
                 const stripClip = canEdit(event)
                   ? () => {
@@ -352,7 +388,16 @@ export function NoteCard({
               mine={postLikes.mine}
               onClick={() => toggleLike(event.sig, "post")}
             />
-            <CommentButton count={thread.length} onClick={() => undefined} />
+            <CommentButton count={thread.length} onClick={openPostReply} />
+            {identity ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-plum"
+                onClick={openPostReply}
+              >
+                {t("live.reply")}
+              </button>
+            ) : null}
             <SaveButton
               saved={saved}
               label={saved ? t("live.unsave") : t("live.save")}
@@ -389,10 +434,12 @@ export function NoteCard({
             {identity && !replyTo ? (
               <>
                 <CommentForm
+                  inputRef={commentRef}
                   value={draft}
                   onChange={setDraft}
                   onSubmit={() => submitComment(draft)}
                   onVoice={(blob) => void submitVoice(blob)}
+                  onVideo={(file) => void submitVideo(file)}
                   onVoiceError={setError}
                   placeholder={t("live.writeComment")}
                   sendLabel={t("live.send")}
@@ -571,6 +618,24 @@ function CommentBlock({
                 removeLabel={t("compose.removeVoice")}
               />
             ) : null}
+            {item.type === "comment" && item.body.media?.[0]?.mime.startsWith("video/") ? (
+              <VideoNote
+                media={item.body.media[0]}
+                onRemove={
+                  canChange
+                    ? () => {
+                        try {
+                          if (!item.body.text.trim()) deleteComment(item);
+                          else editComment(item, item.body.text, []);
+                        } catch (err) {
+                          console.warn(errorMessage(err, "live.editFailed"));
+                        }
+                      }
+                    : undefined
+                }
+                removeLabel={t("compose.removeVideo")}
+              />
+            ) : null}
             {item.body.text.trim() ? (
               <p className="whitespace-pre-wrap">
                 <FilteredText text={item.body.text} />
@@ -619,6 +684,16 @@ function CommentBlock({
                   }
                 })();
               }}
+              onVideo={(file) => {
+                void (async () => {
+                  try {
+                    const media = await ingestVideo(file);
+                    onSubmit("", item.sig, media);
+                  } catch {
+                    // parent shows error via onSubmit
+                  }
+                })();
+              }}
               placeholder={t("live.replyTo")}
               sendLabel={t("live.send")}
             />
@@ -653,17 +728,21 @@ function CommentForm({
   onChange,
   onSubmit,
   onVoice,
+  onVideo,
   onVoiceError,
   placeholder,
   sendLabel,
+  inputRef,
 }: {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
   onVoice?: (blob: Blob) => void;
+  onVideo?: (file: File) => void;
   onVoiceError?: (message: string) => void;
   placeholder: string;
   sendLabel: string;
+  inputRef?: { current: HTMLInputElement | null };
 }) {
   return (
     <form
@@ -675,6 +754,7 @@ function CommentForm({
     >
       <div className="min-w-0 flex-1">
         <input
+          ref={inputRef}
           value={value}
           onChange={(e) => onChange(e.target.value.slice(0, MAX_COMMENT_CHARS))}
           placeholder={placeholder}
@@ -685,6 +765,7 @@ function CommentForm({
           <span className="flex items-center gap-1">
             <EmojiInsert value={value} max={MAX_COMMENT_CHARS} onChange={onChange} />
             {onVoice ? <VoiceMic onBlob={onVoice} onError={onVoiceError} /> : null}
+            {onVideo ? <VideoClip onFile={onVideo} onError={onVoiceError} /> : null}
           </span>
           <CharCount value={value} max={MAX_COMMENT_CHARS} />
         </div>

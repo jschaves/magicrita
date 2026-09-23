@@ -29,8 +29,8 @@
 @theme {
   --font-display: "Fraunces", ui-serif, Georgia, serif;
   --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
-  --color-cream: #f6eee4;
-  --color-paper: #fff8f1;
+  --color-cream: #ffffff;
+  --color-paper: #ffffff;
   --color-ink: #2a1520;
   --color-muted: #7a5564;
   --color-line: #ead7c8;
@@ -44,16 +44,15 @@ html,
 body,
 #root {
   min-height: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background: var(--color-cream);
+  background: #ffffff;
   color: var(--color-ink);
-  background-image:
-    radial-gradient(1200px 500px at 10% -10%, rgba(198, 30, 106, 0.08), transparent 55%),
-    radial-gradient(900px 400px at 100% 0%, rgba(91, 42, 110, 0.1), transparent 50%);
 }
 
 #root {

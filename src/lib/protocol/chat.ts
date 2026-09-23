@@ -18,6 +18,8 @@ export type ChatLine = {
   text: string | null;
   audio?: MediaRef;
   video?: MediaRef;
+  replies?: string;
+  quote?: { author: string; text: string | null };
 };
 
 function sharedKey(secret: Uint8Array, theirRpub: string): Uint8Array {
@@ -145,7 +147,15 @@ export function chatLines(events: Envelope[], identity: Identity, them: string):
       text: clip ? (raw && raw.trim() ? raw : null) : raw,
       audio,
       video,
+      replies: event.body.replies,
     });
   }
-  return lines.sort((a, b) => a.ts - b.ts).slice(-MAX_STORED_CHATS);
+  const ordered = lines.sort((a, b) => a.ts - b.ts).slice(-MAX_STORED_CHATS);
+  const bySig = new Map(ordered.map((line) => [line.sig, line]));
+  for (const line of ordered) {
+    if (!line.replies) continue;
+    const parent = bySig.get(line.replies);
+    if (parent) line.quote = { author: parent.author, text: parent.text };
+  }
+  return ordered;
 }

@@ -27,6 +27,7 @@ export function Avatar({
   const [failed, setFailed] = useState(false);
   const initial = (name || "R").slice(0, 1).toUpperCase();
   const box = `flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-plum font-bold text-white ${sizes[size]}`;
+  const hash = picture?.hash;
 
   useEffect(() => {
     let cancelled = false;
@@ -35,16 +36,12 @@ export function Avatar({
       setUrl(src);
       return;
     }
-    const hash = picture?.hash;
     if (!hash) {
       setUrl(null);
       return;
     }
     const ram = peekRamPhotoUrl(hash);
-    if (ram) {
-      setUrl(ram);
-      return;
-    }
+    if (ram) setUrl(ram);
     const show = (next: string | null) => {
       if (cancelled || !next) return;
       setFailed(false);
@@ -59,14 +56,23 @@ export function Avatar({
       cancelled = true;
       stop();
     };
-  }, [src, picture?.hash]);
+  }, [src, hash]);
 
   if (url && !failed) {
     return (
       <img
         src={url}
         alt=""
-        onError={() => setFailed(true)}
+        onError={() => {
+          setFailed(true);
+          if (hash) {
+            void ensurePhotoSrc(hash, true).then((next) => {
+              if (!next) return;
+              setFailed(false);
+              setUrl(next);
+            });
+          }
+        }}
         className={`${box} object-cover`}
       />
     );

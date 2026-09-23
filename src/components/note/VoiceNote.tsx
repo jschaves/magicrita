@@ -77,7 +77,7 @@ export function VoiceNote({
   const fill = light ? "bg-cream" : "bg-accent";
 
   return (
-    <span className={`block w-full min-w-[16rem] ${ink}`}>
+    <span className={`block w-full min-w-0 max-w-full ${ink}`}>
       <audio
         ref={(el) => {
           node.current = el;

@@ -33,7 +33,7 @@ export function AppShell() {
   ];
 
   return (
-    <div className="relative mx-auto grid min-h-dvh max-w-6xl grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)_260px]">
+    <div className="relative mx-auto grid min-h-dvh w-full max-w-6xl grid-cols-1 overflow-x-hidden md:grid-cols-[220px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)_260px]">
       <div className="fixed right-3 top-3 z-30 md:right-[max(0.75rem,calc((100vw-72rem)/2+0.75rem))]">
         <NoticeBell />
       </div>
@@ -108,7 +108,7 @@ export function AppShell() {
         </button>
       </aside>
 
-      <main className="min-w-0 border-r border-line bg-paper/40 pb-20 md:pb-0">
+      <main className="min-w-0 overflow-x-hidden border-r border-line bg-paper/40 pb-24 md:pb-0">
         <div className="flex items-center justify-between border-b border-line px-4 py-3 pr-14 md:hidden">
           <Link to="/">
             <SiteMark size="sm" />
@@ -131,39 +131,39 @@ export function AppShell() {
         </ol>
       </aside>
 
-      <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-line bg-paper/95 px-2 py-2 backdrop-blur md:hidden">
-        {links.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === "/"}
-            className={({ isActive }) =>
-              `flex flex-1 flex-col items-center gap-1 rounded-xl py-1 text-[11px] font-semibold ${
-                isActive ? "text-accent" : "text-muted"
-              }`
-            }
-          >
-            <span className="relative">
-              <Icon size={18} />
+      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white/90 px-2 pt-1.5 pb-[max(0.4rem,env(safe-area-inset-bottom))] backdrop-blur md:hidden">
+        <div className="mx-auto flex max-w-lg items-center justify-around">
+          {links.map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === "/"}
+              aria-label={label}
+              className={({ isActive }) =>
+                `relative flex h-11 w-11 items-center justify-center rounded-full ${
+                  isActive ? "bg-accent/10 text-accent" : "text-muted"
+                }`
+              }
+            >
+              <Icon size={22} strokeWidth={1.75} />
               {to === "/messages" && chatBadge ? (
-                <span className="absolute -right-2 -top-2 min-w-4 rounded-full bg-ink px-1 text-center text-[10px] font-bold leading-4 text-cream">
+                <span className="absolute right-1 top-1 min-w-3.5 rounded-full bg-ink px-1 text-center text-[9px] font-bold leading-3 text-white">
                   {chatBadge > 9 ? "9+" : chatBadge}
                 </span>
               ) : null}
               {to === "/people" && peopleBadge ? (
-                <span className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full bg-accent" />
+                <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-accent" />
               ) : null}
-            </span>
-            {label}
+            </NavLink>
+          ))}
+          <NavLink
+            to="/compose"
+            aria-label={t("nav.publish")}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-accent text-white shadow-sm"
+          >
+            <PenLine size={20} strokeWidth={2} />
           </NavLink>
-        ))}
-        <NavLink
-          to="/compose"
-          className="flex flex-1 flex-col items-center gap-1 rounded-xl py-1 text-[11px] font-semibold text-accent"
-        >
-          <PenLine size={18} />
-          {t("nav.publish")}
-        </NavLink>
+        </div>
       </nav>
     </div>
   );

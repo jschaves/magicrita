@@ -62,7 +62,14 @@ export type DeleteBody = { target: string };
 export type GoneBody = { gone: true };
 export type InviteBody = { rpub: string; exp: number };
 export type ChatConsentBody = { to: string; on: boolean };
-export type ChatTextBody = { to: string; n: string; box: string; media?: MediaRef[]; replaces?: string };
+export type ChatTextBody = {
+  to: string;
+  n: string;
+  box: string;
+  media?: MediaRef[];
+  replaces?: string;
+  replies?: string;
+};
 
 export type Envelope =
   | { v: 1; type: "profile"; author: string; ts: number; body: ProfileBody; sig: string }
@@ -219,7 +226,7 @@ export function signChatConsent(identity: Identity, to: string, on: boolean, ts 
 
 export function signChatText(
   identity: Identity,
-  input: { to: string; n: string; box: string; media?: MediaRef[]; replaces?: string },
+  input: { to: string; n: string; box: string; media?: MediaRef[]; replaces?: string; replies?: string },
   ts = Date.now(),
 ): Envelope {
   const body: ChatTextBody = { to: input.to.trim(), n: input.n, box: input.box };
@@ -227,6 +234,7 @@ export function signChatText(
     body.media = input.media.map((item) => ({ hash: item.hash, mime: item.mime, name: item.name }));
   }
   if (input.replaces) body.replaces = input.replaces;
+  if (input.replies) body.replies = input.replies;
   return signed(identity, "chat_text", body, ts);
 }
 
@@ -301,6 +309,7 @@ export function isEnvelope(value: unknown): value is Envelope {
       return false;
     }
     if (env.body.replaces !== undefined && typeof env.body.replaces !== "string") return false;
+    if (env.body.replies !== undefined && typeof env.body.replies !== "string") return false;
     return env.body.media === undefined || (Array.isArray(env.body.media) && env.body.media.every(isMediaRef));
   }
   return false;

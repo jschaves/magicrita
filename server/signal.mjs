@@ -102,8 +102,8 @@ const sessions = new Map();
 const SESSION_MS = 12 * 60 * 60 * 1000;
 const POW_BITS = 16;
 const POW_PREFIX = "rita-pow-v1";
-const MAX_IP_SOCKETS = 4;
-const MAX_IP_RPUBS = 8;
+const MAX_IP_SOCKETS = 16;
+const MAX_IP_RPUBS = 16;
 const hits = new Map();
 
 function clientIp(req) {
@@ -460,6 +460,13 @@ function snapshot(exceptRpub) {
   return peers;
 }
 
+function pushRoster() {
+  for (const [client, info] of live) {
+    if (!info?.rpub || client.readyState !== client.OPEN) continue;
+    send(client, { type: "peers", peers: snapshot(info.rpub) });
+  }
+}
+
 function send(ws, msg) {
   if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
 }
@@ -582,14 +589,26 @@ wss.on("connection", (ws, req) => {
     }
 
     if (msg.type === "hello" && typeof msg.rpub === "string") {
-      if (tooMany(`hello:${ws.clientIp}`, 10, 60_000)) return;
-      if (!powOk(msg.rpub, msg.pow)) return;
-      if (!inviteOk(msg.invite, ws.clientIp)) {
-        send(ws, { type: "error", error: "invite_bad" });
+      const already = live.get(ws);
+      if (!already) {
+        if (tooMany(`hello:${msg.rpub}`, 60, 60_000)) {
+          send(ws, { type: "error", error: "hello_rate" });
+          return;
+        }
+        if (tooMany(`hello-ip:${ws.clientIp}`, 240, 60_000)) {
+          send(ws, { type: "error", error: "hello_rate" });
+          return;
+        }
+      }
+      if (!powOk(msg.rpub, msg.pow)) {
+        send(ws, { type: "error", error: "pow" });
         return;
       }
       const ipKeys = rpubsForIp(ws.clientIp);
-      if (!ipKeys.has(msg.rpub) && ipKeys.size >= MAX_IP_RPUBS) return;
+      if (!already && !ipKeys.has(msg.rpub) && ipKeys.size >= MAX_IP_RPUBS) {
+        send(ws, { type: "error", error: "hello_rate" });
+        return;
+      }
       const previousWs = byRpub.get(msg.rpub);
       const previous = previousWs ? live.get(previousWs) : undefined;
       const first = !previous || previousWs !== ws;
@@ -600,10 +619,11 @@ wss.on("connection", (ws, req) => {
           ? msg.interests.filter((x) => typeof x === "string").slice(0, 12)
           : previous?.interests || [],
       });
+      send(ws, { type: "hello-ok", rpub: msg.rpub });
       if (first) {
-        send(ws, { type: "peers", peers: snapshot(msg.rpub) });
         broadcastRaw(JSON.stringify({ type: "join", peer: slim(live.get(ws)) }), ws);
       }
+      pushRoster();
       send(ws, { type: "moderation", users: staffBlocks.users, comments: staffBlocks.comments });
       const pending = drainMailbox(msg.rpub);
       if (pending.length) send(ws, { type: "held", envelopes: pending });

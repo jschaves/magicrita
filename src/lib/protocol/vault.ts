@@ -2,6 +2,7 @@ import { scryptAsync } from "@noble/hashes/scrypt.js";
 import { xchacha20poly1305 } from "@noble/ciphers/chacha.js";
 import { bytesToHex, hexToBytes, randomBytes } from "./bytes";
 import { ProtocolError } from "./errors";
+import { loadBetaInvite, saveBetaInvite } from "./betaInvite";
 import { fromSecret, type Identity } from "./identity";
 
 const VAULT_KEY = "magicrita.vault";
@@ -12,6 +13,7 @@ export type VaultRecord = {
   salt: string;
   nonce: string;
   ciphertext: string;
+  invite?: string;
 };
 
 export function loadVault(): VaultRecord | null {
@@ -20,6 +22,7 @@ export function loadVault(): VaultRecord | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as VaultRecord;
     if (parsed.v !== 1 || !parsed.rpub || !parsed.ciphertext) return null;
+    if (parsed.invite) saveBetaInvite(parsed.invite);
     return parsed;
   } catch {
     return null;
@@ -43,12 +46,14 @@ export async function wrapSecret(identity: Identity, password: string): Promise<
   const key = await deriveKey(password, salt);
   const cipher = xchacha20poly1305(key, nonce);
   const ciphertext = cipher.encrypt(identity.secret);
+  const invite = loadBetaInvite();
   const record: VaultRecord = {
     v: 1,
     rpub: identity.rpub,
     salt: bytesToHex(salt),
     nonce: bytesToHex(nonce),
     ciphertext: bytesToHex(ciphertext),
+    ...(invite ? { invite } : {}),
   };
   saveVault(record);
   return record;

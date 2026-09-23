@@ -13,7 +13,7 @@ import {
 } from "./media";
 import { loadSignalUrl } from "./signalUrl";
 import { cachedPow } from "./pow";
-import { loadBetaInvite } from "./betaInvite";
+
 import { recipientsOf } from "./store";
 
 const OUTBOX_MAX = 250;
@@ -41,7 +41,9 @@ type SignalIn =
   | { type: "blob"; hash: string; mime?: string; tier?: string; i: number; n: number; size?: number; data: string }
   | { type: "need-blob"; hash: string; from?: string }
   | { type: "pic"; hash: string; mime?: string; data: string }
-  | { type: "moderation"; users: string[]; comments: string[] };
+  | { type: "moderation"; users: string[]; comments: string[] }
+  | { type: "hello-ok"; rpub?: string }
+  | { type: "error"; error?: string };
 
 const channels = new Map<string, RTCDataChannel>();
 const pcs = new Map<string, RTCPeerConnection>();
@@ -845,12 +847,14 @@ export function listenMesh(
     return () => undefined;
   }
 
+  const recentJoin = new Map<string, number>();
   const applyPeers = (list: LivePeer[]) => {
+    const now = Date.now();
     const prev = new Map(live.map((peer) => [peer.rpub, peer]));
     const uniq: LivePeer[] = [];
     const seen = new Set<string>();
-    for (const peer of list) {
-      if (!peer?.rpub || peer.rpub === hello.rpub || seen.has(peer.rpub)) continue;
+    const add = (peer: LivePeer) => {
+      if (!peer?.rpub || peer.rpub === hello.rpub || seen.has(peer.rpub)) return;
       seen.add(peer.rpub);
       const older = prev.get(peer.rpub);
       uniq.push({
@@ -861,6 +865,12 @@ export function listenMesh(
           thumbs.get(peer.rpub) ||
           "",
       });
+    };
+    for (const peer of list) add(peer);
+    for (const peer of live) {
+      if (seen.has(peer.rpub)) continue;
+      const joined = recentJoin.get(peer.rpub) ?? 0;
+      if (now - joined < 10_000) add(peer);
     }
     for (const rpub of [...pcs.keys()]) {
       if (!seen.has(rpub)) closeLink(rpub);
@@ -874,9 +884,7 @@ export function listenMesh(
   };
 
   const attach = (ws: WebSocket) => {
-    ws.onopen = () => {
-      if (stopped || socket !== ws) return;
-      setLinked(true);
+    const sendHello = () => {
       void (async () => {
         try {
           const [avatar, pow] = await Promise.all([ownThumb(), cachedPow(hello.rpub)]);
@@ -888,13 +896,16 @@ export function listenMesh(
             interests: hello.interests,
             avatar,
             pow,
-            invite: loadBetaInvite(),
           });
           sendSignal({ type: "scan" });
         } catch {
           // sin hello válido el relé no nos lista
         }
       })();
+    };
+    ws.onopen = () => {
+      if (stopped || socket !== ws) return;
+      sendHello();
     };
     ws.onmessage = (event) => {
       if (stopped || socket !== ws) return;
@@ -904,11 +915,21 @@ export function listenMesh(
       } catch {
         return;
       }
+      if (msg.type === "hello-ok") setLinked(true);
+      if (msg.type === "error" && (msg.error === "hello_rate" || msg.error === "pow")) {
+        setLinked(false);
+        window.setTimeout(() => {
+          if (stopped || socket !== ws) return;
+          sendHello();
+        }, 2000);
+      }
       if (msg.type === "peers") applyPeers(msg.peers);
       if (msg.type === "join" && msg.peer?.rpub) {
+        recentJoin.set(msg.peer.rpub, Date.now());
         applyPeers([...live.filter((peer) => peer.rpub !== msg.peer.rpub), msg.peer]);
       }
       if (msg.type === "leave") {
+        recentJoin.delete(msg.rpub);
         closeLink(msg.rpub);
         setLive(live.filter((peer) => peer.rpub !== msg.rpub));
       }
@@ -974,11 +995,10 @@ export function listenMesh(
         interests: hello.interests,
         avatar,
         pow,
-        invite: loadBetaInvite(),
       });
     });
     repairPeers();
-  }, 25_000);
+  }, 8_000);
 
   return () => {
     stopped = true;

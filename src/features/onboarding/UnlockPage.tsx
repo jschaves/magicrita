@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -7,7 +7,7 @@ import { WipeConfirm } from "@/components/ui/WipeConfirm";
 import { Card } from "@/components/ui/Card";
 import { TextField } from "@/components/ui/Field";
 import { shortenId } from "@/lib/protocol/identity";
-import { betaInviteRequired, loadBetaInvite, redeemBetaInvite } from "@/lib/protocol/betaInvite";
+
 
 export function UnlockPage() {
   const { status, vault, unlock, wipeIdentity } = useRita();
@@ -17,12 +17,7 @@ export function UnlockPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [wipeOpen, setWipeOpen] = useState(false);
-  const [needInvite, setNeedInvite] = useState(false);
-  const [invite, setInvite] = useState(() => loadBetaInvite());
 
-  useEffect(() => {
-    void betaInviteRequired().then(setNeedInvite);
-  }, []);
 
   if (status === "ready") return <Navigate to="/" replace />;
   if (status === "anonymous" && !vault) return <Navigate to="/welcome" replace />;
@@ -32,7 +27,6 @@ export function UnlockPage() {
     setError(null);
     setBusy(true);
     try {
-      if (needInvite) await redeemBetaInvite(invite);
       await unlock(password);
       navigate("/");
     } catch (err) {
@@ -57,15 +51,6 @@ export function UnlockPage() {
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          {needInvite ? (
-            <TextField
-              label={t("create.inviteCode")}
-              value={invite}
-              onChange={(e) => setInvite(e.target.value)}
-              hint={t("create.inviteHint")}
-              required
-            />
-          ) : null}
           {error ? <p className="text-sm text-accent">{error}</p> : null}
           <Button type="submit" className="w-full" disabled={busy}>
             {busy ? t("unlock.unlocking") : t("unlock.submit")}
