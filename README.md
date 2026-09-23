@@ -6,6 +6,18 @@ The product is **100% decentralized for social data**. There is no account serve
 
 You are the owner and custodian of your information. If you lose the secret key (`rsec`), nobody can recover the account. MagicRita does not sell data, does not set tracking cookies, and does not run a ranking engine.
 
+MagicRita **does not use email for anything**. There is no signup by mail, no verification mail, no password reset, and no notifications by mail. The app **neither sends nor receives email**. Identity is the key on your device, not an inbox.
+
+### Examples
+
+**Computer**
+
+<img src="docs/images/pc_magicrita.jpg" alt="MagicRita home feed on a computer" width="800">
+
+**Phone**
+
+<img src="docs/images/mobile_magicrita.jpg" alt="MagicRita home feed on a phone" width="280">
+
 ### No control algorithm
 
 The home feed is not ranked. There is **no popularity score**, no “for you” layer, and **no boost for accounts with more likes, followers, or reach**. MagicRita does not favor the most popular people. A note from someone you just met is shown the same way as a note from anyone else, as long as it passes local anti-spam checks (young untrusted keys can be quarantined; that is a filter, not a ranking).
@@ -43,7 +55,7 @@ Limits that travel with content: **280 characters** per post, comment, and chat 
 
 ## Contact
 
-Try it on our demo. Request a tester invitation at the email.
+Try it on our demo. Request a tester invitation at the address below (a human reads that inbox; MagicRita itself never sends or receives email).
 
 **Demo:** [https://magicrita.com](https://magicrita.com)
 
@@ -116,7 +128,7 @@ Spam cannot be “banned at the protocol” the way a company account can. Defen
 - Signed invites (7 days). Follows and unexpired invites make an author trusted.
 - Young keys: hidden from home/comments until trusted or 12 h old; 3 reports hide them (10 reports for others).
 - At most two links per note or comment; repeated identical text is dropped.
-- Client-side signup guard: one local account per browser, create-rate limit, local canvas captcha (no Google, no phone, no KYC).
+- Client-side signup guard: one local account per browser, create-rate limit, local canvas captcha (no Google, no phone, no email, no KYC). The app does not send or receive mail.
 - Admin panel can block an `rpub` for this operator’s relay; that is moderation of the signaling node, not a global kill switch for the key.
 
 ---
