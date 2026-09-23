@@ -101,6 +101,34 @@ function blobFromBytes(bytes: Uint8Array, mime: string): Blob {
   return new Blob([buf], { type: mime || "application/octet-stream" });
 }
 
+export function sniffMediaMime(bytes: Uint8Array, hint?: string): string {
+  const hinted = (hint || "").split(";")[0];
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x41 &&
+    bytes[10] === 0x56 &&
+    bytes[11] === 0x45
+  ) {
+    return "audio/wav";
+  }
+  if (bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) {
+    return hinted.startsWith("audio/") ? "audio/webm" : "video/webm";
+  }
+  if (bytes.length >= 12 && bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
+    return "video/mp4";
+  }
+  if (bytes.length >= 8) {
+    const box = String.fromCharCode(bytes[4] ?? 0, bytes[5] ?? 0, bytes[6] ?? 0, bytes[7] ?? 0);
+    if (box === "moov" || box === "mdat" || box === "wide" || box === "free") return "video/mp4";
+  }
+  return hinted || "application/octet-stream";
+}
+
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -323,14 +351,13 @@ export async function ingestVoice(blob: Blob): Promise<MediaRef> {
 
 export async function ingestVideo(file: Blob): Promise<MediaRef> {
   if (file.size > MAX_VIDEO_BYTES) throw new ProtocolError("media_too_large");
-  const rawType = (file.type || "video/mp4").split(";")[0];
-  const mime = rawType.startsWith("video/") ? rawType : "video/mp4";
-  const keep = file.slice(0, file.size, mime);
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (bytes.byteLength < 32) throw new ProtocolError("media_type");
+  const rawType = (file.type || "").split(";")[0];
+  const mime = sniffMediaMime(bytes, rawType.startsWith("video/") ? rawType : "video/mp4");
   const hash = bytesToHex(sha256(bytes));
   await putRecord(hash, mime, bytes);
-  rememberLiveBlob(hash, keep);
+  rememberLiveBlob(hash, blobFromBytes(bytes, mime));
   notifyMedia(hash);
   const name = file instanceof File && file.name ? file.name : "video";
   return { hash, mime, name };
@@ -368,8 +395,9 @@ export async function loadMediaRecord(hash: string): Promise<MediaRecord | null>
 export async function storeClip(hash: string, mime: string, bytes: Uint8Array): Promise<void> {
   const exact = asBytes(bytes);
   if (exact.byteLength < 16) return;
-  await putRecord(hash, mime || "application/octet-stream", exact);
-  rememberLiveBlob(hash, blobFromBytes(exact, mime));
+  const kind = sniffMediaMime(exact, mime);
+  await putRecord(hash, kind, exact);
+  rememberLiveBlob(hash, blobFromBytes(exact, kind));
   notifyMedia(hash);
 }
 
@@ -413,21 +441,23 @@ export function peekRamPhotoUrl(hash: string): string | null {
 
 export async function loadVerifiedBlob(hash: string, mimeHint?: string): Promise<Blob | null> {
   const live = liveBlobs.get(hash);
-  if (live && live.size >= 32) return live;
+  if (live && live.size >= 32) {
+    const head = new Uint8Array(await live.slice(0, 16).arrayBuffer());
+    const mime = sniffMediaMime(head, live.type || mimeHint);
+    const now = (live.type || "").split(";")[0];
+    if (mime && mime !== now) {
+      const fixed = live.slice(0, live.size, mime);
+      liveBlobs.set(hash, fixed);
+      return fixed;
+    }
+    return live;
+  }
   const rec = (await loadMediaRecord(hash)) ?? (await loadMediaRecord(mqKey(hash)));
   if (!rec?.bytes) return null;
   const bytes = asBytes(rec.bytes);
   if (bytes.byteLength < 32) return null;
-  let mime = (rec.mime || mimeHint || "").split(";")[0];
-  if (bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
-    mime = "audio/wav";
-  } else if (bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) {
-    mime = mimeHint?.startsWith("audio/") ? "audio/webm" : "video/webm";
-  } else if (bytes.length >= 12 && bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
-    mime = "video/mp4";
-  }
-  if (!mime) mime = mimeHint || "application/octet-stream";
-  return blobFromBytes(bytes, mime);
+  const mime = sniffMediaMime(bytes, rec.mime || mimeHint);
+  return blobFromBytes(bytes, mime || mimeHint || "application/octet-stream");
 }
 
 export async function ensurePhotoSrc(hash: string, fresh = false, mimeHint?: string): Promise<string | null> {

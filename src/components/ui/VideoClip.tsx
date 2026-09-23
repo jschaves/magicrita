@@ -22,14 +22,16 @@ function durationOf(file: File): Promise<number> {
   });
 }
 
+function appleMobile(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /iP(hone|ad|od)/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+}
+
 function pickRecorderMime(): string {
-  const types = [
-    "video/webm;codecs=vp8,opus",
-    "video/webm;codecs=vp9,opus",
-    "video/webm",
-    "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
-    "video/mp4",
-  ];
+  const types = appleMobile()
+    ? ["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4", "video/webm;codecs=vp8,opus", "video/webm"]
+    : ["video/webm;codecs=vp8,opus", "video/webm;codecs=vp9,opus", "video/webm", "video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4"];
   if (typeof MediaRecorder === "undefined") return "";
   return types.find((type) => MediaRecorder.isTypeSupported(type)) ?? "";
 }
@@ -139,16 +141,18 @@ export function VideoClip({
     setRec(false);
     setSecs(0);
     busy.current = false;
-    const type = (mime || "video/webm").split(";")[0];
-    const raw = new Blob(parts, { type: type.startsWith("video/") ? type : "video/webm" });
+    const fallback = appleMobile() ? "video/mp4" : "video/webm";
+    const type = (mime || fallback).split(";")[0];
+    const raw = new Blob(parts, { type: type.startsWith("video/") ? type : fallback });
     if (raw.size < 32) {
       fail(t("live.videoDenied"));
       return;
     }
     void stampMediaDuration(raw, ms).then((blob) => {
       setHint(null);
-      const ext = blob.type.includes("mp4") ? "mp4" : "webm";
-      onFile(new File([blob], `clip.${ext}`, { type: blob.type }));
+      const kind = (blob.type || fallback).split(";")[0];
+      const ext = kind.includes("mp4") ? "mp4" : "webm";
+      onFile(new File([blob], `clip.${ext}`, { type: kind.startsWith("video/") ? kind : fallback }));
     });
   }
 

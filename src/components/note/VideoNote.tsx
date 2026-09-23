@@ -55,9 +55,14 @@ export function VideoNote({
         src={src}
         controls
         playsInline
-        preload="auto"
+        preload="metadata"
         className="mt-1 max-h-[32rem] w-full rounded-2xl border border-line bg-ink"
-        ref={(el) => revealMediaDuration(el)}
+        ref={(el) => {
+          if (!el) return;
+          el.setAttribute("playsinline", "true");
+          el.setAttribute("webkit-playsinline", "true");
+          revealMediaDuration(el);
+        }}
       />
       {onRemove ? (
         <button type="button" className="mt-1 text-[11px] font-semibold text-accent" onClick={onRemove}>

@@ -56,7 +56,9 @@ export async function recorderAudioToWav(blob: Blob): Promise<Blob> {
 
 export async function stampMediaDuration(blob: Blob, durationMs: number): Promise<Blob> {
   const ms = Math.max(250, durationMs);
-  if (!/webm/i.test(blob.type)) return blob;
+  const head = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+  const isWebm = head.length >= 4 && head[0] === 0x1a && head[1] === 0x45 && head[2] === 0xdf && head[3] === 0xa3;
+  if (!isWebm) return blob;
   try {
     const fix = fixWebmDuration as unknown as (
       blob: Blob,
@@ -71,8 +73,20 @@ export async function stampMediaDuration(blob: Blob, durationMs: number): Promis
   }
 }
 
+function appleWebKit(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  if (/iP(hone|ad|od)/.test(ua)) return true;
+  if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return true;
+  return /Safari/.test(ua) && !/Chrome|Chromium|Edg|Firefox|Android/i.test(ua);
+}
+
 export function revealMediaDuration(el: HTMLMediaElement | null): void {
   if (!el || el.dataset.ritaDur === "1") return;
+  if (appleWebKit()) {
+    el.dataset.ritaDur = "1";
+    return;
+  }
   const go = () => {
     if (el.dataset.ritaDur === "1") return;
     const duration = el.duration;
