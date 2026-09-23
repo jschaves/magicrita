@@ -86,6 +86,15 @@ body {
   }
 }
 
+@media (min-width: 768px) {
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+}
+
 ::selection {
   background: rgba(198, 30, 106, 0.22);
 }

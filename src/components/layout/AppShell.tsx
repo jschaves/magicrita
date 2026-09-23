@@ -51,11 +51,11 @@ function ShellLayout() {
   ];
 
   return (
-    <div className="relative mx-auto flex h-full max-h-full w-full max-w-6xl flex-col overflow-x-clip md:grid md:h-auto md:min-h-dvh md:max-h-none md:grid-cols-[220px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)_260px]">
+    <div className="relative mx-auto flex h-full max-h-full w-full max-w-6xl flex-col overflow-x-clip md:grid md:h-dvh md:max-h-dvh md:grid-cols-[220px_minmax(0,1fr)] md:overflow-hidden lg:grid-cols-[240px_minmax(0,1fr)_260px]">
       <div className="fixed right-3 top-3 z-30 md:right-4">
         <NoticeBell />
       </div>
-      <aside className="hidden border-r border-line md:flex md:flex-col md:px-4 md:py-6">
+      <aside className="hidden border-r border-line bg-white md:flex md:h-full md:min-h-0 md:flex-col md:overflow-y-auto md:px-4 md:py-6">
         <Link to="/" className="px-3">
           <SiteMark size="md" />
         </Link>
@@ -128,7 +128,7 @@ function ShellLayout() {
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip md:contents">
         <main
-          className={`min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto border-r border-line bg-paper/40 md:min-h-dvh md:pb-0 ${
+          className={`min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto overscroll-y-contain border-r border-line bg-paper/40 md:h-full md:max-h-full md:pb-0 ${
             padDock ? "pb-[var(--rita-dock,4.5rem)]" : "pb-0"
           }`}
         >
@@ -180,7 +180,7 @@ function ShellLayout() {
         </div>
       </MobileDock>
 
-      <aside className="hidden p-6 lg:block">
+      <aside className="hidden bg-white p-6 lg:block lg:h-full lg:min-h-0 lg:overflow-y-auto">
         <div className="rounded-3xl border border-line bg-paper p-4">
           <p className="font-display text-lg">{t("shell.philosophyTitle")}</p>
           <p className="mt-1 text-sm leading-6 text-muted">{t("shell.philosophyBody")}</p>
