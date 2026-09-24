@@ -2,10 +2,12 @@ import { isEnvelope, mediaRefsOf, verifyEnvelope, type Envelope } from "./envelo
 import { dropMedia, setQuotaReliever } from "./media";
 import { ProtocolError } from "./errors";
 import { dropAuthorFromLikes, loadLikeIndex, saveLikeIndex } from "./likeIndex";
+import { dropNoticesFor } from "./notices";
 import { dropSavedPosts } from "./saves";
 
 export const MAX_STORED_POSTS = 100;
 export const MAX_STORED_CHATS = 100;
+export const MAX_DISTINCT_CHATS = 100;
 
 const logCache = new Map<string, Envelope[]>();
 
@@ -55,6 +57,64 @@ function pruneLog(log: Envelope[]): Envelope[] {
     for (const listener of trimListeners) listener(droppedPosts);
   }
   return next;
+}
+
+function chatParties(event: Envelope): [string, string] | null {
+  if (event.type !== "chat_text" && event.type !== "chat_consent") return null;
+  const other = event.body.to;
+  if (!other || other === event.author) return null;
+  return [event.author, other];
+}
+
+function pairKey(a: string, b: string): string {
+  return a < b ? `${a}\n${b}` : `${b}\n${a}`;
+}
+
+/** Keep at most 100 conversations. A new one drops the one quiet the longest. */
+export function pruneDistinctChats(): void {
+  const activity = new Map<string, { a: string; b: string; ts: number }>();
+  for (const rpub of listKnownRpubs()) {
+    for (const event of loadLog(rpub)) {
+      const parties = chatParties(event);
+      if (!parties) continue;
+      const key = pairKey(parties[0], parties[1]);
+      const prev = activity.get(key);
+      if (!prev || event.ts > prev.ts) activity.set(key, { a: parties[0], b: parties[1], ts: event.ts });
+    }
+  }
+  const extra = activity.size - MAX_DISTINCT_CHATS;
+  if (extra <= 0) return;
+  const victims = [...activity.entries()]
+    .sort((left, right) => left[1].ts - right[1].ts || left[0].localeCompare(right[0]))
+    .slice(0, extra);
+  const victimKeys = new Set(victims.map(([key]) => key));
+  const touched = new Set<string>();
+  for (const [, victim] of victims) {
+    touched.add(victim.a);
+    touched.add(victim.b);
+  }
+  const dropped: Envelope[] = [];
+  for (const author of touched) {
+    const log = loadLog(author);
+    const next: Envelope[] = [];
+    for (const item of log) {
+      const parties = chatParties(item);
+      if (parties && victimKeys.has(pairKey(parties[0], parties[1]))) {
+        dropped.push(item);
+        continue;
+      }
+      next.push(item);
+    }
+    if (next.length !== log.length) saveLog(author, next);
+  }
+  if (!dropped.length) return;
+  for (const [, victim] of victims) {
+    dropNoticesFor(victim.a, { from: victim.b });
+    dropNoticesFor(victim.b, { from: victim.a });
+  }
+  const kept = listKnownRpubs().flatMap((rpub) => loadLog(rpub));
+  dropOrphanMedia(dropped, kept);
+  for (const listener of trimListeners) listener(dropped);
 }
 
 function pruneChatThread(a: string, b: string): void {
@@ -206,6 +266,7 @@ export function appendEnvelope(rpub: string, envelope: Envelope): Envelope[] {
   saveLog(rpub, next);
   if (envelope.type === "delete") forgetTarget(envelope.body.target);
   if (envelope.type === "chat_text") pruneChatThread(envelope.author, envelope.body.to);
+  if (envelope.type === "chat_text" || envelope.type === "chat_consent") pruneDistinctChats();
   return loadLog(rpub);
 }
 

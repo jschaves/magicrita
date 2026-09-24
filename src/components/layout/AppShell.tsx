@@ -34,6 +34,7 @@ function ShellLayout() {
   const viewport = useVisualViewport();
   const occupied = useDockOccupied();
   const inThread = /\/messages\/.+/.test(location.pathname);
+  const inMessages = location.pathname === "/messages" || inThread;
   const hideNav = viewport.keyboard || occupied || inThread;
   const padDock = !hideNav || occupied;
 
@@ -128,16 +129,24 @@ function ShellLayout() {
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip md:contents">
         <main
-          className={`min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto overscroll-y-contain border-r border-line bg-paper/40 md:h-full md:max-h-full md:pb-0 ${
-            padDock ? "pb-[var(--rita-dock,4.5rem)]" : "pb-0"
-          }`}
+          className={`min-h-0 min-w-0 flex-1 border-r border-line bg-paper/40 md:h-full md:max-h-full md:pb-0 ${
+            inMessages
+              ? "flex flex-col overflow-hidden"
+              : "overflow-x-clip overflow-y-auto overscroll-y-contain"
+          } ${padDock ? "pb-[var(--rita-dock,4.5rem)]" : "pb-0"}`}
         >
-          <div className="flex items-center justify-between border-b border-line px-4 py-3 pr-14 md:hidden">
+          <div className="flex shrink-0 items-center justify-between border-b border-line px-4 py-3 pr-14 md:hidden">
             <Link to="/">
               <SiteMark size="sm" />
             </Link>
           </div>
-          <Outlet />
+          {inMessages ? (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <Outlet />
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
 

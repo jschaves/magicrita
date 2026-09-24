@@ -22,6 +22,7 @@ import {
   listKnownRpubs,
   loadLog,
   appendEnvelope,
+  pruneDistinctChats,
   onStorageTrim,
 } from "@/lib/protocol/store";
 import {
@@ -264,6 +265,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
   const hydrate = useCallback((next: Identity) => {
     assertSingleSession(next.rpub);
     saveUnlockedRsec(next.rsec);
+    pruneDistinctChats();
     const stored = loadLog(next.rpub);
     setIdentity(next);
     setLog(stored);
@@ -309,6 +311,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
         emit(signDelete(identity, event.sig));
       }
       setSaves(loadSaves(identity.rpub));
+      setNotices(loadNotices(identity.rpub));
       bump();
     });
   }, [emit, identity]);

@@ -42,7 +42,7 @@ Libraries `@noble/curves`, `@noble/ciphers`, and `@noble/hashes` are **math only
 MagicRita is built so that **old data leaves the device by itself**. There is no infinite server history.
 
 - At most **100 posts** per author in this browser. Publishing another one drops the oldest, including its photo, audio, or video.
-- At most **100 chat messages** per conversation in this browser. Older lines (and their media) are pruned.
+- At most **100 chats** on this device. When another conversation arrives, the one that has gone longest without a message is removed, including its media. Each chat also keeps at most **100 messages**; older lines are pruned.
 - If localStorage or IndexedDB hits quota, the client frees the **oldest 25%** of posts and chat events for known authors, including media, and emits signed `delete` envelopes so others hide those targets too.
 - Saved posts that point at a deleted note disappear from Saved.
 - Explicit `delete` / `gone` envelopes hide the target everywhere this browser knows about.
@@ -90,7 +90,7 @@ There is no warranty. See `LICENSE` for the full terms.
 1. **Local identity** — Create or import an Ed25519 identity. The `rsec` is encrypted in the browser vault. Profile and notes are signed and stored only on this device.
 2. **Portable account** — Export a `magicrita-bundle` (encrypted identity, notes, and media) and import it in another browser or device. The file is *your* copy; it does not open someone else’s session. Signatures and media hashes are verified on import.
 3. **Own relay** — Signaling WebRTC, live peer list, and an in-RAM mailbox. No notes, profiles, or keys on disk. Incremental join/leave (no full roster + avatar blast). Client re-sends `hello` about every 25 s so a restored session re-registers.
-4. **Encrypted chat** — Request, accept, revoke, or block on either side. Messages send only when both latest `chat_consent` events are on. Block also turns consent off. 280 characters per line; 100 lines kept per conversation here.
+4. **Encrypted chat** — Request, accept, revoke, or block on either side. Messages send only when both latest `chat_consent` events are on. Block also turns consent off. 280 characters per line; 100 chats on this device and 100 lines kept per conversation.
 5. **Media** — Signed SHA-256 refs in the envelope. One photo per note. Voice (WAV, 16 kHz mono) and video (file or camera, auto-stop at 10 s) in posts and chat. Files travel between peers and in the portable export; the relay does not store them.
 
 The in-app protocol page and the sidebar philosophy copy mark these steps done. A persistent federated history store is **not** in scope: it would contradict “we do not store your life on a server.”

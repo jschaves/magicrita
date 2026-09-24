@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type UIEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Avatar } from "@/components/note/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -16,6 +16,7 @@ import { timeAgo } from "@/lib/format";
 import { MAX_CHAT_CHARS } from "@/lib/protocol/envelope";
 import { shortenId } from "@/lib/protocol/identity";
 import type { ChatPhase } from "@/lib/protocol/chat";
+import { useVisualViewport } from "@/lib/useVisualViewport";
 
 export function MessagesPage() {
   const { rpub: raw } = useParams();
@@ -43,6 +44,16 @@ export function MessagesPage() {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ sig: string; text: string | null; author: string } | null>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const stickRef = useRef(true);
+  const tailRef = useRef("");
+  const pinningRef = useRef(false);
+  const view = useVisualViewport();
+  const keyboardGap =
+    view.mobile && view.keyboard
+      ? Math.max(0, Math.round(window.innerHeight - view.offsetTop - view.height))
+      : 0;
 
   useEffect(() => {
     if (them) dismissNoticesFor({ kind: ["chat", "request"], from: them });
@@ -50,6 +61,46 @@ export function MessagesPage() {
 
   const phase = them ? chatPhaseOf(them) : "none";
   const lines = them ? chatLinesOf(them) : [];
+  const tail = them ? `${them}:${lines.length}:${lines[lines.length - 1]?.sig ?? ""}` : "";
+
+  useLayoutEffect(() => {
+    if (!them) return;
+    if (tailRef.current !== tail) {
+      tailRef.current = tail;
+      stickRef.current = true;
+    }
+    if (!stickRef.current) return;
+    const node = scrollerRef.current;
+    if (!node) return;
+    pinningRef.current = true;
+    node.scrollTop = node.scrollHeight;
+    requestAnimationFrame(() => {
+      pinningRef.current = false;
+    });
+  }, [them, tail, keyboardGap]);
+
+  useEffect(() => {
+    const content = contentRef.current;
+    const node = scrollerRef.current;
+    if (!them || !content || !node) return;
+    const ro = new ResizeObserver(() => {
+      if (!stickRef.current) return;
+      pinningRef.current = true;
+      node.scrollTop = node.scrollHeight;
+      requestAnimationFrame(() => {
+        pinningRef.current = false;
+      });
+    });
+    ro.observe(content);
+    return () => ro.disconnect();
+  }, [them]);
+
+  function onThreadScroll(event: UIEvent<HTMLDivElement>) {
+    if (pinningRef.current) return;
+    const node = event.currentTarget;
+    const gap = node.scrollHeight - node.scrollTop - node.clientHeight;
+    stickRef.current = gap < 64;
+  }
   const person = them ? personByRpub(them) : undefined;
   const name = them
     ? profileOf(them)?.name || person?.profile?.name || t("common.unnamed")
@@ -118,14 +169,14 @@ export function MessagesPage() {
   ) : null;
 
   return (
-    <section>
-      <header className="sticky top-0 z-10 border-b border-line bg-paper/80 px-4 py-4 backdrop-blur">
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <header className="shrink-0 border-b border-line bg-paper px-4 py-4">
         <h1 className="font-display text-2xl">{t("messages.title")}</h1>
         <p className="text-sm text-muted">{t("messages.hint")}</p>
       </header>
 
       {!them ? (
-        <div className="space-y-6 p-4">
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
           {error ? <p className="text-sm text-accent">{error}</p> : null}
           {incoming.length ? (
             <div>
@@ -151,8 +202,8 @@ export function MessagesPage() {
           </div>
         </div>
       ) : (
-        <div className="flex min-h-0 flex-col">
-          <div className="border-b border-line px-4 py-3">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="shrink-0 border-b border-line bg-paper px-4 py-3">
             <Link to="/messages" className="text-sm text-muted hover:text-ink">
               {t("common.back")}
             </Link>
@@ -168,7 +219,13 @@ export function MessagesPage() {
             <div className="mt-3">{actions}</div>
             {error ? <p className="mt-2 text-sm text-accent">{error}</p> : null}
           </div>
-          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+          <div
+            ref={scrollerRef}
+            onScroll={onThreadScroll}
+            className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
+            style={keyboardGap ? { paddingBottom: keyboardGap } : undefined}
+          >
+            <div ref={contentRef} className="space-y-3 px-4 py-4">
             {phase !== "open" ? (
               <p className="text-sm text-muted">{t(`messages.wait.${phase}` as MessageKey)}</p>
             ) : null}
@@ -234,9 +291,10 @@ export function MessagesPage() {
                 </div>
               );
             })}
+            </div>
           </div>
           {phase === "open" ? (
-            <ResponsiveDock className="border-t border-line p-4" mobileClassName="border-t border-line p-3">
+            <ResponsiveDock className="shrink-0 border-t border-line bg-paper p-4" mobileClassName="border-t border-line bg-white p-3">
             <form onSubmit={onSend}>
               {replyTo ? (
                 <div className="mb-2 flex items-center justify-between gap-2 rounded-xl bg-cream px-3 py-1.5 text-xs">
