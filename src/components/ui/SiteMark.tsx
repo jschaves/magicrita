@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useI18n } from "@/i18n/I18nProvider";
 import { fetchBrand, logoUrl, onBrandChange, SITE_NAME } from "@/lib/protocol/brand";
 
 type Size = "sm" | "md" | "lg";
@@ -21,7 +22,16 @@ const betaClass: Record<Size, string> = {
   lg: "text-sm leading-none",
 };
 
-export function SiteMark({ size = "md", className = "" }: { size?: Size; className?: string }) {
+export function SiteMark({
+  size = "md",
+  className = "",
+  github = false,
+}: {
+  size?: Size;
+  className?: string;
+  github?: boolean;
+}) {
+  const { t } = useI18n();
   const [src, setSrc] = useState<string | null>(null);
 
   useEffect(() => {
@@ -52,7 +62,19 @@ export function SiteMark({ size = "md", className = "" }: { size?: Size; classNa
         ) : null}
         <span className={nameClass[size]}>{SITE_NAME}</span>
       </span>
-      <span className={`mt-1 font-semibold tracking-wide text-gold ${betaClass[size]}`}>Beta 0.1</span>
+      <span className="mt-1 inline-flex flex-wrap items-baseline gap-x-3">
+        <span className={`font-semibold tracking-wide text-gold ${betaClass[size]}`}>Beta 0.1</span>
+        {github ? (
+          <a
+            href="https://github.com/jschaves/magicrita"
+            target="_blank"
+            rel="noreferrer"
+            className={`font-display text-plum hover:underline ${betaClass[size]}`}
+          >
+            {t("welcome.github")}
+          </a>
+        ) : null}
+      </span>
     </span>
   );
 }

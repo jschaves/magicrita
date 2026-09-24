@@ -63,6 +63,7 @@ export const es = {
   },
   welcome: {
     tagline: "Red social descentralizada y minimalista. Las claves son tuyas.",
+    github: "descarga en GitHub",
     pitch:
       "Una red propia, ligera: identidad, notas, fotos y chat firmados en este dispositivo. Sin muro de anuncios, sin algoritmo, sin cuenta en la nube de otro.\n\nQué hacemos con los datos: viven aquí, en tu navegador. El relé solo ve quién está conectado ahora para que os habléis entre vosotros. No guarda publicaciones, perfiles ni claves.\n\nQué no hacemos: no rastreamos, no usamos cookies, no vendemos datos. No hay servidor de cuentas ni recuperación si pierdes la clave. La red no es dueña de ti.",
     relayTitle: "Cómo funciona el relé",
@@ -463,6 +464,7 @@ export const en: Messages = {
   },
   welcome: {
     tagline: "A decentralized, minimalist social network. You hold the keys.",
+    github: "download on GitHub",
     pitch:
       "A small network of your own: identity, notes, photos and chat, signed on this device. No ad wall, no algorithm, no account on someone else’s cloud.\n\nWhat we do with data: it lives here, in your browser. The relay only sees who is online right now so you can talk to each other. It does not store posts, profiles or keys.\n\nWhat we don’t do: no tracking, no cookies, no selling data. No account server, and no recovery if you lose the key. The network does not own you.",
     relayTitle: "How the relay works",
@@ -861,6 +863,7 @@ export const pt: Messages = {
   },
   welcome: {
     tagline: "Rede social descentralizada e minimalista. As chaves são tuas.",
+    github: "descarrega no GitHub",
     pitch:
       "Uma rede própria e leve: identidade, notas, fotos e chat assinados neste dispositivo. Sem muro de anúncios, sem algoritmo, sem conta na nuvem de outro.\n\nO que fazemos com os dados: ficam aqui, no teu navegador. O relé só vê quem está ligado agora para vos juntar. Não guarda publicações, perfis nem chaves.\n\nO que não fazemos: não rastreamos, não usamos cookies, não vendemos dados. Não há servidor de contas nem recuperação se perderes a chave. A rede não é dona de ti.",
     relayTitle: "Como funciona o relé",
@@ -1259,6 +1262,7 @@ export const fr: Messages = {
   },
   welcome: {
     tagline: "Réseau social décentralisé et minimaliste. Les clés sont à toi.",
+    github: "télécharge sur GitHub",
     pitch:
       "Un réseau à toi, léger : identité, notes, photos et chat signés sur cet appareil. Pas de mur de pubs, pas d’algorithme, pas de compte sur le cloud d’un autre.\n\nCe que nous faisons des données : elles vivent ici, dans ton navigateur. Le relais voit seulement qui est connecté maintenant pour vous relier. Il ne stocke ni publications, ni profils, ni clés.\n\nCe que nous ne faisons pas : pas de pistage, pas de cookies, pas de vente de données. Pas de serveur de comptes, pas de récupération si tu perds la clé. Le réseau ne te possède pas.",
     relayTitle: "Comment marche le relais",
@@ -1657,6 +1661,7 @@ export const ar: Messages = {
   },
   welcome: {
     tagline: "شبكة اجتماعية لامركزية وبسيطة. المفاتيح ملكك.",
+    github: "نزّله من GitHub",
     pitch:
       "شبكة خاصة وخفيفة: هوية وملاحظات وصور ودردشة موقّعة على هذا الجهاز. بلا جدار إعلانات، بلا خوارزمية، بلا حساب على سحابة غيرك.\n\nماذا نفعل بالبيانات: تبقى هنا، في متصفحك. المرحل يرى فقط من المتصل الآن ليربط بينكم. لا يحفظ منشورات ولا ملفات ولا مفاتيح.\n\nماذا لا نفعل: لا تتبّع، لا ملفات تعريف ارتباط، لا بيع للبيانات. لا خادم حسابات ولا استعادة إن فقدت المفتاح. الشبكة لا تملكك.",
     relayTitle: "كيف يعمل المرحل",
@@ -2055,6 +2060,7 @@ export const ru: Messages = {
   },
   welcome: {
     tagline: "Децентрализованная минималистичная соцсеть. Ключи ваши.",
+    github: "скачать на GitHub",
     pitch:
       "Своя лёгкая сеть: личность, заметки, фото и чат, подписанные на этом устройстве. Без стены рекламы, без алгоритма, без аккаунта в чужом облаке.\n\nЧто мы делаем с данными: они живут здесь, в браузере. Реле видит только кто сейчас в сети, чтобы вас соединить. Оно не хранит публикации, профили и ключи.\n\nЧего мы не делаем: нет слежки, cookies и продажи данных. Нет сервера аккаунтов и восстановления, если ключ потерян. Сеть вам не владеет.",
     relayTitle: "Как работает реле",
@@ -2453,6 +2459,7 @@ export const zh: Messages = {
   },
   welcome: {
     tagline: "去中心、极简的社交网络。密钥在你手里。",
+    github: "在 GitHub 下载",
     pitch:
       "属于你的轻量网络：身份、笔记、照片和聊天，都在此设备上签名。没有广告墙，没有算法，没有别人云上的账号。\n\n我们如何处理数据：数据留在你的浏览器里。中继只看到此刻谁在线，好让你们相连。它不保存帖子、资料或密钥。\n\n我们不做什么：不追踪，不用 cookie，不卖数据。没有账号服务器；密钥丢失无法找回。网络并不拥有你。",
     relayTitle: "中继如何工作",
@@ -2850,6 +2857,7 @@ export const ja: Messages = {
   },
   welcome: {
     tagline: "分散型でミニマルなソーシャルネット。鍵はあなたのもの。",
+    github: "GitHub でダウンロード",
     pitch:
       "自分の小さなネットワーク：身元、メモ、写真、チャットをこの端末で署名します。広告の壁もアルゴリズムも、他人のクラウドのアカウントもありません。\n\nデータについて：ここに、このブラウザに残ります。リレーは今つながっている人だけを見て、つなぎます。投稿もプロフィールも鍵も保存しません。\n\nやらないこと：追跡しない、cookie を使わない、データを売らない。アカウントサーバーはなく、鍵を失うと復元できません。ネットワークはあなたを所有しません。",
     relayTitle: "リレーのしくみ",

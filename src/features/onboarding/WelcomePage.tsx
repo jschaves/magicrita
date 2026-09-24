@@ -49,7 +49,7 @@ export function WelcomePage() {
     <div className="h-full overflow-y-auto">
       <div className="mx-auto flex min-h-full max-w-4xl flex-col justify-center px-4 py-12">
       <LanguageSwitch className="mb-8" />
-      <SiteMark size="lg" />
+      <SiteMark size="lg" github />
       <WelcomeNote icon={Network} title={t("welcome.tagline")} body={t("welcome.pitch")} first />
       <WelcomeNote icon={Radio} title={t("welcome.relayTitle")} body={t("welcome.relayBody")} />
       <WelcomeNote icon={Lock} title={t("welcome.chatTitle")} body={t("welcome.chatBody")} />
