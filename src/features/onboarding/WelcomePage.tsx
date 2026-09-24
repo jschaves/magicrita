@@ -46,7 +46,8 @@ export function WelcomePage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-4xl flex-col justify-center px-4 py-12">
+    <div className="h-full overflow-y-auto">
+      <div className="mx-auto flex min-h-full max-w-4xl flex-col justify-center px-4 py-12">
       <LanguageSwitch className="mb-8" />
       <SiteMark size="lg" />
       <WelcomeNote icon={Network} title={t("welcome.tagline")} body={t("welcome.pitch")} first />
@@ -124,6 +125,7 @@ export function WelcomePage() {
           {t("legal.link")}
         </Link>
       </p>
+      </div>
     </div>
   );
 }

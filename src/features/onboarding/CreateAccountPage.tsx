@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -88,7 +88,7 @@ export function CreateAccountPage() {
 
   if (rsec) {
     return (
-      <div className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-4 py-12">
+      <CreateFrame>
         <Card>
           <p className="font-display text-3xl text-plum">{t("create.saveTitle")}</p>
           <p className="mt-3 text-sm leading-6 text-muted">{t("create.saveBody")}</p>
@@ -110,13 +110,13 @@ export function CreateAccountPage() {
             </Button>
           </div>
         </Card>
-      </div>
+      </CreateFrame>
     );
   }
 
   if (block) {
     return (
-      <div className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-4 py-12">
+      <CreateFrame>
         <Link to="/welcome" className="mb-4 text-sm text-muted hover:text-ink">
           {t("common.back")}
         </Link>
@@ -128,12 +128,12 @@ export function CreateAccountPage() {
               : t("create.rateLimited", { n: block.minutes })}
           </p>
         </Card>
-      </div>
+      </CreateFrame>
     );
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center px-4 py-12">
+    <CreateFrame>
       <Link to="/welcome" className="mb-4 text-sm text-muted hover:text-ink">
         {t("common.back")}
       </Link>
@@ -223,6 +223,14 @@ export function CreateAccountPage() {
           </Button>
         </form>
       </Card>
+    </CreateFrame>
+  );
+}
+
+function CreateFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="h-full overflow-y-auto">
+      <div className="mx-auto flex min-h-full max-w-lg flex-col justify-center px-4 py-12">{children}</div>
     </div>
   );
 }
