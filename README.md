@@ -202,6 +202,8 @@ Copy-Item .env.example .env
 | `HOST` | Signaler bind address (default `0.0.0.0`; production must be `127.0.0.1` behind nginx) |
 | `VITE_SIGNAL_URL` | Only when **building** for production if signaling is not on the same host (example `wss://magicrita.com/signal/`) |
 
+It's a test demo, the BETA_INVITE are for testing and can be revoked at any time without notice, the project can be deleted at any time without prior warning
+
 `node_modules/`, `dist/`, and `data/` are also local. `data/` holds admin blocks and the uploaded logo.
 
 ## Local development
