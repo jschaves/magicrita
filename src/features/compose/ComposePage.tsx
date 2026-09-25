@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ImagePlus, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { TextArea } from "@/components/ui/Field";
+import { EmojiInsert } from "@/components/ui/EmojiInsert";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n } from "@/i18n/I18nProvider";
 import { ingestPhoto, ingestVideo, ingestVoice, isAcceptedPhoto, MAX_PHOTOS, type MediaRef } from "@/lib/protocol/media";
@@ -124,6 +125,9 @@ export function ComposePage() {
             if ([...e.dataTransfer.types].includes("Files")) e.preventDefault();
           }}
         />
+        <div className="-mt-2">
+          <EmojiInsert value={content} max={MAX_POST_CHARS} onChange={setContent} />
+        </div>
 
         <div>
           <p className="mb-1.5 text-sm font-semibold">{t("compose.photos")}</p>

@@ -254,7 +254,8 @@ export function NoteCard({
                 rows={4}
                 className="w-full rounded-2xl border border-line bg-paper px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30"
               />
-              <div className="flex justify-end">
+              <div className="flex items-center justify-between">
+                <EmojiInsert value={editText} max={MAX_POST_CHARS} onChange={setEditText} />
                 <CharCount value={editText} max={MAX_POST_CHARS} />
               </div>
               <input
