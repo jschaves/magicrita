@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, 
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Avatar } from "@/components/note/Avatar";
 import { Button } from "@/components/ui/Button";
-import { CharCount } from "@/components/ui/Field";
+import { CharCount, TextField } from "@/components/ui/Field";
 import { EmojiInsert } from "@/components/ui/EmojiInsert";
 import { VoiceMic } from "@/components/ui/VoiceMic";
 import { VoiceNote } from "@/components/note/VoiceNote";
@@ -46,6 +46,7 @@ export function MessagesPage() {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [chatsPage, setChatsPage] = useState(0);
+  const [chatQuery, setChatQuery] = useState("");
   const [replyTo, setReplyTo] = useState<{ sig: string; text: string | null; author: string } | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -120,9 +121,21 @@ export function MessagesPage() {
       ),
     [chatPeerList, chatLinesOf, chatPhaseOf],
   );
-  const chatPages = Math.max(1, Math.ceil(others.length / PAGE_SIZE));
+  const chatQueryNorm = chatQuery.trim().toLowerCase();
+  const filteredChats = useMemo(() => {
+    if (!chatQueryNorm) return others;
+    return others.filter((rpub) => {
+      const label = profileOf(rpub)?.name || personByRpub(rpub)?.profile?.name || "";
+      return label.toLowerCase().includes(chatQueryNorm);
+    });
+  }, [others, chatQueryNorm, profileOf, personByRpub]);
+  const chatPages = Math.max(1, Math.ceil(filteredChats.length / PAGE_SIZE));
   const chatsSafe = Math.min(chatsPage, chatPages - 1);
-  const visibleChats = others.slice(chatsSafe * PAGE_SIZE, chatsSafe * PAGE_SIZE + PAGE_SIZE);
+  const visibleChats = filteredChats.slice(chatsSafe * PAGE_SIZE, chatsSafe * PAGE_SIZE + PAGE_SIZE);
+
+  useEffect(() => {
+    setChatsPage(0);
+  }, [chatQuery]);
 
   function go(rpub: string) {
     navigate(`/messages/${encodeURIComponent(rpub)}`);
@@ -182,6 +195,17 @@ export function MessagesPage() {
       </header>
 
       {!them ? (
+        <>
+        <div className="shrink-0 border-b border-line bg-paper px-4 py-3">
+          <TextField
+            label={t("messages.search")}
+            value={chatQuery}
+            onChange={(event) => setChatQuery(event.target.value)}
+            placeholder={t("messages.searchHint")}
+            autoComplete="off"
+            enterKeyHint="search"
+          />
+        </div>
         <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
           {error ? <p className="text-sm text-accent">{error}</p> : null}
           {incoming.length ? (
@@ -196,8 +220,14 @@ export function MessagesPage() {
           ) : null}
           <div>
             <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">{t("messages.chats")}</p>
-            {others.length === 0 && incoming.length === 0 ? (
-              <p className="text-sm text-muted">{t("messages.empty")}</p>
+            {filteredChats.length === 0 ? (
+              chatQueryNorm ? (
+                <p className="text-sm text-muted">{t("messages.searchEmpty")}</p>
+              ) : others.length === 0 && incoming.length === 0 ? (
+                <p className="text-sm text-muted">{t("messages.empty")}</p>
+              ) : (
+                <ul className="divide-y divide-line rounded-3xl border border-line bg-paper" />
+              )
             ) : (
               <>
                 <ul className="divide-y divide-line rounded-3xl border border-line bg-paper">
@@ -232,6 +262,7 @@ export function MessagesPage() {
             )}
           </div>
         </div>
+        </>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="shrink-0 border-b border-line bg-paper px-4 py-3">
