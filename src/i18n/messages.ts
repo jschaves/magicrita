@@ -234,6 +234,7 @@ export const es = {
     search: "Buscar chat",
     searchHint: "Nombre de usuario",
     searchEmpty: "Ningún chat con ese nombre.",
+    photo: "Foto",
     failed: "No se pudo completar.",
     decryptFail: "No se pudo leer este mensaje.",
     phase: {
@@ -644,6 +645,7 @@ export const en: Messages = {
     search: "Search chats",
     searchHint: "Username",
     searchEmpty: "No chat with that name.",
+    photo: "Photo",
     failed: "Could not complete that.",
     decryptFail: "This message could not be read.",
     phase: {
@@ -1052,6 +1054,7 @@ export const pt: Messages = {
     search: "Procurar chat",
     searchHint: "Nome de utilizador",
     searchEmpty: "Nenhum chat com esse nome.",
+    photo: "Foto",
     failed: "Não foi possível concluir.",
     decryptFail: "Não foi possível ler esta mensagem.",
     phase: {
@@ -1460,6 +1463,7 @@ export const fr: Messages = {
     search: "Chercher un chat",
     searchHint: "Nom d’utilisateur",
     searchEmpty: "Aucun chat avec ce nom.",
+    photo: "Photo",
     failed: "Impossible de terminer.",
     decryptFail: "Impossible de lire ce message.",
     phase: {
@@ -1868,6 +1872,7 @@ export const ar: Messages = {
     search: "البحث في الدردشات",
     searchHint: "اسم المستخدم",
     searchEmpty: "لا توجد دردشة بهذا الاسم.",
+    photo: "صورة",
     failed: "تعذّر الإكمال.",
     decryptFail: "تعذّر قراءة هذه الرسالة.",
     phase: {
@@ -2276,6 +2281,7 @@ export const ru: Messages = {
     search: "Искать чат",
     searchHint: "Имя пользователя",
     searchEmpty: "Нет чата с таким именем.",
+    photo: "Фото",
     failed: "Не удалось выполнить.",
     decryptFail: "Не удалось прочитать это сообщение.",
     phase: {
@@ -2683,6 +2689,7 @@ export const zh: Messages = {
     search: "搜索聊天",
     searchHint: "用户名",
     searchEmpty: "没有这个名字的聊天。",
+    photo: "图片",
     failed: "无法完成。",
     decryptFail: "无法阅读这条消息。",
     phase: {
@@ -3091,6 +3098,7 @@ export const ja: Messages = {
     search: "チャットを検索",
     searchHint: "ユーザー名",
     searchEmpty: "その名前のチャットはありません。",
+    photo: "写真",
     failed: "完了できませんでした。",
     decryptFail: "このメッセージは読めません。",
     phase: {

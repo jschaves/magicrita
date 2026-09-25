@@ -18,8 +18,9 @@ export type ChatLine = {
   text: string | null;
   audio?: MediaRef;
   video?: MediaRef;
+  photo?: MediaRef;
   replies?: string;
-  quote?: { author: string; text: string | null };
+  quote?: { author: string; text: string | null; photo?: boolean };
 };
 
 function sharedKey(secret: Uint8Array, theirRpub: string): Uint8Array {
@@ -117,7 +118,7 @@ export function rootChatTs(events: Envelope[], sig: string): number {
 
 export function canStripChatMedia(events: Envelope[], me: string, line: ChatLine, now = Date.now()): boolean {
   if (line.author !== me) return false;
-  if (!line.audio && !line.video) return false;
+  if (!line.audio && !line.video && !line.photo) return false;
   return now - rootChatTs(events, line.sig) <= EDIT_WINDOW_MS;
 }
 
@@ -138,8 +139,9 @@ export function chatLines(events: Envelope[], identity: Identity, them: string):
     if (!mine && !theirs) continue;
     const audio = event.body.media?.find((item) => item.mime.startsWith("audio/"));
     const video = event.body.media?.find((item) => item.mime.startsWith("video/"));
+    const photo = event.body.media?.find((item) => item.mime.startsWith("image/"));
     const raw = openChat(identity, them, event.body.n, event.body.box);
-    const clip = Boolean(audio || video);
+    const clip = Boolean(audio || video || photo);
     lines.push({
       sig: event.sig,
       author: event.author,
@@ -147,6 +149,7 @@ export function chatLines(events: Envelope[], identity: Identity, them: string):
       text: clip ? (raw && raw.trim() ? raw : null) : raw,
       audio,
       video,
+      photo,
       replies: event.body.replies,
     });
   }
@@ -155,7 +158,7 @@ export function chatLines(events: Envelope[], identity: Identity, them: string):
   for (const line of ordered) {
     if (!line.replies) continue;
     const parent = bySig.get(line.replies);
-    if (parent) line.quote = { author: parent.author, text: parent.text };
+    if (parent) line.quote = { author: parent.author, text: parent.text, photo: Boolean(parent.photo) };
   }
   return ordered;
 }

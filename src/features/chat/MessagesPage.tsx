@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type UIEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { ImagePlus, X } from "lucide-react";
 import { Avatar } from "@/components/note/Avatar";
+import { Photo } from "@/components/note/Photo";
 import { Button } from "@/components/ui/Button";
 import { CharCount, TextField } from "@/components/ui/Field";
 import { EmojiInsert } from "@/components/ui/EmojiInsert";
@@ -9,7 +11,7 @@ import { VoiceNote } from "@/components/note/VoiceNote";
 import { VideoNote } from "@/components/note/VideoNote";
 import { VideoClip } from "@/components/ui/VideoClip";
 import { ResponsiveDock } from "@/components/ui/MobileDock";
-import { ingestVideo, ingestVoice } from "@/lib/protocol/media";
+import { ingestPhoto, ingestVideo, ingestVoice, type MediaRef } from "@/lib/protocol/media";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n, type MessageKey } from "@/i18n/I18nProvider";
 import { timeAgo } from "@/lib/format";
@@ -47,6 +49,8 @@ export function MessagesPage() {
   const [error, setError] = useState<string | null>(null);
   const [chatsPage, setChatsPage] = useState(0);
   const [chatQuery, setChatQuery] = useState("");
+  const [photo, setPhoto] = useState<MediaRef | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [replyTo, setReplyTo] = useState<{ sig: string; text: string | null; author: string } | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -154,8 +158,9 @@ export function MessagesPage() {
     event.preventDefault();
     if (!them) return;
     run(() => {
-      sendChat(them, draft, undefined, replyTo?.sig);
+      sendChat(them, draft, photo ?? undefined, replyTo?.sig);
       setDraft("");
+      setPhoto(null);
       setReplyTo(null);
     });
   }
@@ -297,7 +302,9 @@ export function MessagesPage() {
                 <div key={line.sig} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div
                     className={`rounded-2xl px-3 py-2 text-sm leading-5 ${
-                      line.audio ? "w-[min(22rem,calc(100%-1.5rem))] min-w-0" : "max-w-[80%] min-w-0"
+                      line.audio || line.photo
+                        ? "w-[min(22rem,calc(100%-1.5rem))] min-w-0"
+                        : "max-w-[80%] min-w-0"
                     } ${mine ? "bg-plum text-cream" : "border border-line bg-paper"}`}
                   >
                     {line.audio ? (
@@ -323,18 +330,33 @@ export function MessagesPage() {
                         removeLabel={t("compose.removeVideo")}
                       />
                     ) : null}
+                    {line.photo ? (
+                      <div>
+                        <Photo hash={line.photo.hash} alt={line.photo.name} preview={line.photo.preview} />
+                        {them && canStripChat(line) ? (
+                          <button
+                            type="button"
+                            className={`mt-1 text-[11px] font-semibold ${mine ? "text-cream/80" : "text-accent"}`}
+                            onClick={() => run(() => stripChatMedia(them, line, line.photo!.hash))}
+                          >
+                            {t("compose.removePhoto")}
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {line.quote ? (
                       <p
                         className={`mb-1 truncate border-l-2 pl-2 text-[11px] ${
                           mine ? "border-cream/50 text-cream/80" : "border-plum/40 text-muted"
                         }`}
                       >
-                        {line.quote.text?.trim() || t("live.voice")}
+                        {line.quote.text?.trim() ||
+                          (line.quote.photo ? t("messages.photo") : t("live.voice"))}
                       </p>
                     ) : null}
                     {line.text ? (
                       <p className="whitespace-pre-wrap">{line.text}</p>
-                    ) : !line.audio && !line.video ? (
+                    ) : !line.audio && !line.video && !line.photo ? (
                       <p className="whitespace-pre-wrap">{t("messages.decryptFail")}</p>
                     ) : null}
                     {phase === "open" ? (
@@ -371,6 +393,23 @@ export function MessagesPage() {
                   </button>
                 </div>
               ) : null}
+              {photo ? (
+                <div className="mb-2 flex items-center gap-2">
+                  {photo.preview ? (
+                    <img src={photo.preview} alt="" className="h-16 w-16 rounded-xl object-cover" />
+                  ) : (
+                    <Photo hash={photo.hash} alt={photo.name} />
+                  )}
+                  <button
+                    type="button"
+                    className="rounded-full p-1 text-muted hover:text-accent"
+                    aria-label={t("compose.removePhoto")}
+                    onClick={() => setPhoto(null)}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : null}
               <textarea
                 value={draft}
                 onChange={(e) => setDraft(e.target.value.slice(0, MAX_CHAT_CHARS))}
@@ -384,6 +423,33 @@ export function MessagesPage() {
               <div className="mt-2 flex items-center justify-between gap-2">
                 <span className="flex items-center gap-1">
                   <EmojiInsert value={draft} max={MAX_CHAT_CHARS} onChange={setDraft} />
+                  <button
+                    type="button"
+                    className="rounded-full p-1.5 text-muted hover:bg-cream hover:text-plum"
+                    aria-label={t("compose.addPhotos")}
+                    onClick={() => photoInputRef.current?.click()}
+                  >
+                    <ImagePlus size={16} />
+                  </button>
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="sr-only"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      event.target.value = "";
+                      if (!file) return;
+                      void (async () => {
+                        try {
+                          setPhoto(await ingestPhoto(file));
+                          setError(null);
+                        } catch (err) {
+                          setError(errorMessage(err, "messages.failed"));
+                        }
+                      })();
+                    }}
+                  />
                   <VoiceMic
                     onError={setError}
                     onBlob={(blob) => {

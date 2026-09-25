@@ -842,6 +842,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       const remaining: MediaRef[] = [];
       if (line.audio && line.audio.hash !== hash) remaining.push(line.audio);
       if (line.video && line.video.hash !== hash) remaining.push(line.video);
+      if (line.photo && line.photo.hash !== hash) remaining.push(line.photo);
       const text = line.text?.trim() ?? "";
       if (!text && remaining.length === 0) {
         emit(signDelete(identity, line.sig));
