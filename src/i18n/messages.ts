@@ -228,6 +228,9 @@ export const es = {
     empty: "Aún no hay conversaciones.",
     inbox: "Peticiones",
     chats: "Chats",
+    pagePrev: "Anterior",
+    pageNext: "Siguiente",
+    pageStatus: "{page} / {pages}",
     failed: "No se pudo completar.",
     decryptFail: "No se pudo leer este mensaje.",
     phase: {
@@ -632,6 +635,9 @@ export const en: Messages = {
     empty: "No conversations yet.",
     inbox: "Requests",
     chats: "Chats",
+    pagePrev: "Previous",
+    pageNext: "Next",
+    pageStatus: "{page} / {pages}",
     failed: "Could not complete that.",
     decryptFail: "This message could not be read.",
     phase: {
@@ -1034,6 +1040,9 @@ export const pt: Messages = {
     empty: "Ainda não há conversas.",
     inbox: "Pedidos",
     chats: "Chats",
+    pagePrev: "Anterior",
+    pageNext: "Seguinte",
+    pageStatus: "{page} / {pages}",
     failed: "Não foi possível concluir.",
     decryptFail: "Não foi possível ler esta mensagem.",
     phase: {
@@ -1436,6 +1445,9 @@ export const fr: Messages = {
     empty: "Pas encore de conversations.",
     inbox: "Demandes",
     chats: "Chats",
+    pagePrev: "Précédent",
+    pageNext: "Suivant",
+    pageStatus: "{page} / {pages}",
     failed: "Impossible de terminer.",
     decryptFail: "Impossible de lire ce message.",
     phase: {
@@ -1838,6 +1850,9 @@ export const ar: Messages = {
     empty: "لا محادثات بعد.",
     inbox: "طلبات",
     chats: "دردشات",
+    pagePrev: "السابق",
+    pageNext: "التالي",
+    pageStatus: "{page} / {pages}",
     failed: "تعذّر الإكمال.",
     decryptFail: "تعذّر قراءة هذه الرسالة.",
     phase: {
@@ -2240,6 +2255,9 @@ export const ru: Messages = {
     empty: "Пока нет переписок.",
     inbox: "Запросы",
     chats: "Чаты",
+    pagePrev: "Назад",
+    pageNext: "Дальше",
+    pageStatus: "{page} / {pages}",
     failed: "Не удалось выполнить.",
     decryptFail: "Не удалось прочитать это сообщение.",
     phase: {
@@ -2641,6 +2659,9 @@ export const zh: Messages = {
     empty: "还没有对话。",
     inbox: "请求",
     chats: "聊天",
+    pagePrev: "上一页",
+    pageNext: "下一页",
+    pageStatus: "{page} / {pages}",
     failed: "无法完成。",
     decryptFail: "无法阅读这条消息。",
     phase: {
@@ -3043,6 +3064,9 @@ export const ja: Messages = {
     empty: "まだ会話はありません。",
     inbox: "依頼",
     chats: "チャット",
+    pagePrev: "前へ",
+    pageNext: "次へ",
+    pageStatus: "{page} / {pages}",
     failed: "完了できませんでした。",
     decryptFail: "このメッセージは読めません。",
     phase: {

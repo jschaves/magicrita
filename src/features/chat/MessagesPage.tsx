@@ -18,6 +18,8 @@ import { shortenId } from "@/lib/protocol/identity";
 import type { ChatPhase } from "@/lib/protocol/chat";
 import { useVisualViewport } from "@/lib/useVisualViewport";
 
+const PAGE_SIZE = 5;
+
 export function MessagesPage() {
   const { rpub: raw } = useParams();
   const them = raw ? decodeURIComponent(raw) : undefined;
@@ -43,6 +45,7 @@ export function MessagesPage() {
   const { t, locale, errorMessage } = useI18n();
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [chatsPage, setChatsPage] = useState(0);
   const [replyTo, setReplyTo] = useState<{ sig: string; text: string | null; author: string } | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -117,6 +120,9 @@ export function MessagesPage() {
       ),
     [chatPeerList, chatLinesOf, chatPhaseOf],
   );
+  const chatPages = Math.max(1, Math.ceil(others.length / PAGE_SIZE));
+  const chatsSafe = Math.min(chatsPage, chatPages - 1);
+  const visibleChats = others.slice(chatsSafe * PAGE_SIZE, chatsSafe * PAGE_SIZE + PAGE_SIZE);
 
   function go(rpub: string) {
     navigate(`/messages/${encodeURIComponent(rpub)}`);
@@ -193,11 +199,36 @@ export function MessagesPage() {
             {others.length === 0 && incoming.length === 0 ? (
               <p className="text-sm text-muted">{t("messages.empty")}</p>
             ) : (
-              <ul className="divide-y divide-line rounded-3xl border border-line bg-paper">
-                {others.map((rpub) => (
-                  <PeerRow key={rpub} rpub={rpub} phase={chatPhaseOf(rpub)} onOpen={() => go(rpub)} />
-                ))}
-              </ul>
+              <>
+                <ul className="divide-y divide-line rounded-3xl border border-line bg-paper">
+                  {visibleChats.map((rpub) => (
+                    <PeerRow key={rpub} rpub={rpub} phase={chatPhaseOf(rpub)} onOpen={() => go(rpub)} />
+                  ))}
+                </ul>
+                {chatPages > 1 ? (
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={chatsSafe <= 0}
+                      onClick={() => setChatsPage(chatsSafe - 1)}
+                    >
+                      {t("messages.pagePrev")}
+                    </Button>
+                    <p className="text-xs text-muted">
+                      {t("messages.pageStatus", { page: chatsSafe + 1, pages: chatPages })}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={chatsSafe >= chatPages - 1}
+                      onClick={() => setChatsPage(chatsSafe + 1)}
+                    >
+                      {t("messages.pageNext")}
+                    </Button>
+                  </div>
+                ) : null}
+              </>
             )}
           </div>
         </div>
