@@ -30,8 +30,6 @@ const liveUrls = new Map<string, string>();
 const liveBlobs = new Map<string, Blob>();
 const PREVIEW_MAX_CHARS = 48_000;
 
-export type PhotoTier = "lq" | "mq" | "hq";
-
 export function mqKey(hash: string): string {
   return `${hash}:mq`;
 }
@@ -72,11 +70,6 @@ export function rememberLiveBlob(hash: string, blob: Blob): void {
   if (!blob || blob.size < 16) return;
   liveBlobs.set(hash, blob);
   rememberLiveUrl(hash, URL.createObjectURL(blob));
-}
-
-export function forgetLiveUrl(hash: string): void {
-  liveUrls.delete(hash);
-  liveBlobs.delete(hash);
 }
 
 function asBytes(data: ArrayBuffer | Uint8Array): Uint8Array {
@@ -246,21 +239,6 @@ export function isAcceptedPhoto(file: File): boolean {
   return (ACCEPTED_PHOTO_TYPES as readonly string[]).includes(file.type);
 }
 
-export function isCompleteImage(bytes: Uint8Array, mime = ""): boolean {
-  if (bytes.length < 256) return false;
-  if (bytes[0] === 0xff && bytes[1] === 0xd8) {
-    const from = Math.max(0, bytes.length - 2048);
-    for (let i = from; i < bytes.length - 1; i++) {
-      if (bytes[i] === 0xff && bytes[i + 1] === 0xd9) return true;
-    }
-    return bytes.length > 16 * 1024;
-  }
-  if (bytes[0] === 0x89 && bytes[1] === 0x50) return bytes.length > 256;
-  if (bytes[0] === 0x47 && bytes[1] === 0x49) return bytes.length > 256;
-  if (bytes[0] === 0x52 && bytes[1] === 0x49) return bytes.length > 256;
-  return mime.startsWith("image/") && bytes.length > 1024;
-}
-
 export function stripBlobText(text: string): string {
   return text
     .replace(/blob:[^\s]+/gi, "")
@@ -269,11 +247,14 @@ export function stripBlobText(text: string): string {
     .trim();
 }
 
-async function putRecord(hash: string, mime: string, bytes: Uint8Array): Promise<void> {
+async function putRecord(hash: string, mime: string, bytes: Uint8Array, relieve = true): Promise<void> {
   try {
     await writeRecord(hash, mime, bytes);
   } catch (error) {
-    if (!isQuotaError(error) || !quotaReliever) throw error;
+    // La media que llega de un par en segundo plano no justifica borrar los
+    // posts del usuario actual: si no cabe, se descarta esa media. Solo lo que
+    // guarda el propio usuario (relieve=true) libera espacio.
+    if (!isQuotaError(error) || !relieve || !quotaReliever) throw error;
     quotaReliever();
     await writeRecord(hash, mime, bytes);
   }
@@ -392,37 +373,43 @@ export async function loadMediaRecord(hash: string): Promise<MediaRecord | null>
   return { hash: record.hash, mime: record.mime, bytes: tightBuffer(bytes) };
 }
 
-export async function storeClip(hash: string, mime: string, bytes: Uint8Array): Promise<void> {
+export async function storeClip(hash: string, mime: string, bytes: Uint8Array, relieve = true): Promise<void> {
   const exact = asBytes(bytes);
   if (exact.byteLength < 16) return;
   const kind = sniffMediaMime(exact, mime);
-  await putRecord(hash, kind, exact);
+  await putRecord(hash, kind, exact, relieve);
   rememberLiveBlob(hash, blobFromBytes(exact, kind));
   notifyMedia(hash);
 }
 
-export async function putMediaBytes(ref: MediaRef, bytes: Uint8Array): Promise<void> {
+export async function putMediaBytes(ref: MediaRef, bytes: Uint8Array, relieve = true): Promise<void> {
   const exact = asBytes(bytes);
   const hash = bytesToHex(sha256(exact));
   if (hash !== ref.hash) {
     if (ref.mime.startsWith("audio/") || ref.mime.startsWith("video/")) {
-      await storeClip(ref.hash, ref.mime, exact);
+      await storeClip(ref.hash, ref.mime, exact, relieve);
       return;
     }
     throw new ProtocolError("media_hash");
   }
   if (ref.preview) rememberPreview(hash, ref.preview);
-  await putRecord(hash, ref.mime, exact);
+  await putRecord(hash, ref.mime, exact, relieve);
   rememberLiveBlob(hash, blobFromBytes(exact, ref.mime));
   notifyMedia(hash);
 }
 
-export async function putMediaTier(hash: string, tier: "mq" | "hq", mime: string, bytes: Uint8Array): Promise<void> {
+export async function putMediaTier(
+  hash: string,
+  tier: "mq" | "hq",
+  mime: string,
+  bytes: Uint8Array,
+  relieve = true,
+): Promise<void> {
   if (tier === "hq") {
-    await putMediaBytes({ hash, mime, name: hash }, bytes);
+    await putMediaBytes({ hash, mime, name: hash }, bytes, relieve);
     return;
   }
-  await putRecord(mqKey(hash), mime || "image/jpeg", bytes);
+  await putRecord(mqKey(hash), mime || "image/jpeg", bytes, relieve);
   if (!livePhotoUrl(hash)) {
     rememberLiveUrl(hash, URL.createObjectURL(blobFromBytes(bytes, mime || "image/jpeg")));
   }
@@ -525,21 +512,6 @@ export async function avatarThumb(hash: string): Promise<string | null> {
   }
 }
 
-export async function clearAllPhotos(): Promise<void> {
-  ram.clear();
-  previews.clear();
-  liveBlobs.clear();
-  for (const url of liveUrls.values()) URL.revokeObjectURL(url);
-  liveUrls.clear();
-  const db = await openDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error ?? new Error("indexeddb"));
-    tx.objectStore(STORE).clear();
-  });
-}
-
 export async function wipeMediaStore(): Promise<void> {
   ram.clear();
   previews.clear();
@@ -553,10 +525,18 @@ export async function wipeMediaStore(): Promise<void> {
     // ignore
   }
   dbPromise = null;
+  // Sin IndexedDB (modo privado, iframe sandbox) no hay nada que borrar; lo
+  // importante es no rechazar, porque el borrado de identidad todavia tiene que
+  // navegar a /welcome.
+  if (typeof indexedDB === "undefined") return;
   await new Promise<void>((resolve) => {
-    const request = indexedDB.deleteDatabase(DB_NAME);
-    request.onsuccess = () => resolve();
-    request.onerror = () => resolve();
-    request.onblocked = () => resolve();
+    try {
+      const request = indexedDB.deleteDatabase(DB_NAME);
+      request.onsuccess = () => resolve();
+      request.onerror = () => resolve();
+      request.onblocked = () => resolve();
+    } catch {
+      resolve();
+    }
   });
 }

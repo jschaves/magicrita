@@ -3,7 +3,7 @@ import { Bookmark, Compass, Home, LogOut, MessageCircle, PenLine, Settings, User
 import { useRita } from "@/context/RitaProvider";
 import { useI18n } from "@/i18n/I18nProvider";
 import { Avatar } from "@/components/note/Avatar";
-import { NoticeBell } from "@/components/ui/NoticeBell";
+import { HeaderActions } from "@/components/layout/HeaderActions";
 import { SiteMark } from "@/components/ui/SiteMark";
 import { shortenId } from "@/lib/protocol/identity";
 import { useVisualViewport } from "@/lib/useVisualViewport";
@@ -53,9 +53,6 @@ function ShellLayout() {
 
   return (
     <div className="relative mx-auto flex h-full max-h-full w-full max-w-6xl flex-col overflow-x-clip md:grid md:h-dvh md:max-h-dvh md:grid-cols-[220px_minmax(0,1fr)] md:overflow-hidden lg:grid-cols-[240px_minmax(0,1fr)_260px]">
-      <div className="fixed right-3 top-3 z-30 md:right-4">
-        <NoticeBell />
-      </div>
       <aside className="hidden border-r border-line bg-white md:flex md:h-full md:min-h-0 md:flex-col md:overflow-y-auto md:px-4 md:py-6">
         <Link to="/" className="px-3">
           <SiteMark size="md" />
@@ -135,10 +132,11 @@ function ShellLayout() {
               : "overflow-x-clip overflow-y-auto overscroll-y-contain"
           } ${padDock ? "pb-[var(--rita-dock,4.5rem)]" : "pb-0"}`}
         >
-          <div className="flex shrink-0 items-center justify-between border-b border-line px-4 py-3 pr-14 md:hidden">
-            <Link to="/">
+          <div className="flex shrink-0 items-center justify-end border-b border-line px-4 py-2">
+            <Link to="/" className="mr-auto md:hidden">
               <SiteMark size="sm" />
             </Link>
+            <HeaderActions />
           </div>
           {inMessages ? (
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

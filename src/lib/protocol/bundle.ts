@@ -7,6 +7,13 @@ import type { VaultRecord } from "./vault";
 
 export const BUNDLE_TYPE = "magicrita-bundle";
 
+/**
+ * Tope del archivo de importacion. El bundle lleva la identidad cifrada, notas y
+ * media en base64, asi que es grande, pero leer sin tope un archivo enorme
+ * (o uno manipulado) agota la memoria de la pestana.
+ */
+export const MAX_BUNDLE_BYTES = 256 * 1024 * 1024;
+
 export type BundleKind = "public" | "backup";
 
 export type BundleMedia = MediaRef & { data: string };

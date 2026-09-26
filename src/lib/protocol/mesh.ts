@@ -1,5 +1,6 @@
-import { base64ToBytes, bytesToBase64, concatBytes } from "./bytes";
-import { isEnvelope, mediaRefsOf, verifyEnvelope, type Envelope } from "./envelope";
+import { base64ToBytes, bytesToBase64, bytesToHex, concatBytes, utf8ToBytes } from "./bytes";
+import { isEnvelope, mediaRefsOf, verifyEnvelope, canonicalJson, type Envelope } from "./envelope";
+import { signBytes } from "./identity";
 import {
   loadMediaRecord,
   loadPreview,
@@ -13,12 +14,25 @@ import {
 } from "./media";
 import { loadSignalUrl } from "./signalUrl";
 import { cachedPow } from "./pow";
+import {
+  clearAssemblyLog,
+  installDiagHook,
+  noteAssembly,
+  tick,
+  type AssemblyVia,
+} from "./diagnostics";
 
 import { recipientsOf } from "./store";
 
 const OUTBOX_MAX = 250;
 const OUTBOX_KEY = "magicrita.outbox";
-const STUN = [{ urls: "stun:stun.cloudflare.com:3478" }];
+/**
+ * STUN revela tu IP publica al proveedor y a los pares (es inherente a WebRTC).
+ * Se puede apuntar a un servidor propio con `VITE_STUN_URL`.
+ */
+const STUN_URL =
+  (import.meta.env.VITE_STUN_URL as string | undefined)?.trim() || "stun:stun.cloudflare.com:3478";
+const STUN = [{ urls: STUN_URL }];
 
 export type MeshPacket = {
   envelope: Envelope;
@@ -41,9 +55,14 @@ type SignalIn =
   | { type: "blob"; hash: string; mime?: string; tier?: string; i: number; n: number; size?: number; data: string }
   | { type: "need-blob"; hash: string; from?: string }
   | { type: "pic"; hash: string; mime?: string; data: string }
-  | { type: "moderation"; users: string[]; comments: string[] }
+  | { type: "moderation-changed" }
+  | { type: "challenge"; nonce: string }
   | { type: "hello-ok"; rpub?: string }
   | { type: "error"; error?: string };
+
+/** El relay corta el nombre y los intereses; hay que firmar lo mismo que él guarda. */
+const HELLO_NAME_MAX = 80;
+const HELLO_INTERESTS_MAX = 12;
 
 const channels = new Map<string, RTCDataChannel>();
 const pcs = new Map<string, RTCPeerConnection>();
@@ -53,6 +72,63 @@ const assembling = new Map<
   string,
   { mime: string; name: string; n: number; parts: Array<Uint8Array | undefined>; t: number }
 >();
+/**
+ * Tope de trozos por archivo. Sin esto, `Array(msg.n)` con un n enorme crea un
+ * array disperso gigante y, como `some` se salta los huecos, el ensamblaje se
+ * da por completo y `concatBytes(...parts)` intenta expandir miles de millones
+ * de argumentos. 512 trozos de sobra para cualquier media.
+ */
+const MAX_CHUNKS = 512;
+
+/**
+ * Guardian unico de las cuatro rutas de ensamblaje. Un solo sitio decide y deja
+ * constancia, asi no puede quedar una ruta sin cota por descuido.
+ */
+function chunkGuard(via: AssemblyVia, n: number, i: number, origen: string): boolean {
+  const elapsed = tick();
+  if (!Number.isInteger(n) || !Number.isInteger(i)) {
+    noteAssembly({
+      via,
+      origen,
+      n: Number.isFinite(n) ? n : -1,
+      i: Number.isFinite(i) ? i : -1,
+      cap: MAX_CHUNKS,
+      verdict: "rechazado",
+      motivo: "n o i no son enteros",
+      ms: elapsed(),
+    });
+    return false;
+  }
+  if (n > MAX_CHUNKS) {
+    noteAssembly({
+      via,
+      origen,
+      n,
+      i,
+      cap: MAX_CHUNKS,
+      verdict: "rechazado",
+      motivo: `n=${n} supera el tope de ${MAX_CHUNKS}`,
+      ms: elapsed(),
+    });
+    return false;
+  }
+  if (n < 1 || i < 0 || i >= n) {
+    noteAssembly({
+      via,
+      origen,
+      n,
+      i,
+      cap: MAX_CHUNKS,
+      verdict: "rechazado",
+      motivo: "i fuera de rango",
+      ms: elapsed(),
+    });
+    return false;
+  }
+  noteAssembly({ via, origen, n, i, cap: MAX_CHUNKS, verdict: "aceptado", motivo: `slot n=${n}`, ms: elapsed() });
+  return true;
+}
+
 const assemblingPreview = new Map<string, { n: number; parts: Array<string | undefined>; t: number }>();
 const assemblingEnv = new Map<string, { n: number; parts: Array<string | undefined>; t: number }>();
 const assemblingWs = new Map<
@@ -62,7 +138,8 @@ const assemblingWs = new Map<
 const lastAsk = new Map<string, number>();
 const sendChain = new WeakMap<RTCDataChannel, Promise<void>>();
 let socket: WebSocket | null = null;
-let self: { rpub: string; name: string; interests: string[] } | null = null;
+let self: { rpub: string; name: string; interests: string[]; secret: Uint8Array } | null = null;
+let challenge = "";
 let packetHandler: ((packet: MeshPacket) => void) | null = null;
 let peersHandler: ((peers: LivePeer[]) => void) | null = null;
 let statusHandler: ((on: boolean) => void) | null = null;
@@ -87,21 +164,13 @@ function setLive(next: LivePeer[]) {
   peersHandler?.(live);
 }
 
-export function getLivePeers(): LivePeer[] {
-  return live;
-}
+let moderationHandler: (() => void) | null = null;
 
-export function onLivePeers(handler: (peers: LivePeer[]) => void): () => void {
-  peersHandler = handler;
-  handler(live);
-  return () => {
-    if (peersHandler === handler) peersHandler = null;
-  };
-}
-
-let moderationHandler: ((blocks: { users: string[]; comments: string[] }) => void) | null = null;
-
-export function onModeration(handler: (blocks: { users: string[]; comments: string[] }) => void): () => void {
+/**
+ * El relay avisa de que la moderacion cambio, pero no manda las listas: el
+ * cliente vuelve a preguntar por los items que ya tiene.
+ */
+export function onModeration(handler: () => void): () => void {
   moderationHandler = handler;
   return () => {
     if (moderationHandler === handler) moderationHandler = null;
@@ -393,7 +462,7 @@ async function takeMediaPart(msg: {
   raw?: Uint8Array;
 }): Promise<void> {
   if (typeof msg.hash !== "string" || typeof msg.i !== "number" || typeof msg.n !== "number") return;
-  if (msg.n < 1 || msg.i < 0 || msg.i >= msg.n) return;
+  if (!chunkGuard("dc-media", msg.n, msg.i, "data-channel")) return;
   let piece: Uint8Array | null = msg.raw ?? null;
   if (!piece && typeof msg.data === "string") {
     try {
@@ -424,16 +493,16 @@ async function takeMediaPart(msg: {
   }
   slot.parts[msg.i] = piece;
   slot.t = now;
-  if (slot.parts.some((part) => !part)) return;
+  if (!assemblyComplete(slot.parts, slot.n)) return;
   assembling.delete(key);
   const bytes = concatBytes(...(slot.parts as Uint8Array[]));
   try {
-    if (tier === "mq") await putMediaTier(msg.hash, "mq", slot.mime, bytes);
-    else await putMediaBytes({ hash: msg.hash, mime: slot.mime, name: slot.name }, bytes);
+    if (tier === "mq") await putMediaTier(msg.hash, "mq", slot.mime, bytes, false);
+    else await putMediaBytes({ hash: msg.hash, mime: slot.mime, name: slot.name }, bytes, false);
   } catch {
     if (slot.mime.startsWith("audio/") || slot.mime.startsWith("video/")) return;
     try {
-      await putMediaTier(msg.hash, "mq", slot.mime, bytes);
+      await putMediaTier(msg.hash, "mq", slot.mime, bytes, false);
     } catch {
       // ignore
     }
@@ -449,17 +518,8 @@ async function takeWsBlob(msg: {
   size?: number;
   data?: string;
 }): Promise<void> {
-  if (
-    typeof msg.hash !== "string" ||
-    typeof msg.i !== "number" ||
-    typeof msg.n !== "number" ||
-    typeof msg.data !== "string" ||
-    msg.n < 1 ||
-    msg.i < 0 ||
-    msg.i >= msg.n
-  ) {
-    return;
-  }
+  if (typeof msg.hash !== "string" || typeof msg.i !== "number" || typeof msg.n !== "number" || typeof msg.data !== "string") return;
+  if (!chunkGuard("ws-blob", msg.n, msg.i, "relay-ws")) return;
   const tier = msg.tier === "hq" ? "hq" : "mq";
   const key = `${msg.hash}:${tier}`;
   const now = Date.now();
@@ -483,7 +543,7 @@ async function takeWsBlob(msg: {
     return;
   }
   slot.t = now;
-  if (slot.parts.some((part) => !part)) return;
+  if (!assemblyComplete(slot.parts, slot.n)) return;
   assemblingWs.delete(key);
   const bytes = concatBytes(...(slot.parts as Uint8Array[]));
   if (typeof msg.size === "number" && msg.size > 0 && bytes.length !== msg.size) return;
@@ -491,21 +551,31 @@ async function takeWsBlob(msg: {
   try {
     if (slot.tier === "hq") {
       try {
-        await putMediaBytes({ hash: msg.hash, mime: slot.mime, name: msg.hash }, bytes);
+        await putMediaBytes({ hash: msg.hash, mime: slot.mime, name: msg.hash }, bytes, false);
       } catch {
-        await putMediaTier(msg.hash, "mq", slot.mime, bytes);
+        await putMediaTier(msg.hash, "mq", slot.mime, bytes, false);
       }
     } else {
-      await putMediaTier(msg.hash, "mq", slot.mime, bytes);
+      await putMediaTier(msg.hash, "mq", slot.mime, bytes, false);
     }
   } catch {
     // ignore
   }
 }
 
+/**
+ * Un `Array(n)` con indice(s) sin rellenar es *holey*, y `some` se salta los
+ * huecos: con `n: 2` y solo el trozo 0 llegado, `parts.some((p) => !p)` daba
+ * false, el ensamblado se daba por bueno y `concatBytes(...parts)` reventaba con
+ * un TypeError. `Object.keys` si cuenta los indices presentes de verdad.
+ */
+function assemblyComplete(parts: Array<unknown>, n: number): boolean {
+  return Object.keys(parts).length === n;
+}
+
 function takeEnv(msg: { id?: string; data?: string; i?: number; n?: number }): void {
   if (typeof msg.data !== "string" || typeof msg.i !== "number" || typeof msg.n !== "number") return;
-  if (msg.n < 1 || msg.i < 0 || msg.i >= msg.n) return;
+  if (!chunkGuard("dc-env", msg.n, msg.i, "data-channel")) return;
   const id = typeof msg.id === "string" && msg.id ? msg.id : "env";
   const now = Date.now();
   for (const [key, slot] of assemblingEnv) {
@@ -518,7 +588,7 @@ function takeEnv(msg: { id?: string; data?: string; i?: number; n?: number }): v
   }
   slot.parts[msg.i] = msg.data;
   slot.t = now;
-  if (slot.parts.some((part) => typeof part !== "string")) return;
+  if (!assemblyComplete(slot.parts, slot.n)) return;
   assemblingEnv.delete(id);
   try {
     const envelope = JSON.parse(slot.parts.join("")) as Envelope;
@@ -536,9 +606,8 @@ function takePreview(msg: { hash?: string; data?: string; i?: number; n?: number
     notifyMedia(msg.hash);
     return;
   }
-  if (typeof msg.i !== "number" || typeof msg.n !== "number" || msg.n < 1 || msg.i < 0 || msg.i >= msg.n) {
-    return;
-  }
+  if (typeof msg.hash !== "string" || typeof msg.i !== "number" || typeof msg.n !== "number") return;
+  if (!chunkGuard("dc-preview", msg.n, msg.i, "data-channel")) return;
   const now = Date.now();
   for (const [hash, slot] of assemblingPreview) {
     if (now - slot.t > 60_000) assemblingPreview.delete(hash);
@@ -550,7 +619,7 @@ function takePreview(msg: { hash?: string; data?: string; i?: number; n?: number
   }
   slot.parts[msg.i] = msg.data;
   slot.t = now;
-  if (slot.parts.some((part) => typeof part !== "string")) return;
+  if (!assemblyComplete(slot.parts, slot.n)) return;
   assemblingPreview.delete(msg.hash);
   rememberPreview(msg.hash, slot.parts.join(""));
   notifyMedia(msg.hash);
@@ -801,7 +870,7 @@ export async function ingestMeshPacket(packet: MeshPacket): Promise<boolean> {
   if (packet.media) {
     for (const item of packet.media) {
       try {
-        await putMediaBytes(item, base64ToBytes(item.data));
+        await putMediaBytes(item, base64ToBytes(item.data), false);
       } catch {
         // ignore
       }
@@ -814,10 +883,6 @@ export async function ingestMeshPacket(packet: MeshPacket): Promise<boolean> {
   return ok;
 }
 
-export function meshConnected(): boolean {
-  return socket?.readyState === WebSocket.OPEN;
-}
-
 export function requestPeerData(rpub: string): void {
   const channel = channels.get(rpub);
   if (channel?.readyState === "open") {
@@ -828,7 +893,7 @@ export function requestPeerData(rpub: string): void {
 }
 
 export function listenMesh(
-  hello: { rpub: string; name: string; interests: string[] },
+  hello: { rpub: string; name: string; interests: string[]; secret: Uint8Array },
   onPacket: (packet: MeshPacket) => void,
   onPeers?: (peers: LivePeer[]) => void,
 ): () => void {
@@ -884,28 +949,34 @@ export function listenMesh(
   };
 
   const attach = (ws: WebSocket) => {
+    // El relé manda unnonce de un solo uso y el hello va firmado con la rsec:
+    // sin eso cualquiera podría.listarse como el rpub de otra persona.
     const sendHello = () => {
       void (async () => {
         try {
           const [avatar, pow] = await Promise.all([ownThumb(), cachedPow(hello.rpub)]);
-          if (stopped || socket !== ws) return;
+          if (stopped || socket !== ws || !challenge) return;
+          const name = hello.name.slice(0, HELLO_NAME_MAX);
+          const interests = hello.interests.slice(0, HELLO_INTERESTS_MAX);
+          const sig = bytesToHex(
+            signBytes(
+              hello.secret,
+              utf8ToBytes(canonicalJson({ interests, n: challenge, name, rpub: hello.rpub })),
+            ),
+          );
           sendSignal({
             type: "hello",
             rpub: hello.rpub,
-            name: hello.name,
-            interests: hello.interests,
+            name,
+            interests,
             avatar,
             pow,
+            auth: { n: challenge, sig },
           });
-          sendSignal({ type: "scan" });
         } catch {
           // sin hello válido el relé no nos lista
         }
       })();
-    };
-    ws.onopen = () => {
-      if (stopped || socket !== ws) return;
-      sendHello();
     };
     ws.onmessage = (event) => {
       if (stopped || socket !== ws) return;
@@ -915,13 +986,24 @@ export function listenMesh(
       } catch {
         return;
       }
+      if (msg.type === "challenge" && typeof msg.nonce === "string") {
+        challenge = msg.nonce;
+        sendHello();
+        return;
+      }
       if (msg.type === "hello-ok") setLinked(true);
-      if (msg.type === "error" && (msg.error === "hello_rate" || msg.error === "pow")) {
+      if (msg.type === "error" && (msg.error === "hello_rate" || msg.error === "pow" || msg.error === "auth")) {
+        // el relé manda unnonce nuevo con cada error, así que el reintento sale solo
         setLinked(false);
-        window.setTimeout(() => {
-          if (stopped || socket !== ws) return;
-          sendHello();
-        }, 2000);
+      }
+      if (msg.type === "error" && msg.error === "rpub_switch") {
+        // El relé ata una conexión a una identidad. Reconectar en limpio.
+        setLinked(false);
+        try {
+          ws.close();
+        } catch {
+          // ignore
+        }
       }
       if (msg.type === "peers") applyPeers(msg.peers);
       if (msg.type === "join" && msg.peer?.rpub) {
@@ -942,9 +1024,9 @@ export function listenMesh(
             const bytes = base64ToBytes(msg.data);
             const mime = msg.mime || "image/jpeg";
             if (mime.startsWith("audio/") || mime.startsWith("video/")) {
-              await storeClip(msg.hash, mime, bytes);
+              await storeClip(msg.hash, mime, bytes, false);
             } else {
-              await putMediaTier(msg.hash, "mq", mime, bytes);
+              await putMediaTier(msg.hash, "mq", mime, bytes, false);
             }
           } catch {
             // ignore
@@ -952,12 +1034,7 @@ export function listenMesh(
         })();
       }
       if (msg.type === "need-blob" && msg.hash && msg.from) void pushMediaViaSignal(msg.from, msg.hash);
-      if (msg.type === "moderation") {
-        moderationHandler?.({
-          users: Array.isArray(msg.users) ? msg.users : [],
-          comments: Array.isArray(msg.comments) ? msg.comments : [],
-        });
-      }
+      if (msg.type === "moderation-changed") moderationHandler?.();
     };
     ws.onerror = () => {
       if (socket !== ws) return;
@@ -985,18 +1062,8 @@ export function listenMesh(
   connect();
   scan = window.setInterval(() => {
     if (socket?.readyState !== WebSocket.OPEN) return;
+    // el relé responde a scan con la lista y unnonce nuevo, que dispara el hello
     sendSignal({ type: "scan" });
-    void Promise.all([ownThumb(), cachedPow(hello.rpub)]).then(([avatar, pow]) => {
-      if (stopped || socket?.readyState !== WebSocket.OPEN) return;
-      sendSignal({
-        type: "hello",
-        rpub: hello.rpub,
-        name: hello.name,
-        interests: hello.interests,
-        avatar,
-        pow,
-      });
-    });
     repairPeers();
   }, 8_000);
 
@@ -1008,6 +1075,7 @@ export function listenMesh(
     socket = null;
     packetHandler = null;
     self = null;
+    challenge = "";
     persistOutbox();
     pendingIce.clear();
     setLinked(false);
@@ -1023,6 +1091,7 @@ export function stopMesh(): void {
   socket = null;
   self = null;
   packetHandler = null;
+  challenge = "";
   persistOutbox();
   pendingIce.clear();
   setLinked(false);
@@ -1038,9 +1107,92 @@ export function resetMeshState(): void {
   assemblingPreview.clear();
   assemblingEnv.clear();
   assemblingWs.clear();
+  clearAssemblyLog();
   try {
     localStorage.removeItem(OUTBOX_KEY);
   } catch {
     // ignore
   }
 }
+
+export type GuardCase = {
+  via: AssemblyVia;
+  hostileN: number;
+  ms: number;
+  slotAbierto: boolean;
+  correcto: boolean;
+};
+
+export type GuardReport = {
+  cap: number;
+  /** Por encima de esto la pagina se considera congelada. */
+  umbralMs: number;
+  msPeor: number;
+  correcto: boolean;
+  casosHostiles: GuardCase[];
+  casosLegales: GuardCase[];
+};
+
+/** Numero de slots de ensamblado abiertos ahora mismo. */
+function slotCount(): number {
+  return assembling.size + assemblingWs.size + assemblingEnv.size + assemblingPreview.size;
+}
+
+/**
+ * Prueba de la guarda de trozos contra las cuatro rutas reales, no contra una
+ * reimplementacion. Un paquete hostil declara `n: 2e9` con `i` en la ultima
+ * posicion: si el tope no estuviera, `Array(n)` crearia un array disperso de
+ * miles de millones y el ensamblado reventaria al expandirlo. Con el tope debe
+ * decidir en milisegundos y no abrir nada.
+ *
+ * Los casos legales mandan `n: 2` con un solo trozo, asi que el ensamblado se
+ * queda a medias y no escribe nada en IndexedDB: prueban que la ruta sigue
+ * admitiendo paquetes legitimos sin dejar rastro.
+ */
+export async function runAssemblyGuardSelfTest(): Promise<GuardReport> {
+  const UMBRAL_MS = 50;
+  const HOSTIL_N = 2_000_000_000;
+  const hostiles: GuardCase[] = [];
+  const legales: GuardCase[] = [];
+
+  async function probe(via: AssemblyVia, n: number, i: number, data: string, label: string) {
+    const antes = slotCount();
+    const elapsed = tick();
+    const payload = { hash: `probe-${label}-${n}`, i, n, data, mime: "image/png", id: `probe-${label}` };
+    if (via === "ws-blob") await takeWsBlob(payload);
+    else if (via === "dc-media") await takeMediaPart(payload);
+    else if (via === "dc-env") takeEnv(payload);
+    else takePreview({ hash: payload.hash, data, i, n });
+    const ms = elapsed();
+    const slotAbierto = slotCount() > antes;
+    return { via, hostileN: n, ms, slotAbierto, correcto: false };
+  }
+
+  for (const via of ["ws-blob", "dc-media", "dc-env", "dc-preview"] as AssemblyVia[]) {
+    const r = await probe(via, HOSTIL_N, HOSTIL_N - 1, "AAAA", "hostil");
+    r.correcto = r.ms < UMBRAL_MS && !r.slotAbierto;
+    hostiles.push(r);
+  }
+  for (const via of ["ws-blob", "dc-media", "dc-env", "dc-preview"] as AssemblyVia[]) {
+    const r = await probe(via, 2, 0, "QUFBQQ==", "legal");
+    r.correcto = r.ms < UMBRAL_MS && r.slotAbierto;
+    legales.push(r);
+  }
+  // Los probes no deben quedar abierto ni completando nada.
+  assembling.clear();
+  assemblingWs.clear();
+  assemblingEnv.clear();
+  assemblingPreview.clear();
+
+  const msPeor = Math.max(...hostiles.map((item) => item.ms), ...legales.map((item) => item.ms));
+  return {
+    cap: MAX_CHUNKS,
+    umbralMs: UMBRAL_MS,
+    msPeor,
+    correcto: hostiles.every((item) => item.correcto) && legales.every((item) => item.correcto),
+    casosHostiles: hostiles,
+    casosLegales: legales,
+  };
+}
+
+installDiagHook(runAssemblyGuardSelfTest);

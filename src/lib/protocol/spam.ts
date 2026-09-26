@@ -6,6 +6,74 @@ export const YOUNG_REPORT_HIDE = 3;
 export const MAX_TEXT_LINKS = 2;
 export const MAX_SAME_TEXT = 2;
 
+/**
+ * Momento en que ESTA maquina vio a cada autor por primera vez. `ts` viene
+ * firmado pero lo elige el autor, asi que la cuarentena no se puede fiar de el:
+ * bastaba firmar el primer post con `ts` de hace 13 h para saltarse las 12 h de
+ * cuarentena que existen para fren as granjas. Aqui el valor es local y no se
+ * puede falsear desde fuera.
+ */
+const SEEN_KEY = "magicrita.seen.first";
+const SEEN_MAX = 4_000;
+let seenCache: Record<string, number> | null = null;
+
+function readSeen(): Record<string, number> {
+  if (seenCache) return seenCache;
+  try {
+    const raw = JSON.parse(localStorage.getItem(SEEN_KEY) ?? "{}") as unknown;
+    const out: Record<string, number> = {};
+    if (raw && typeof raw === "object") {
+      for (const [rpub, at] of Object.entries(raw as Record<string, unknown>)) {
+        if (typeof at === "number" && Number.isFinite(at) && at > 0) out[rpub] = at;
+      }
+    }
+    seenCache = out;
+  } catch {
+    seenCache = {};
+  }
+  return seenCache;
+}
+
+function writeSeen(seen: Record<string, number>): void {
+  seenCache = seen;
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+  } catch {
+    // sin quota seguimos en memoria
+  }
+}
+
+export function noteAuthorSeen(rpub: string, now = Date.now()): void {
+  if (!rpub) return;
+  const seen = readSeen();
+  const previous = seen[rpub];
+  if (previous !== undefined && previous <= now) return;
+  const next = { ...seen, [rpub]: now };
+  const keys = Object.keys(next);
+  if (keys.length > SEEN_MAX) {
+    const ordered = keys.sort((a, b) => (next[a] ?? 0) - (next[b] ?? 0));
+    for (const key of ordered.slice(0, keys.length - SEEN_MAX)) delete next[key];
+  }
+  writeSeen(next);
+}
+
+export function forgetSeen(rpub: string): void {
+  const seen = readSeen();
+  if (!(rpub in seen)) return;
+  const next = { ...seen };
+  delete next[rpub];
+  writeSeen(next);
+}
+
+function observedFirstTs(rpub: string): number | null {
+  const at = readSeen()[rpub];
+  return typeof at === "number" ? at : null;
+}
+
+export function resetSeenCache(): void {
+  seenCache = null;
+}
+
 export function countLinks(text: string): number {
   return (text.match(/https?:\/\/[^\s<>]+/gi) ?? []).length;
 }
@@ -50,7 +118,11 @@ export function isTrustedAuthor(
 }
 
 export function isYoungAuthor(events: Envelope[], rpub: string, now = Date.now()): boolean {
-  const first = authorFirstTs(events, rpub);
+  // Lo observado localmente manda: nunca es anterior a cuando llegamos a ver al
+  // autor, por mucho ts antiguo que firme. Solo si no hay observacion (log
+  // importado, otro dispositivo) caemos en el ts declarado.
+  const observed = observedFirstTs(rpub);
+  const first = observed ?? authorFirstTs(events, rpub);
   if (first === null) return true;
   return now - first < QUARANTINE_MS;
 }

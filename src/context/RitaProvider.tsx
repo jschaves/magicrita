@@ -53,8 +53,15 @@ import {
   type ChatPhase,
 } from "@/lib/protocol/chat";
 import { dropMedia, MAX_PHOTOS, onMediaStored, type MediaRef } from "@/lib/protocol/media";
-import { applyBundle, buildBundle, downloadBundle, parseBundle } from "@/lib/protocol/bundle";
 import {
+  applyBundle,
+  buildBundle,
+  downloadBundle,
+  MAX_BUNDLE_BYTES,
+  parseBundle,
+} from "@/lib/protocol/bundle";
+import {
+  assertVaultOwnership,
   loadVault,
   saveVault,
   unwrapVault,
@@ -63,7 +70,7 @@ import {
 } from "@/lib/protocol/vault";
 import { ProtocolError } from "@/lib/protocol/errors";
 import { purgeForeignIdentities, wipeBrowserRita, wipeRitaPreservingInvite } from "@/lib/protocol/wipe";
-import { fetchStaffBlocks, type StaffBlocks } from "@/lib/protocol/adminBlocks";
+import { checkStaffBlocks, MOD_CHECK_CHUNK, type StaffBlocks } from "@/lib/protocol/adminBlocks";
 import {
   assertSingleSession,
   clearUnlockedRsec,
@@ -73,6 +80,7 @@ import {
   notifySessionExists,
   releaseSession,
   saveUnlockedRsec,
+  watchSessionLock,
 } from "@/lib/protocol/session";
 import { acceptRemoteEnvelope, broadcastEnvelope, listenEnvelopes } from "@/lib/protocol/bus";
 import {
@@ -102,7 +110,7 @@ import {
 import { likeStats, loadLikeIndex, mergeLikes, saveLikeIndex, setLike } from "@/lib/protocol/likeIndex";
 import { countLinks, isQuarantined, MAX_TEXT_LINKS, vouchedBy } from "@/lib/protocol/spam";
 import { noteCreateSuccess } from "@/lib/protocol/signupGuard";
-import { assertBetaInvite } from "@/lib/protocol/betaInvite";
+import { assertBetaInvite, loadBetaInvite } from "@/lib/protocol/betaInvite";
 import { latestConsent } from "@/lib/protocol/chat";
 import {
   dropNotice,
@@ -148,8 +156,14 @@ type RitaContextValue = {
     name: string;
     about: string;
     picture?: MediaRef;
+    invite?: string;
   }) => Promise<Identity>;
-  importSecret: (secret: string, password: string) => Promise<void>;
+  importSecret: (
+    secret: string,
+    password: string,
+    currentPassword?: string,
+    invite?: string,
+  ) => Promise<void>;
   unlock: (password: string) => Promise<void>;
   logout: () => void;
   wipeIdentity: () => Promise<void>;
@@ -196,13 +210,20 @@ type RitaContextValue = {
   askPeerData: (rpub: string) => void;
   exportPublic: () => Promise<void>;
   exportBackup: () => Promise<void>;
-  importBundleFile: (file: File) => Promise<{ authors: number; vaultRestored: boolean }>;
+  importBundleFile: (
+    file: File,
+    currentPassword?: string,
+    invite?: string,
+  ) => Promise<{ authors: number; vaultRestored: boolean }>;
 };
 
 const RitaContext = createContext<RitaContextValue | null>(null);
 
 function tryRestoreIdentity(vault: VaultRecord | null): Identity | null {
-  if (!vault) return null;
+  if (!vault) {
+    clearUnlockedRsec();
+    return null;
+  }
   const rsec = loadUnlockedRsec();
   if (!rsec) return null;
   try {
@@ -211,7 +232,13 @@ function tryRestoreIdentity(vault: VaultRecord | null): Identity | null {
       clearUnlockedRsec();
       return null;
     }
-    claimSession(identity.rpub);
+    // Otra pestaña ya tiene la rsec en claro: esta se queda en "locked" en vez
+    // de abrir una segunda sesión con la misma clave.
+    if (!claimSession(identity.rpub)) {
+      notifySessionExists();
+      clearUnlockedRsec();
+      return null;
+    }
     return identity;
   } catch {
     clearUnlockedRsec();
@@ -219,7 +246,7 @@ function tryRestoreIdentity(vault: VaultRecord | null): Identity | null {
   }
 }
 
-function personFrom(rpub: string, events: Envelope[]): Person {
+function personFrom(rpub: string, events: readonly Envelope[]): Person {
   const profileEnv = latestProfile(loadLog(rpub));
   return {
     rpub,
@@ -245,6 +272,9 @@ export function RitaProvider({ children }: { children: ReactNode }) {
   const [livePeers, setLivePeers] = useState<LivePeer[]>([]);
   const [signalOn, setSignalOn] = useState(false);
   const [staffBlocks, setStaffBlocks] = useState<StaffBlocks>({ users: [], comments: [] });
+  /** lo que ya se pregunto al relay, para no repetir la consulta en cada render */
+  const staffAsked = useRef<Set<string>>(new Set());
+  const [staffRev, setStaffRev] = useState(0);
   const [likeIndex, setLikeIndex] = useState(loadLikeIndex);
   const [notices, setNotices] = useState<Notice[]>([]);
 
@@ -280,15 +310,17 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       name,
       about,
       picture,
+      invite,
     }: {
       password: string;
       name: string;
       about: string;
       picture?: MediaRef;
+      invite?: string;
     }) => {
       if (loadVault()) throw new ProtocolError("account_exists");
       await wipeRitaPreservingInvite();
-      await assertBetaInvite();
+      await assertBetaInvite(invite);
       const next = createIdentity();
       const record = await wrapSecret(next, password);
       setVault(record);
@@ -317,8 +349,8 @@ export function RitaProvider({ children }: { children: ReactNode }) {
   }, [emit, identity]);
 
   const importSecret = useCallback(
-    async (secret: string, password: string) => {
-      await assertBetaInvite();
+    async (secret: string, password: string, currentPassword?: string, invite?: string) => {
+      await assertBetaInvite(invite);
       const next = fromSecret(parseSecretInput(secret));
       if (identity?.rpub === next.rpub && status === "ready") {
         notifySessionExists();
@@ -326,6 +358,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       }
       const existing = loadVault();
       if (existing && existing.rpub !== next.rpub) {
+        await assertVaultOwnership(currentPassword);
         await wipeRitaPreservingInvite();
       } else {
         purgeForeignIdentities(next.rpub);
@@ -361,16 +394,31 @@ export function RitaProvider({ children }: { children: ReactNode }) {
 
   const wipeIdentity = useCallback(async () => {
     if (identity) {
-      const gone = signGone(identity);
-      broadcastEnvelope(gone);
-      await publishMesh(gone).catch(() => undefined);
-      await new Promise((resolve) => window.setTimeout(resolve, 600));
-      releaseSession(identity.rpub);
+      try {
+        const gone = signGone(identity);
+        broadcastEnvelope(gone);
+        await publishMesh(gone).catch(() => undefined);
+        await new Promise((resolve) => window.setTimeout(resolve, 600));
+        releaseSession(identity.rpub);
+      } catch {
+        // el aviso a los pares no puede impedir borrar la identidad
+      }
     }
     clearUnlockedRsec();
-    await wipeBrowserRita();
+    // El borrado nunca debe rechazar: aunque falle media o IndexedDB, se sale
+    // igual a /welcome en vez de quedarse en una pantalla ya vacia.
+    try {
+      await wipeBrowserRita();
+    } catch {
+      // ignore
+    }
+    setIdentity(null);
+    setVault(null);
+    setLog([]);
+    setStatus(loadVault() ? "locked" : "anonymous");
+    bump();
     window.location.assign("/welcome");
-  }, [identity]);
+  }, [bump, identity]);
 
   const publishPost = useCallback(
     (text: string, media?: MediaRef[]) => {
@@ -652,21 +700,39 @@ export function RitaProvider({ children }: { children: ReactNode }) {
   const exportBackup = useCallback(async () => {
     if (!identity) throw new ProtocolError("not_unlocked");
     const rpubs = [...new Set([identity.rpub, ...listKnownRpubs()])];
+    // El codigo viaja dentro del backup para que al restaurarlo en otro
+    // navegador no haga falta volver a escribirlo. Las cuentas creadas antes de
+    // guardarlo en la boveda se completan aqui con el que haya en el dispositivo.
+    const invite = vault?.invite || loadBetaInvite() || undefined;
     const bundle = await buildBundle({
       kind: "backup",
       rpubs,
-      vault: vault ?? undefined,
+      vault: vault ? { ...vault, invite } : vault ?? undefined,
     });
     downloadBundle(bundle, `magicrita-backup-${Date.now()}.json`);
   }, [identity, vault]);
 
   const importBundleFile = useCallback(
-    async (file: File) => {
+    async (file: File, currentPassword?: string, invite?: string) => {
+      if (file.size > MAX_BUNDLE_BYTES) throw new ProtocolError("invalid_bundle");
       const text = await file.text();
       const bundle = parseBundle(text);
       if (bundle.kind === "backup" && bundle.vault) {
+        // Restaurar una identidad es entrar en la beta otra vez. Si ya hay una
+        // sesion con esa misma cuenta no hace falta el codigo; solo cuando la
+        // identidad entra de cero o se sustituye por otra.
+        const switching = !identity || identity.rpub !== bundle.vault.rpub;
+        // El codigo guardado en el propio backup vale; si ya no existe, el
+        // usuario puede escribir uno nuevo y ese manda.
+        if (switching) await assertBetaInvite(invite?.trim() || bundle.vault.invite);
         if (identity && identity.rpub !== bundle.vault.rpub) {
           throw new ProtocolError("backup_conflict");
+        }
+        // Con la sesion cerrada `identity` es null y el guard anterior no cubria
+        // nada: un bundle ajeno sustituia la boveda guardada sin contraseña.
+        const stored = loadVault();
+        if (stored && stored.rpub !== bundle.vault.rpub) {
+          await assertVaultOwnership(currentPassword);
         }
         saveVault(bundle.vault);
         setVault(bundle.vault);
@@ -744,10 +810,25 @@ export function RitaProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (status !== "ready" || !identity) return;
-    heartbeatSession(identity.rpub);
-    const timer = window.setInterval(() => heartbeatSession(identity.rpub), 4000);
+    // Si otra pestaña tomó el lock, esta suelta la sesión en vez de seguir
+    // con la rsec en claro.
+    const beat = () => {
+      if (heartbeatSession(identity.rpub)) return;
+      notifySessionExists();
+      logout();
+    };
+    beat();
+    const timer = window.setInterval(beat, 4000);
     return () => window.clearInterval(timer);
-  }, [identity, status]);
+  }, [identity, status, logout]);
+
+  useEffect(() => {
+    if (status !== "ready") return;
+    return watchSessionLock(() => {
+      notifySessionExists();
+      logout();
+    });
+  }, [status, logout]);
 
   const profileEnvelope = latestProfile(log);
   const profile = profileEnvelope?.type === "profile" ? profileEnvelope.body : null;
@@ -761,6 +842,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
         rpub: identity.rpub,
         name: (meta?.type === "profile" ? meta.body.name : "") || "",
         interests: meta?.type === "profile" ? (meta.body.interests ?? []) : [],
+        secret: identity.secret,
       },
       (packet) => {
         void ingestMeshPacket(packet).then((changed) => {
@@ -776,17 +858,18 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       setLivePeers,
     );
     const stopStatus = onMeshStatus(setSignalOn);
-    const stopMod = onModeration(setStaffBlocks);
+    // El relay ya no difunde la lista: solo avisa. Al avisar se cae la memoria
+    // de lo preguntado para que un bloqueo nuevo se vea en lo ya conocido.
+    const stopMod = onModeration(() => {
+      staffAsked.current.clear();
+      setStaffRev((n) => n + 1);
+    });
     return () => {
       stopMesh();
       stopStatus();
       stopMod();
     };
   }, [bump, captureNotice, identity?.rpub, status]);
-
-  useEffect(() => {
-    void fetchStaffBlocks().then(setStaffBlocks);
-  }, []);
 
   useEffect(() => onMediaStored(() => bump()), [bump]);
   const allEvents = useMemo(() => {
@@ -799,6 +882,43 @@ export function RitaProvider({ children }: { children: ReactNode }) {
     }
     return [...map.values()];
   }, [catalog, log]);
+
+  // El relay solo avisa de que la moderacion cambio, asi que aqui se consulta
+  // por los items que ya tenemos. Solo se pregunta por los nuevos: lo ya
+  // preguntado se recuerda, y un aviso del relay borra esa memoria para que un
+  // bloqueo nuevo tambien aplique a lo que ya estaba en pantalla.
+  useEffect(() => {
+    let alive = true;
+    const rpubs = [...new Set(allEvents.map((event) => event.author))].filter((rpub) => {
+      if (staffAsked.current.has(rpub)) return false;
+      staffAsked.current.add(rpub);
+      return true;
+    });
+    const sigs = [...new Set(allEvents.map((event) => event.sig))].filter((sig) => {
+      if (staffAsked.current.has(sig)) return false;
+      staffAsked.current.add(sig);
+      return true;
+    });
+    if (!rpubs.length && !sigs.length) return;
+    void (async () => {
+      const users: string[] = [];
+      const comments: string[] = [];
+      for (let i = 0; i < Math.max(rpubs.length, sigs.length); i += MOD_CHECK_CHUNK) {
+        const part = await checkStaffBlocks(rpubs.slice(i, i + MOD_CHECK_CHUNK), sigs.slice(i, i + MOD_CHECK_CHUNK));
+        users.push(...part.users);
+        comments.push(...part.comments);
+        if (!alive) return;
+      }
+      if (!alive || (!users.length && !comments.length)) return;
+      setStaffBlocks((prev) => ({
+        users: [...new Set([...prev.users, ...users])],
+        comments: [...new Set([...prev.comments, ...comments])],
+      }));
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [allEvents, staffRev]);
 
   const sendChat = useCallback(
     (raw: string, text: string, media?: MediaRef, replies?: string) => {
@@ -939,11 +1059,12 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       });
     }
     for (const peer of livePeers) {
+      // Si esta conectado ahora, se muestra: un `gone` viejo no debe esconder a
+      // quien esta en linea.
       if (
         seen.has(peer.rpub) ||
         blocks.includes(peer.rpub) ||
-        staffBlocks.users.includes(peer.rpub) ||
-        authorIsGone(peer.rpub)
+        staffBlocks.users.includes(peer.rpub)
       )
         continue;
       seen.add(peer.rpub);
@@ -979,8 +1100,15 @@ export function RitaProvider({ children }: { children: ReactNode }) {
 
   const feed = useMemo(() => {
     const items: FeedItem[] = [];
+    const gone = new Set<string>();
+    for (const event of allEvents) {
+      if (event.author === identity?.rpub || gone.has(event.author)) continue;
+      if (authorIsGone(event.author)) gone.add(event.author);
+    }
     for (const event of visiblePostsOf(allEvents)) {
       if (blocks.includes(event.author) || staffBlocks.users.includes(event.author)) continue;
+      // Un autor con `gone` vigente se oculta, pero sin borrar sus datos.
+      if (event.author !== identity?.rpub && gone.has(event.author)) continue;
       if (staffBlocks.comments.includes(event.sig)) continue;
       if (
         isQuarantined(

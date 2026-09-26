@@ -62,14 +62,14 @@ export function NoticeBell() {
     <div ref={rootRef} className="relative">
       <button
         type="button"
-        className="relative rounded-full p-2 text-ink hover:bg-white/60"
+        className="relative rounded-full p-2 text-orange-500 transition hover:bg-orange-500/10"
         aria-label={t("notices.title")}
         onClick={() => setOpen((value) => !value)}
       >
-        <Bell size={18} />
+        <Bell size={26} strokeWidth={2.1} />
         {count ? (
-          <span className="absolute right-0.5 top-0.5 min-w-4 rounded-full bg-accent px-1 text-center text-[10px] font-bold leading-4 text-white">
-            {count > 9 ? "9+" : count}
+          <span className="absolute -right-0.5 -top-0.5 min-w-5 rounded-full bg-orange-500 px-1.5 text-center text-xs font-bold leading-5 text-white shadow-sm">
+            {count > 99 ? "99+" : count}
           </span>
         ) : null}
       </button>

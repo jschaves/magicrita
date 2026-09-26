@@ -18,19 +18,6 @@ export function bytesToBase64(bytes: Uint8Array): string {
   return btoa(pieces.join(""));
 }
 
-export function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = String(reader.result ?? "");
-      const comma = text.indexOf(",");
-      resolve(comma >= 0 ? text.slice(comma + 1) : text);
-    };
-    reader.onerror = () => reject(reader.error ?? new Error("b64"));
-    reader.readAsDataURL(blob);
-  });
-}
-
 export function base64ToBytes(value: string): Uint8Array {
   const binary = atob(value);
   const out = new Uint8Array(binary.length);

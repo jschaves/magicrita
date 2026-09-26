@@ -17,7 +17,7 @@ export function WelcomePage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [needInvite, setNeedInvite] = useState(false);
+  const [needInvite, setNeedInvite] = useState(true);
   const [invite, setInvite] = useState(() => loadBetaInvite());
 
   useEffect(() => {
@@ -33,8 +33,8 @@ export function WelcomePage() {
     setBusy(true);
     setError(null);
     try {
-      if (needInvite) await redeemBetaInvite(invite);
-      const result = await importBundleFile(file);
+      if (needInvite && invite.trim()) await redeemBetaInvite(invite);
+      const result = await importBundleFile(file, undefined, invite);
       if (!result.vaultRestored) {
         setError(t("welcome.portableNeedBackup"));
       }

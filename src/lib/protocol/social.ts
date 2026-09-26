@@ -1,10 +1,8 @@
-import type { Envelope, ReactionKind } from "./envelope";
-import { listKnownRpubs, loadLog } from "./store";
+import type { Envelope } from "./envelope";
+import { allEnvelopes as allEnvelopesCached } from "./store";
 import { isQuarantined, reportHideAfter } from "./spam";
 
-export const REPORT_HIDE_AFTER = 10;
 export const PRESENCE_MS = 90_000;
-export const FEED_TICK_MS = 5500;
 export const FEED_VISIBLE = 16;
 export const MAX_AUTHOR_POSTS = 100;
 export const EDIT_WINDOW_MS = 15 * 60 * 1000;
@@ -23,7 +21,7 @@ export function visiblePostsOf(events: Envelope[], author?: string): Envelope[] 
     .sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0));
 }
 
-export function rootPostTs(events: Envelope[], post: Envelope): number {
+export function rootPostTs(events: readonly Envelope[], post: Envelope): number {
   if (post.type !== "post") return post.ts;
   const bySig = new Map(
     events.filter((event) => event.type === "post" && event.sig).map((event) => [event.sig, event]),
@@ -39,7 +37,7 @@ export function rootPostTs(events: Envelope[], post: Envelope): number {
   return current.ts;
 }
 
-export function canEditPost(events: Envelope[], post: Envelope, now = Date.now()): boolean {
+export function canEditPost(events: readonly Envelope[], post: Envelope, now = Date.now()): boolean {
   return post.type === "post" && now - rootPostTs(events, post) <= EDIT_WINDOW_MS;
 }
 
@@ -59,32 +57,11 @@ export function postLineageSigs(events: Envelope[], post: Envelope): string[] {
   return sigs;
 }
 
-export function allEnvelopes(): Envelope[] {
-  return listKnownRpubs().flatMap((rpub) => loadLog(rpub));
+export function allEnvelopes(): readonly Envelope[] {
+  return allEnvelopesCached();
 }
 
-export function likesOf(all: Envelope[], target: string): { count: number; mine: boolean } {
-  const latest = new Map<string, boolean>();
-  for (const event of all) {
-    if (event.type !== "like" || event.body.target !== target) continue;
-    latest.set(event.author, event.body.on);
-  }
-  let count = 0;
-  for (const on of latest.values()) if (on) count += 1;
-  return { count, mine: false };
-}
-
-export function likedByMe(all: Envelope[], target: string, me: string | null): boolean {
-  if (!me) return false;
-  let on = false;
-  for (const event of all) {
-    if (event.type !== "like" || event.body.target !== target || event.author !== me) continue;
-    on = event.body.on;
-  }
-  return on;
-}
-
-export function commentsOf(all: Envelope[], postSig: string): Envelope[] {
+export function commentsOf(all: readonly Envelope[], postSig: string): Envelope[] {
   const deleted = new Set<string>();
   const replaced = new Set<string>();
   for (const event of all) {
@@ -97,7 +74,7 @@ export function commentsOf(all: Envelope[], postSig: string): Envelope[] {
     .sort((a, b) => a.ts - b.ts);
 }
 
-export function rootCommentTs(events: Envelope[], comment: Envelope): number {
+export function rootCommentTs(events: readonly Envelope[], comment: Envelope): number {
   if (comment.type !== "comment") return comment.ts;
   const bySig = new Map(
     events.filter((event) => event.type === "comment" && event.sig).map((event) => [event.sig, event]),
@@ -113,7 +90,7 @@ export function rootCommentTs(events: Envelope[], comment: Envelope): number {
   return current.ts;
 }
 
-export function canMutateComment(events: Envelope[], comment: Envelope, now = Date.now()): boolean {
+export function canMutateComment(events: readonly Envelope[], comment: Envelope, now = Date.now()): boolean {
   return comment.type === "comment" && now - rootCommentTs(events, comment) <= EDIT_WINDOW_MS;
 }
 
@@ -133,7 +110,7 @@ export function commentLineageSigs(events: Envelope[], comment: Envelope): strin
   return sigs;
 }
 
-export function reportsOf(all: Envelope[], target: string): Set<string> {
+export function reportsOf(all: readonly Envelope[], target: string): Set<string> {
   const latest = new Map<string, boolean>();
   for (const event of all) {
     if (event.type !== "report" || event.body.target !== target) continue;
@@ -155,7 +132,7 @@ export function isHiddenByReports(
   return reportsOf(all, target).size >= reportHideAfter(young);
 }
 
-export function reportedByMe(all: Envelope[], target: string, me: string | null): boolean {
+export function reportedByMe(all: readonly Envelope[], target: string, me: string | null): boolean {
   return Boolean(me && reportsOf(all, target).has(me));
 }
 
@@ -168,7 +145,7 @@ export function latestBlocks(log: Envelope[]): string[] {
   return found && found.type === "blocks" ? found.body.rpubs : [];
 }
 
-export function isOnline(all: Envelope[], rpub: string, now = Date.now()): boolean {
+export function isOnline(all: readonly Envelope[], rpub: string, now = Date.now()): boolean {
   let last = 0;
   for (const event of all) {
     if (event.author !== rpub) continue;
@@ -177,8 +154,4 @@ export function isOnline(all: Envelope[], rpub: string, now = Date.now()): boole
     }
   }
   return now - last < PRESENCE_MS;
-}
-
-export function targetKindLabel(kind: ReactionKind): ReactionKind {
-  return kind;
 }

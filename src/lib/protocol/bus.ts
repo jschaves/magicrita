@@ -51,7 +51,11 @@ export function acceptRemoteEnvelope(envelope: Envelope): boolean {
   if (envelope.type === "presence") return false;
   if (envelope.type === "gone") return applyAuthorGone(envelope);
   const existing = loadLog(envelope.author);
-  if (existing.some((item) => item.type === "gone")) return false;
+  // Un `gone` tapa la cuenta, pero si el autor vuelve y firma algo mas nuevo,
+  // eso manda: un par que aun guarda el gone viejo no puede dejarlo invisible
+  // ni rechazarle la actividad nueva para siempre.
+  const gone = existing.find((item) => item.type === "gone");
+  if (gone && envelope.ts <= gone.ts) return false;
   if (existing.some((item) => item.sig === envelope.sig)) return false;
   if (shouldRejectSpam(envelope, existing)) return false;
   appendEnvelope(envelope.author, envelope);

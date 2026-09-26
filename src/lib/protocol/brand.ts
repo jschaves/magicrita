@@ -1,12 +1,9 @@
 export const SITE_NAME = "MagicRita";
 export const LOGO_MAX_BYTES = 1_000_000;
-export const LOGO_TYPES = [
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif",
-  "image/svg+xml",
-] as const;
+// Sin SVG a proposito: el logo se sirve en linea con su propio Content-Type, y
+// un SVG con <script> se ejecutaria en el origen de la app con acceso al
+// storage. El relay tambien lo rechaza.
+export const LOGO_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"] as const;
 
 export type BrandInfo = {
   logo: boolean;
@@ -51,7 +48,6 @@ export function mimeFromFile(file: File): string {
   if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
   if (name.endsWith(".webp")) return "image/webp";
   if (name.endsWith(".gif")) return "image/gif";
-  if (name.endsWith(".svg")) return "image/svg+xml";
   return "";
 }
 

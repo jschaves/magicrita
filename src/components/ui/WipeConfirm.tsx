@@ -25,8 +25,8 @@ export function WipeConfirm({
       <div className="mt-4 flex flex-col gap-2">
         <Button
           type="button"
-          variant="danger"
-          className="w-full bg-accent text-white hover:bg-accent-dark"
+          variant="primary"
+          className="w-full"
           onClick={onConfirm}
         >
           {t("settings.deleteConfirm")}

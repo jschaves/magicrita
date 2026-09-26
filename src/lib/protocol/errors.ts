@@ -33,6 +33,7 @@ export type ProtocolErrorCode =
   | "invite_self"
   | "invite_required"
   | "invite_bad"
+  | "invite_rate"
   | "chat_self"
   | "chat_blocked"
   | "chat_closed"

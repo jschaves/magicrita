@@ -23,10 +23,33 @@ export type ChatLine = {
   quote?: { author: string; text: string | null; photo?: boolean };
 };
 
+/**
+ * `chatLines` descifra cada mensaje en cada render, y cada descifrado repetía
+ * el ECDH + sha256 completo. Estas cachés cuelgan de la `secret` (WeakMap) para
+ * que al bloquear o cerrar sesión el GC se lleve también el texto en claro.
+ */
+const keyCache = new WeakMap<Uint8Array, Map<string, Uint8Array>>();
+const textCache = new WeakMap<Uint8Array, Map<string, string | null>>();
+const TEXT_CACHE_MAX = 4_000;
+
+function cacheFor<T>(cache: WeakMap<Uint8Array, Map<string, T>>, secret: Uint8Array): Map<string, T> {
+  let perSecret = cache.get(secret);
+  if (!perSecret) {
+    perSecret = new Map();
+    cache.set(secret, perSecret);
+  }
+  return perSecret;
+}
+
 function sharedKey(secret: Uint8Array, theirRpub: string): Uint8Array {
+  const perSecret = cacheFor(keyCache, secret);
+  const hit = perSecret.get(theirRpub);
+  if (hit) return hit;
   const xSec = ed25519.utils.toMontgomerySecret(secret);
   const xPub = ed25519.utils.toMontgomery(parseRpub(theirRpub));
-  return sha256(x25519.getSharedSecret(xSec, xPub));
+  const derived = sha256(x25519.getSharedSecret(xSec, xPub));
+  perSecret.set(theirRpub, derived);
+  return derived;
 }
 
 export function sealChat(identity: Identity, theirRpub: string, text: string): { n: string; box: string } {
@@ -36,12 +59,23 @@ export function sealChat(identity: Identity, theirRpub: string, text: string): {
 }
 
 export function openChat(identity: Identity, theirRpub: string, n: string, box: string): string | null {
+  const perSecret = cacheFor(textCache, identity.secret);
+  const cacheKey = `${theirRpub}:${n}:${box}`;
+  const hit = perSecret.get(cacheKey);
+  if (hit !== undefined) return hit;
+  let text: string | null;
   try {
     const cipher = xchacha20poly1305(sharedKey(identity.secret, theirRpub), hexToBytes(n));
-    return bytesToUtf8(cipher.decrypt(hexToBytes(box)));
+    text = bytesToUtf8(cipher.decrypt(hexToBytes(box)));
   } catch {
-    return null;
+    text = null;
   }
+  if (perSecret.size >= TEXT_CACHE_MAX) {
+    const oldest = perSecret.keys().next();
+    if (!oldest.done) perSecret.delete(oldest.value);
+  }
+  perSecret.set(cacheKey, text);
+  return text;
 }
 
 export function latestConsent(events: Envelope[], from: string, to: string): boolean | null {
@@ -85,16 +119,6 @@ export function chatPeers(events: Envelope[], me: string): string[] {
   const set = new Set<string>();
   for (const event of events) {
     if (event.type !== "chat_consent" && event.type !== "chat_text") continue;
-    if (event.author === me) set.add(event.body.to);
-    else if (event.body.to === me) set.add(event.author);
-  }
-  return [...set];
-}
-
-export function chatPeersWithMessages(events: Envelope[], me: string): string[] {
-  const set = new Set<string>();
-  for (const event of events) {
-    if (event.type !== "chat_text") continue;
     if (event.author === me) set.add(event.body.to);
     else if (event.body.to === me) set.add(event.author);
   }

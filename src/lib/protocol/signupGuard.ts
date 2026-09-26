@@ -1,5 +1,3 @@
-import { ProtocolError } from "./errors";
-
 const ATTEMPTS_KEY = "magicrita.signup.attempts";
 const LAST_CREATED_KEY = "magicrita.signup.lastCreated";
 const ATTEMPT_WINDOW_MS = 20 * 60 * 1000;
@@ -34,12 +32,10 @@ function minutesFrom(ts: number): number {
 
 export function hasLocalAccount(): boolean {
   try {
-    if (localStorage.getItem("magicrita.vault")) return true;
-    if (localStorage.getItem("magicrita.unlockedLive")) return true;
+    return Boolean(localStorage.getItem("magicrita.vault"));
   } catch {
     return false;
   }
-  return false;
 }
 
 export function createBlock(): CreateBlock | null {
@@ -65,8 +61,3 @@ export function noteCreateSuccess(): void {
   writeAttempts([]);
 }
 
-export function assertCanCreate(): void {
-  const block = createBlock();
-  if (block?.reason === "exists") throw new ProtocolError("account_exists");
-  if (block?.reason === "rate") throw new ProtocolError("create_rate_limited");
-}

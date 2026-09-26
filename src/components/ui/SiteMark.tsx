@@ -63,7 +63,6 @@ export function SiteMark({
         <span className={nameClass[size]}>{SITE_NAME}</span>
       </span>
       <span className="mt-1 inline-flex flex-wrap items-baseline gap-x-3">
-        <span className={`font-semibold tracking-wide text-gold ${betaClass[size]}`}>Beta 0.1</span>
         {github ? (
           <a
             href="https://github.com/jschaves/magicrita"

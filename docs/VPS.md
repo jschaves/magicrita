@@ -17,16 +17,17 @@ Admin-panel blocks **are** stored in `data/admin-blocks.json` (that folder is no
 ```bash
 cd magicrita
 cp .env.example .env
-# Edit .env: ADMIN_USER, ADMIN_PASSWORD, RUTA_ADMINISTRACION, PORT, HOST
+# Edit .env: ADMIN_USER, ADMIN_PASSWORD, RUTA_ADMINISTRACION, PORT, HOST,
+# and TRUST_PROXY=1 behind nginx
 npm ci
 npm run build
 npm run signal
 ```
 
-By default it listens on `0.0.0.0:8787`.
+With the `.env.example` values it listens on `127.0.0.1:8787`; without a `.env`, the code default is `0.0.0.0:8787`. In production keep it on loopback, behind nginx:
 
 ```bash
-PORT=8787 HOST=0.0.0.0 npm run signal
+PORT=8787 HOST=127.0.0.1 TRUST_PROXY=1 npm run signal
 ```
 
 The signaler **does not serve** the UI. Build it first (`npm run build`) and serve `dist/` with nginx.
@@ -48,13 +49,17 @@ server {
     add_header X-Content-Type-Options nosniff always;
     add_header Referrer-Policy strict-origin-when-cross-origin always;
     add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=()" always;
-    add_header Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' wss: ws:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; worker-src 'self' blob:; base-uri 'self'; form-action 'self'" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' wss://your-domain; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
 
     root /opt/magicrita/dist;
     index index.html;
 
     location / {
         try_files $uri $uri/ /index.html;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' wss://YOUR-DOMAIN; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header X-Frame-Options DENY always;
+        add_header Referrer-Policy no-referrer always;
     }
 
     location /signal/ {
@@ -63,7 +68,8 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # Sobrescribe la cabecera; no la añadas, o el cliente puede falsificar su IP.
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_read_timeout 86400;
     }
 
@@ -90,6 +96,8 @@ server {
 }
 ```
 
+The `X-Forwarded-For` line **overwrites** the header. It goes together with `TRUST_PROXY=1` in `.env`: without `TRUST_PROXY` all clients look like `127.0.0.1` (the relay's per-IP limits and its 16-socket cap would then apply to the whole site); with it and an appending header (`$proxy_add_x_forwarded_for`) the client could inject a fake IP.
+
 The signal URL is **not edited in the app**. It is fixed:
 
 - In development: `ws://localhost:8787`
@@ -98,7 +106,7 @@ The signal URL is **not edited in the app**. It is fixed:
 
 ## systemd
 
-The relay can hold thousands of WebSockets: the live list goes **without photos** and only announces joins and leaves, not the full roster on every `hello`.
+The relay can hold thousands of WebSockets: the live list goes **without photos** and announces joins and leaves. When someone joins, the relay pushes a roster snapshot (public `rpub`, name and interests, no media) to the connected peers.
 
 ```ini
 [Unit]

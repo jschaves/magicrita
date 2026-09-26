@@ -1,18 +1,41 @@
 import { isEnvelope, mediaRefsOf, verifyEnvelope, type Envelope } from "./envelope";
 import { dropMedia, setQuotaReliever } from "./media";
 import { ProtocolError } from "./errors";
-import { dropAuthorFromLikes, loadLikeIndex, saveLikeIndex } from "./likeIndex";
 import { dropNoticesFor } from "./notices";
 import { dropSavedPosts } from "./saves";
+import { noteAuthorSeen } from "./spam";
 
 export const MAX_STORED_POSTS = 100;
 export const MAX_STORED_CHATS = 100;
 export const MAX_DISTINCT_CHATS = 100;
+/** localStorage va por delante de 5 MB: sin este techo un par hostil agota la cuota. */
+const MAX_LOG_CHARS = 900_000;
 
 const logCache = new Map<string, Envelope[]>();
+/**
+ * `allEnvelopes()` se llama muchas veces por render y recorría todas las claves
+ * de localStorage cada vez. Se invalida desde aquí, en el único sitio que
+ * escribe logs, para que no pueda quedar una vista obsoleta.
+ *
+ * El array devuelto es el mismo cada vez, y va congelado: el coste de la cache
+ * es no reasignar, y compartirlo mutable convertía cualquier `.sort()` o
+ * `.splice()` de un consumidor en un fallo que se nota lejos de su causa. Quien
+ * necesite ordenarlo debe copiar antes (`[...allEnvelopes()].sort(...)`).
+ */
+let allCache: readonly Envelope[] | null = null;
+
+export function allEnvelopes(): readonly Envelope[] {
+  if (!allCache) allCache = Object.freeze(listKnownRpubs().flatMap((rpub) => loadLog(rpub)));
+  return allCache;
+}
+
+function invalidateAll(): void {
+  allCache = null;
+}
 
 export function resetLogCache(): void {
   logCache.clear();
+  invalidateAll();
 }
 
 function logKey(rpub: string): string {
@@ -36,6 +59,23 @@ function dropOrphanMedia(before: Envelope[], after: Envelope[]): void {
   }
 }
 
+/**
+ * Sobres que NUNCA se recortan por tamano. El perfil (nombre y foto) y los de
+ * control son pequenos, y sin ellos la cuenta parece vacia. Antes `capLogChars`
+ * ordenaba por fecha y cortaba lo mas viejo, que es justo el perfil: al cruzar
+ * el techo, lo primero que desaparecia era el nombre y luego los posts con sus
+ * fotos.
+ */
+const ESSENTIAL_TYPES = new Set<Envelope["type"]>([
+  "profile",
+  "follows",
+  "blocks",
+  "gone",
+  "invite",
+  "chat_consent",
+  "delete",
+]);
+
 function pruneLog(log: Envelope[]): Envelope[] {
   const keep = new Set<string>();
   const newest = (type: Envelope["type"], max: number) => {
@@ -56,8 +96,31 @@ function pruneLog(log: Envelope[]): Envelope[] {
     dropSavedPosts(droppedPosts.map((item) => item.sig).filter((sig): sig is string => Boolean(sig)));
     for (const listener of trimListeners) listener(droppedPosts);
   }
+  return capLogChars(next);
+}
+
+/** Techo de bytes por log. Lo que se recorta es lo pesado y viejo, nunca el perfil. */
+function capLogChars(log: Envelope[]): Envelope[] {
+  const keep = new Set<Envelope>();
+  let total = 0;
+  for (const item of log) {
+    if (!ESSENTIAL_TYPES.has(item.type)) continue;
+    total += JSON.stringify(item).length;
+    keep.add(item);
+  }
+  for (const item of [...log].sort((a, b) => b.ts - a.ts)) {
+    if (keep.has(item)) continue;
+    const size = JSON.stringify(item).length;
+    if (total + size > MAX_LOG_CHARS) continue;
+    total += size;
+    keep.add(item);
+  }
+  if (keep.size === log.length) return log;
+  const next = log.filter((item) => keep.has(item)).sort((a, b) => a.ts - b.ts);
+  dropOrphanMedia(log, next);
   return next;
 }
+
 
 function chatParties(event: Envelope): [string, string] | null {
   if (event.type !== "chat_text" && event.type !== "chat_consent") return null;
@@ -180,6 +243,7 @@ function isQuotaError(error: unknown): boolean {
 
 function writeLogRaw(rpub: string, log: Envelope[]): void {
   logCache.set(rpub, log);
+  invalidateAll();
   localStorage.setItem(logKey(rpub), JSON.stringify(log));
 }
 
@@ -221,11 +285,22 @@ function relieveQuota(): void {
 export function saveLog(rpub: string, log: Envelope[]): void {
   try {
     writeLogRaw(rpub, log);
+    return;
   } catch (error) {
     if (!isQuotaError(error)) throw error;
-    relieveQuota();
-    writeLogRaw(rpub, pruneLog(log));
   }
+  // Primero se recorta el log que se esta guardando. Antes se recortaba a
+  // TODOS los autores en cuanto uno no cabia, asi que guardar lo que llegaba de
+  // un par podia tirar posts del usuario actual que no tenian nada que ver.
+  freeQuarter(rpub);
+  try {
+    writeLogRaw(rpub, pruneLog(log));
+    return;
+  } catch (retry) {
+    if (!isQuotaError(retry)) throw retry;
+  }
+  relieveQuota();
+  writeLogRaw(rpub, pruneLog(log));
 }
 
 export function forgetTarget(sig: string): void {
@@ -253,6 +328,7 @@ export function appendEnvelope(rpub: string, envelope: Envelope): Envelope[] {
   if (!verifyEnvelope(envelope) || envelope.author !== rpub) {
     throw new ProtocolError("invalid_envelope");
   }
+  noteAuthorSeen(rpub);
   const current = loadLog(rpub);
   const replaced =
     (envelope.type === "post" || envelope.type === "comment" || envelope.type === "chat_text") &&
@@ -389,32 +465,33 @@ export function mergeEnvelopes(envelopes: Envelope[]): string[] {
   return [...authors];
 }
 
-export function clearLog(rpub: string): void {
-  logCache.delete(rpub);
-  localStorage.removeItem(logKey(rpub));
-}
-
 export function authorIsGone(rpub: string): boolean {
-  return loadLog(rpub).some((item) => item.type === "gone");
+  const log = loadLog(rpub);
+  let goneTs = -1;
+  let newest = -1;
+  for (const item of log) {
+    if (item.ts > newest) newest = item.ts;
+    if (item.type === "gone" && item.ts > goneTs) goneTs = item.ts;
+  }
+  // Solo sigue "ido" si su ultima firma es el gone; si despues publico algo
+  // (o restauro un backup con eventos mas nuevos), vuelve a estar aqui.
+  return goneTs >= 0 && goneTs >= newest;
 }
 
 export function applyAuthorGone(envelope: Envelope): boolean {
   if (envelope.type !== "gone" || !verifyEnvelope(envelope)) return false;
   const previous = loadLog(envelope.author);
-  if (previous.some((item) => item.type === "gone")) return false;
-  const postSigs = previous
-    .filter((item) => item.type === "post" && item.sig)
-    .map((item) => item.sig)
-    .filter((sig): sig is string => Boolean(sig));
-  dropOrphanMedia(previous, [envelope]);
-  dropSavedPosts(postSigs);
-  try {
-    localStorage.removeItem(`magicrita.saves.${envelope.author}`);
-  } catch {
-    // ignore
-  }
-  saveLikeIndex(dropAuthorFromLikes(loadLikeIndex(), envelope.author, postSigs));
-  saveLog(envelope.author, [envelope]);
+  const priorGone = previous.reduce<Envelope | null>(
+    (best, item) => (item.type === "gone" && (!best || item.ts > best.ts) ? item : best),
+    null,
+  );
+  if (priorGone && priorGone.ts >= envelope.ts) return false;
+  // NO se borra el historial. Antes el log quedaba en [gone] y un par que
+  // todavia guardaba un gone de una sesion anterior lo reenviaba al conectar,
+  // destruyendo perfil, posts y fotos del usuario. Ahora el gone solo se anade:
+  // marca al autor como ausente (`authorIsGone`) sin tocar sus datos. Si vuelve
+  // a firmar algo mas nuevo, reaparece con todo intacto.
+  appendEnvelope(envelope.author, envelope);
   return true;
 }
 

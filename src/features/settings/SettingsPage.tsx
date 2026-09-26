@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { WipeConfirm } from "@/components/ui/WipeConfirm";
@@ -11,6 +11,7 @@ import { ingestPhoto, isAcceptedPhoto } from "@/lib/protocol/media";
 import { MAX_BIO_CHARS, MAX_NAME_CHARS } from "@/lib/protocol/envelope";
 import { MobileDock } from "@/components/ui/MobileDock";
 import { useVisualViewport } from "@/lib/useVisualViewport";
+import { betaInviteRequired, loadBetaInvite } from "@/lib/protocol/betaInvite";
 
 export function SettingsPage() {
   const {
@@ -37,8 +38,14 @@ export function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [wipeOpen, setWipeOpen] = useState(false);
+  const [needInvite, setNeedInvite] = useState(true);
+  const [invite, setInvite] = useState(() => loadBetaInvite());
   const view = useVisualViewport();
   const pinSave = view.mobile && view.keyboard;
+
+  useEffect(() => {
+    void betaInviteRequired().then(setNeedInvite);
+  }, []);
 
   function pickFile(list: FileList | null) {
     const next = list?.[0];
@@ -191,6 +198,14 @@ export function SettingsPage() {
         <div className="space-y-3">
           <h2 className="font-display text-xl">{t("bundle.title")}</h2>
           <p className="text-sm text-muted">{t("bundle.hint")}</p>
+          {needInvite ? (
+            <TextField
+              label={t("create.inviteCode")}
+              value={invite}
+              onChange={(e) => setInvite(e.target.value)}
+              hint={t("create.inviteHint")}
+            />
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
@@ -208,7 +223,7 @@ export function SettingsPage() {
                 const next = event.target.files?.[0];
                 event.target.value = "";
                 if (!next) return;
-                void importBundleFile(next)
+                void importBundleFile(next, undefined, invite)
                   .then(() => setMessage(t("bundle.imported")))
                   .catch((err) => setError(errorMessage(err, "people.importFailed")));
               }}

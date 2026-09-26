@@ -36,13 +36,6 @@ const regexes = PATTERNS.map(
   (word) => new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"),
 );
 
-export function isFlaggedText(text: string): boolean {
-  return regexes.some((re) => {
-    re.lastIndex = 0;
-    return re.test(text);
-  });
-}
-
 export type TextPart = { text: string; flagged: boolean };
 
 export function splitFlagged(text: string): TextPart[] {

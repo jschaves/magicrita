@@ -2,6 +2,7 @@ import { loadBetaInvite, saveBetaInvite } from "./betaInvite";
 import { wipeMediaStore } from "./media";
 import { resetMeshState } from "./mesh";
 import { resetLogCache } from "./store";
+import { resetSeenCache } from "./spam";
 
 const PREFIX = "magicrita.";
 
@@ -37,13 +38,22 @@ export function purgeForeignIdentities(keepRpub: string): void {
 export async function wipeBrowserRita(): Promise<void> {
   resetMeshState();
   resetLogCache();
-  dropStorage(localStorage);
+  resetSeenCache();
+  try {
+    dropStorage(localStorage);
+  } catch {
+    // ignore
+  }
   try {
     dropStorage(sessionStorage);
   } catch {
     // ignore
   }
-  await wipeMediaStore();
+  try {
+    await wipeMediaStore();
+  } catch {
+    // ignore
+  }
   if (typeof indexedDB !== "undefined" && typeof indexedDB.databases === "function") {
     try {
       const dbs = await indexedDB.databases();

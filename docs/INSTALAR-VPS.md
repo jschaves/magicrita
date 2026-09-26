@@ -104,15 +104,16 @@ sudo -u magicrita cp /opt/magicrita/.env.example /opt/magicrita/.env
 sudo -u magicrita nano /opt/magicrita/.env
 ```
 
-Leave this (change the three secrets). **`HOST=127.0.0.1` is required**:
+Leave this (change the three secrets). **`HOST=127.0.0.1` is required**, and **`TRUST_PROXY=1` is required behind nginx** so per-IP limits use the real client IP:
 
 ```
 ADMIN_USER=your-admin
 ADMIN_PASSWORD=a-long-password
 RUTA_ADMINISTRACION=topogue
-BETA_INVITE=rita-beta-0.1
+BETA_INVITE=<code requested by email>
 PORT=8787
 HOST=127.0.0.1
+TRUST_PROXY=1
 ```
 
 ```bash
@@ -253,6 +254,11 @@ server {
 
     location / {
         try_files $uri $uri/ /index.html =404;
+        # Cabeceras de seguridad (frame-ancestors solo funciona por cabecera).
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' wss://YOUR-DOMAIN; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header X-Frame-Options DENY always;
+        add_header Referrer-Policy no-referrer always;
     }
 
     location /signal/ {
@@ -261,7 +267,9 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # Sobrescribe, NO añade: con $proxy_add_x_forwarded_for el cliente
+        # podía anteponer una IP falsa y esquivar los límites por IP del relé.
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_read_timeout 86400;
         proxy_send_timeout 86400;
     }
@@ -336,7 +344,7 @@ add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" alway
 add_header X-Content-Type-Options nosniff always;
 add_header Referrer-Policy strict-origin-when-cross-origin always;
 add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=()" always;
-add_header Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' wss: ws:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; worker-src 'self' blob:; base-uri 'self'; form-action 'self'" always;
+add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' wss://YOUR-DOMAIN; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
 ```
 
 ```bash
@@ -364,8 +372,10 @@ sudo ss -lntp | grep -E ':80|:443|:8787'
 - 80 and 443: nginx  
 - 8787: only `127.0.0.1`
 
+Security: `.env` has `HOST=127.0.0.1` and `TRUST_PROXY=1`, and nginx **overwrites** `X-Forwarded-For` (`$remote_addr`). nginx sends the `Content-Security-Policy` (with `frame-ancestors`), `X-Content-Type-Options`, `X-Frame-Options` and `Referrer-Policy` headers.
+
 Panel: `https://YOUR-DOMAIN/` plus the `RUTA_ADMINISTRACION` value in `.env` (default `/topogue`)  
-Beta code: the `BETA_INVITE` value in `.env`  
+Beta code: the `BETA_INVITE` value in `.env`; the beta invitation code is **requested by email**, it is not published  
 Legal notes: `https://YOUR-DOMAIN/legal`
 
 ---

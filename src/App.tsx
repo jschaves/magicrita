@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { SessionToast } from "@/components/ui/SessionToast";
 import { RitaProvider } from "@/context/RitaProvider";
@@ -18,7 +19,33 @@ import { PeoplePage } from "@/features/people/PeoplePage";
 import { SavedPage } from "@/features/saved/SavedPage";
 import { AdminPage } from "@/features/admin/AdminPage";
 import { LegalPage } from "@/features/legal/LegalPage";
-import { adminHref } from "@/lib/adminPath";
+import { loadAdminPath } from "@/lib/adminPath";
+
+/**
+ * La ruta de admin la fija el relay, no el build, asi que no se puede declarar
+ * como `<Route path>`: habria que conocerla antes de resolver. Se resuelve solo
+ * para las rutas desconocidas, de modo que ni la portada ni los chats esperan
+ * a un fetch. `/` cae en Navigate, como antes.
+ */
+function UnknownRoute() {
+  const [ready, setReady] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void loadAdminPath().then((path) => {
+      if (!alive) return;
+      setIsAdmin(window.location.pathname.replace(/\/+$/, "") === `/${path}`);
+      setReady(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!ready) return null;
+  return isAdmin ? <AdminPage /> : <Navigate to="/" replace />;
+}
 
 export default function App() {
   return (
@@ -32,7 +59,6 @@ export default function App() {
             <Route path="/welcome/create" element={<CreateAccountPage />} />
             <Route path="/welcome/import" element={<ImportKeyPage />} />
             <Route path="/unlock" element={<UnlockPage />} />
-            <Route path={adminHref()} element={<AdminPage />} />
             <Route element={<AppShell />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/people" element={<PeoplePage />} />
@@ -46,7 +72,7 @@ export default function App() {
               <Route path="/messages/:rpub" element={<MessagesPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<UnknownRoute />} />
           </Routes>
         </BrowserRouter>
       </RitaProvider>

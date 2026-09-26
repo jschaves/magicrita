@@ -32,7 +32,7 @@ export function CreateAccountPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [block, setBlock] = useState(() => createBlock());
-  const [needInvite, setNeedInvite] = useState(false);
+  const [needInvite, setNeedInvite] = useState(true);
   const [invite, setInvite] = useState(() => loadBetaInvite());
 
   useEffect(() => {
@@ -57,7 +57,7 @@ export function CreateAccountPage() {
       );
       return;
     }
-    if (needInvite) {
+    if (needInvite && invite.trim()) {
       try {
         await redeemBetaInvite(invite);
       } catch (err) {
@@ -76,7 +76,7 @@ export function CreateAccountPage() {
     setBusy(true);
     try {
       const picture = pictureFile ? await ingestPhoto(pictureFile) : undefined;
-      const keys = await createAccount({ password, name, about, picture });
+      const keys = await createAccount({ password, name, about, picture, invite });
       setRsec(keys.rsec);
     } catch (err) {
       setError(errorMessage(err, "create.failed"));

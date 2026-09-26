@@ -15,7 +15,7 @@ export function ImportKeyPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [needInvite, setNeedInvite] = useState(false);
+  const [needInvite, setNeedInvite] = useState(true);
   const [invite, setInvite] = useState(() => loadBetaInvite());
 
   useEffect(() => {
@@ -30,8 +30,8 @@ export function ImportKeyPage() {
     setError(null);
     setBusy(true);
     try {
-      if (needInvite) await redeemBetaInvite(invite);
-      await importSecret(secret, password);
+      if (needInvite && invite.trim()) await redeemBetaInvite(invite);
+      await importSecret(secret, password, undefined, invite);
       navigate("/");
     } catch (err) {
       setError(errorMessage(err, "importKey.failed"));

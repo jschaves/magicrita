@@ -33,10 +33,6 @@ export function saveVault(record: VaultRecord): void {
   localStorage.setItem(VAULT_KEY, JSON.stringify(record));
 }
 
-export function clearVault(): void {
-  localStorage.removeItem(VAULT_KEY);
-}
-
 export async function wrapSecret(identity: Identity, password: string): Promise<VaultRecord> {
   if (password.length < 8) {
     throw new ProtocolError("password_short");
@@ -76,6 +72,20 @@ export async function unwrapVault(record: VaultRecord, password: string): Promis
     if (error instanceof ProtocolError) throw error;
     throw new ProtocolError("wrong_password");
   }
+}
+
+/**
+ * Sustituir la bóveda guardada destruye la identidad anterior, asi que tiene que
+ * probarse la contraseña de la que se va. Antes esta comprobación solo vivia en
+ * el `Navigate` de las pantallas, asi que bastaba una llamada directa para
+ * borrar una identidad sin saber su contraseña. `backup_conflict` ya está
+ * traducida en todos los idiomas y dice justo eso.
+ */
+export async function assertVaultOwnership(password?: string): Promise<void> {
+  const record = loadVault();
+  if (!record) return;
+  if (!password) throw new ProtocolError("backup_conflict");
+  await unwrapVault(record, password);
 }
 
 async function deriveKey(password: string, salt: Uint8Array): Promise<Uint8Array> {
