@@ -209,7 +209,7 @@ Copy-Item .env.example .env
 | `PORT` | Signaler port (default `8787`) |
 | `HOST` | Signaler bind address. `.env.example` uses `127.0.0.1`; production must keep it behind nginx and never expose the relay |
 | `VITE_SIGNAL_URL` | Only when **building** for production if signaling is not on the same host (example `wss://magicrita.com/signal/`) |
-| `ADMIN_ORIGINS` | Comma-separated extra origins allowed to call `/admin-api/*` (besides localhost) |
+| `ADMIN_ORIGINS` | Comma-separated extra origins allowed to call `/admin-api/*`. `localhost` and the relay's own host (`Origin` host = request `Host`) are always allowed |
 | `TRUST_PROXY` | Set to `1` **only** behind a reverse proxy. Configure nginx to **overwrite** `X-Forwarded-For` (`$remote_addr`, not `$proxy_add_x_forwarded_for`), else per-IP limits can be spoofed |
 | `VITE_STUN_URL` | STUN server for WebRTC (default `stun:stun.cloudflare.com:3478`) |
 

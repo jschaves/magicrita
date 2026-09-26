@@ -589,8 +589,15 @@ function adminOriginOk(req) {
   if (!origin) return true;
   if (ADMIN_ORIGINS.has(origin)) return true;
   try {
-    const host = new URL(origin).hostname;
-    return host === "localhost" || host === "127.0.0.1" || host === "::1";
+    const parsed = new URL(origin);
+    const host = parsed.hostname;
+    if (host === "localhost" || host === "127.0.0.1" || host === "::1") return true;
+    // Mismo origen: el panel vive en el mismo dominio que sirve el relay, asi
+    // que no deberia hacer falta declarar ADMIN_ORIGINS para su propio dominio.
+    // (El chequeo de Origin es defensa en profundidad anti-CSRF; el mismo
+    // origen nunca es CSRF, y el token va en cabecera, no en cookie.)
+    const requestHost = String(req.headers.host || "").toLowerCase();
+    return Boolean(requestHost) && parsed.host.toLowerCase() === requestHost;
   } catch {
     return false;
   }
