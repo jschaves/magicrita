@@ -62,6 +62,7 @@ export function CreateAccountPage() {
         await redeemBetaInvite(invite);
       } catch (err) {
         setError(errorMessage(err, "create.failed"));
+        if (err instanceof Error && err.message.startsWith("invite")) setInvite("");
         return;
       }
     }
@@ -80,6 +81,7 @@ export function CreateAccountPage() {
       setRsec(keys.rsec);
     } catch (err) {
       setError(errorMessage(err, "create.failed"));
+      if (err instanceof Error && err.message.startsWith("invite")) setInvite("");
       setBlock(createBlock());
     } finally {
       setBusy(false);

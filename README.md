@@ -137,7 +137,7 @@ The in-app protocol page and the sidebar philosophy copy mark these steps done. 
 
 ## Beta
 
-This is a trial. The beta is **invite-only** when `BETA_INVITE` is set or invite codes exist; otherwise it is open. The invite code is **requested by email** — it is not published anywhere. It can be revoked at any time without notice, and the project can be deleted without prior warning. The invite is checked when **creating an account** or **importing an identity or backup**, never on unlock.
+This is a trial. The beta is **invite-only** when `BETA_INVITE` is set or invite codes exist; otherwise it is open. The invite code is **requested by email** — it is not published anywhere. It can be revoked at any time without notice, and the project can be deleted without prior warning. The invite is checked when **creating an account** or **importing an identity or backup**, never on unlock. If a saved or bundled code is no longer valid, it is discarded and you are asked for a new one.
 
 ---
 

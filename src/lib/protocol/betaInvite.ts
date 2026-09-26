@@ -23,6 +23,16 @@ export function saveBetaInvite(code: string): void {
   localStorage.setItem(KEY, code.trim());
 }
 
+/** Descarta el codigo guardado (y el sello de "recien validado"). */
+export function clearBetaInvite(): void {
+  try {
+    localStorage.removeItem(KEY);
+    localStorage.removeItem(AT_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export async function betaInviteRequired(): Promise<boolean> {
   try {
     const res = await fetch("/beta");
@@ -61,7 +71,13 @@ export async function redeemBetaInvite(code: string): Promise<void> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ invite }),
   });
-  if (res.status === 403) throw new ProtocolError("invite_bad");
+  if (res.status === 403) {
+    // El codigo ya no vale (revocado o borrado): si es el que teniamos
+    // guardado, se descarta para que la proxima vez pidan uno nuevo en vez de
+    // reintentar el mismo.
+    if (loadBetaInvite() === invite) clearBetaInvite();
+    throw new ProtocolError("invite_bad");
+  }
   // El relay corta por IP tras varios intentos. Antes esto se mostraba como
   // "falta el código", que confundía justo cuando hacía falta esperar.
   if (res.status === 429) throw new ProtocolError("invite_rate");

@@ -225,7 +225,11 @@ export function SettingsPage() {
                 if (!next) return;
                 void importBundleFile(next, undefined, invite)
                   .then(() => setMessage(t("bundle.imported")))
-                  .catch((err) => setError(errorMessage(err, "people.importFailed")));
+                  .catch((err) => {
+                    setError(errorMessage(err, "people.importFailed"));
+                    // Codigo invalido o caducado: se vacia para pedir otro.
+                    if (err instanceof Error && err.message.startsWith("invite")) setInvite("");
+                  });
               }}
             />
             <Button type="button" onClick={() => bundleRef.current?.click()}>

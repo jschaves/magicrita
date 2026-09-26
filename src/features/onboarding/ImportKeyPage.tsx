@@ -35,6 +35,8 @@ export function ImportKeyPage() {
       navigate("/");
     } catch (err) {
       setError(errorMessage(err, "importKey.failed"));
+      // Codigo invalido o caducado: se vacia para obligar a escribir otro.
+      if (err instanceof Error && err.message.startsWith("invite")) setInvite("");
     } finally {
       setBusy(false);
     }

@@ -40,6 +40,8 @@ export function WelcomePage() {
       }
     } catch (err) {
       setError(errorMessage(err, "welcome.portableFailed"));
+      // Codigo invalido o caducado: se vacia para obligar a escribir otro.
+      if (err instanceof Error && err.message.startsWith("invite")) setInvite("");
     } finally {
       setBusy(false);
     }
