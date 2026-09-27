@@ -50,13 +50,15 @@ export type LivePeer = {
   avatar?: string;
 };
 
-/** Señalización de una llamada de voz, viaja dentro del mismo `signal` del relé. */
+/** Señalización de una llamada de voz o vídeo, viaja dentro del mismo `signal` del relé. */
 export type CallSignal = {
   id: string;
   /** Identidad que firma la señal; el receptor exige que coincida con el `from` del relé. */
   rpub?: string;
   /** Ed25519 sobre `canonicalCall`; ata el SDP/ICE a la `rsec`, no al relé. */
   sig?: string;
+  /** Llamada de vídeo (o de audio si es falso). Va firmado. */
+  video?: boolean;
   desc?: RTCSessionDescriptionInit;
   cand?: RTCIceCandidateInit;
   end?: boolean;
@@ -89,6 +91,13 @@ const HELLO_INTERESTS_MAX = 12;
 const channels = new Map<string, RTCDataChannel>();
 const pcs = new Map<string, RTCPeerConnection>();
 const pendingIce = new Map<string, RTCIceCandidateInit[]>();
+/**
+ * Permiso que cada par ha compartido por el canal de datos: si acepta llamadas
+ * de audio/vídeo nuestras. Vive en RAM; se vuelve a recibir al abrir el canal.
+ */
+const peerCallPerm = new Map<string, { audio: boolean; video: boolean }>();
+const peerCallPermListeners = new Set<() => void>();
+let callPermProvider: ((rpub: string) => { audio: boolean; video: boolean }) | null = null;
 const outbox: Envelope[] = [];
 const assembling = new Map<
   string,
@@ -224,6 +233,37 @@ export function sendCallSignal(to: string, call: CallSignal): void {
 /** El relé solo reenvía señales a quien está en el roster ahora mismo. */
 export function isPeerLive(rpub: string): boolean {
   return live.some((peer) => peer.rpub === rpub);
+}
+
+export type CallPerm = { audio: boolean; video: boolean };
+
+/**
+ * La capa de llamadas registra aquí cómo se calcula su permiso para un `rpub`.
+ * El mesh no conoce la política: solo la pide cuando hay que compartirla.
+ */
+export function setCallPermProvider(provider: (rpub: string) => CallPerm): void {
+  callPermProvider = provider;
+}
+
+/** Permiso que el par nos ha compartido; `null` si aún no lo sabemos. */
+export function getPeerCallPerm(rpub: string): CallPerm | null {
+  return peerCallPerm.get(rpub) ?? null;
+}
+
+export function onPeerCallPerm(handler: () => void): () => void {
+  peerCallPermListeners.add(handler);
+  return () => {
+    peerCallPermListeners.delete(handler);
+  };
+}
+
+/** Comparte nuestro permiso actual con todos los pares conectados. */
+export function publishCallPerms(): void {
+  if (!callPermProvider) return;
+  for (const [rpub, channel] of channels) {
+    const perm = callPermProvider(rpub);
+    if (perm) sendRaw(channel, JSON.stringify({ type: "callperm", ...perm }));
+  }
 }
 
 /** `rpub` de la sesión actual, o `null` si aún no hay `hello` aceptado. */
@@ -743,6 +783,9 @@ function setupChannel(rpub: string, channel: RTCDataChannel) {
     if (started) return;
     started = true;
     void flushTo(channel);
+    // Al abrir el canal se comparte nuestro permiso de llamadas con este par.
+    const perm = callPermProvider?.(rpub);
+    if (perm) sendRaw(channel, JSON.stringify({ type: "callperm", ...perm }));
   };
   channel.onopen = boot;
   if (channel.readyState === "open") boot();
@@ -761,11 +804,21 @@ function setupChannel(rpub: string, channel: RTCDataChannel) {
         n?: number;
         bytes?: number;
         tier?: string;
+        audio?: boolean;
+        video?: boolean;
         envelope?: MeshPacket["envelope"];
         media?: MeshPacket["media"];
       };
       if (parsed?.type === "need-data") {
         void flushTo(channel);
+        return;
+      }
+      if (parsed?.type === "callperm") {
+        peerCallPerm.set(rpub, {
+          audio: parsed.audio !== false,
+          video: parsed.video !== false,
+        });
+        for (const listener of peerCallPermListeners) listener();
         return;
       }
       if (parsed?.type === "need-blob" && typeof parsed.hash === "string") {

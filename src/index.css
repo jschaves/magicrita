@@ -38,6 +38,8 @@
   --color-accent-dark: #9b1854;
   --color-plum: #5b2a6e;
   --color-gold: #c9923a;
+  /* Bocadillo propio: verde clarito con texto oscuro. */
+  --color-bubble-mine: #d1fae5;
 }
 
 html,
@@ -128,4 +130,50 @@ input {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* Bocadillos de chat con rabito hacia el avatar (estilo cómic). */
+.rita-bubble {
+  position: relative;
+}
+
+.rita-bubble::after {
+  content: "";
+  position: absolute;
+  bottom: 9px;
+  width: 0;
+  height: 0;
+  border: 7px solid transparent;
+}
+
+.rita-bubble-left::before {
+  content: "";
+  position: absolute;
+  bottom: 8px;
+  left: -15px;
+  width: 0;
+  height: 0;
+  border: 8px solid transparent;
+  border-right-color: var(--color-line);
+}
+
+.rita-bubble-left::after {
+  left: -12px;
+  border-right-color: var(--color-paper);
+}
+
+.rita-bubble-right::before {
+  content: "";
+  position: absolute;
+  bottom: 8px;
+  right: -15px;
+  width: 0;
+  height: 0;
+  border: 8px solid transparent;
+  border-left-color: var(--color-line);
+}
+
+.rita-bubble-right::after {
+  right: -12px;
+  border-left-color: var(--color-bubble-mine);
 }

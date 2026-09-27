@@ -1,15 +1,20 @@
-import { ICE_SERVERS, isPeerLive, onCallSignal, selfRpub, sendCallSignal, signWithSelf, type CallSignal } from "./mesh";
+import { ICE_SERVERS, isPeerLive, onCallSignal, publishCallPerms, selfRpub, sendCallSignal, setCallPermProvider, signWithSelf, type CallSignal } from "./mesh";
 import { hexToBytes, utf8ToBytes } from "./bytes";
 import { parseRpub, verifyBytes } from "./identity";
-import { loadCallPolicy } from "./callPrefs";
+import { loadCallPolicy, loadPeerCall, type CallMedia } from "./callPrefs";
 import { latestFollows, loadLog } from "./store";
 
 /**
- * Llamada de voz P2P.
+ * Llamada P2P de audio o vídeo.
  *
  * No pasa por el relé más que la señalización (oferta/respuesta/ICE y el
  * "colgar"), reutilizando el mismo mensaje `signal` que los canales de datos.
- * El audio va directo entre los dos navegadores. El relé no guarda nada.
+ * El audio/vídeo va directo entre los dos navegadores. El relé no guarda nada.
+ *
+ * Cada señal va firmada con la `rsec` y el receptor solo la acepta si la firma
+ * cuadra con la identidad del par y está atada a esta llamada y a este
+ * destinatario. Así el relé no puede cambiar la huella DTLS del SDP ni inyectar
+ * ICE: no tiene la `rsec` de nadie, así que no hay MITM.
  *
  * Solo hay una llamada a la vez. El estado se expone con `subscribe`/`snapshot`
  * para que React lo lea con `useSyncExternalStore`.
@@ -20,19 +25,24 @@ export type CallPhase = "outgoing" | "incoming" | "active";
 export type CallSnapshot = {
   peer: string;
   phase: CallPhase;
+  video: boolean;
   muted: boolean;
+  camOff: boolean;
+  local: MediaStream | null;
+  remote: MediaStream | null;
 };
 
 type ActiveCall = {
   peer: string;
   id: string;
+  video: boolean;
   phase: CallPhase;
   muted: boolean;
+  camOff: boolean;
   caller: boolean;
   pc: RTCPeerConnection;
   local: MediaStream | null;
   remote: MediaStream | null;
-  audio: HTMLAudioElement | null;
   pendingOffer?: RTCSessionDescriptionInit;
   queuedIce: RTCIceCandidateInit[];
   timer: number;
@@ -44,7 +54,15 @@ const listeners = new Set<() => void>();
 
 function emit() {
   snapshot = current
-    ? { peer: current.peer, phase: current.phase, muted: current.muted }
+    ? {
+        peer: current.peer,
+        phase: current.phase,
+        video: current.video,
+        muted: current.muted,
+        camOff: current.camOff,
+        local: current.local,
+        remote: current.remote,
+      }
     : null;
   for (const listener of listeners) listener();
 }
@@ -91,8 +109,8 @@ function bodyOf(call: CallBody, kind: CallKind): string {
   return "";
 }
 
-function canonicalCall(id: string, to: string, rpub: string, kind: CallKind, body: string): string {
-  return [CALL_DOMAIN, id, to, rpub, kind, body].join("\n");
+function canonicalCall(id: string, to: string, rpub: string, video: boolean, kind: CallKind, body: string): string {
+  return [CALL_DOMAIN, id, to, rpub, video ? "v" : "a", kind, body].join("\n");
 }
 
 /** Firma la señal con la `rsec`; sin sesión no se firma y no se envía. */
@@ -100,7 +118,9 @@ function sendSigned(to: string, partial: CallBody): void {
   const kind = kindOf(partial);
   const me = selfRpub();
   if (!kind || !me) return;
-  const sig = signWithSelf(canonicalCall(partial.id, to, me, kind, bodyOf(partial, kind)));
+  const sig = signWithSelf(
+    canonicalCall(partial.id, to, me, Boolean(partial.video), kind, bodyOf(partial, kind)),
+  );
   if (!sig) return;
   sendCallSignal(to, { ...partial, rpub: me, sig });
 }
@@ -108,8 +128,7 @@ function sendSigned(to: string, partial: CallBody): void {
 /**
  * Solo se acepta una señal firmada por la identidad del par y atada a esta
  * conversación (`to` = nuestro `rpub` y el `id` de la llamada). Así el relé no
- * puede cambiar la huella DTLS del SDP ni inyectar candidatos ICE: no tiene la
- * `rsec` de nadie.
+ * puede cambiar la huella DTLS del SDP ni inyectar candidatos ICE.
  */
 function verifyIncoming(from: string, call: CallSignal): boolean {
   if (!call || typeof call.id !== "string" || typeof call.sig !== "string") return false;
@@ -118,7 +137,9 @@ function verifyIncoming(from: string, call: CallSignal): boolean {
   const me = selfRpub();
   if (!kind || !me) return false;
   try {
-    const message = utf8ToBytes(canonicalCall(call.id, me, from, kind, bodyOf(call, kind)));
+    const message = utf8ToBytes(
+      canonicalCall(call.id, me, from, Boolean(call.video), kind, bodyOf(call, kind)),
+    );
     return verifyBytes(parseRpub(from), message, hexToBytes(call.sig));
   } catch {
     return false;
@@ -126,18 +147,28 @@ function verifyIncoming(from: string, call: CallSignal): boolean {
 }
 
 /**
- * ¿La política local permite llamadas con `peer`? Con `follows` exige
- * seguimiento mutuo. Se usa para mostrar el botón de llamar y, al recibir, para
- * aceptar o rechazar la llamada entrante.
+ * ¿La política general permite llamadas (de audio o vídeo) con `peer`? Con
+ * `follows` exige seguimiento mutuo. Decide si se muestra el botón de llamar.
  */
-export function canCallPeer(peer: string): boolean {
-  const policy = loadCallPolicy();
+export function canCallPeer(media: CallMedia, peer: string): boolean {
+  const policy = loadCallPolicy(media);
   if (policy === "everyone") return true;
   if (policy === "nobody") return false;
   const me = selfRpub();
   if (!me) return false;
   if (!latestFollows(loadLog(me)).includes(peer)) return false;
   return latestFollows(loadLog(peer)).includes(me);
+}
+
+/**
+ * ¿Puedo recibir llamadas (de audio o vídeo) de `peer`? El override por
+ * contacto manda sobre la política general; sin override, aplica la general.
+ */
+export function canReceiveFrom(media: CallMedia, peer: string): boolean {
+  const override = loadPeerCall(media, peer);
+  if (override === "allow") return true;
+  if (override === "deny") return false;
+  return canCallPeer(media, peer);
 }
 
 function iceJson(candidate: RTCIceCandidate): RTCIceCandidateInit {
@@ -150,41 +181,28 @@ function iceJson(candidate: RTCIceCandidate): RTCIceCandidateInit {
   };
 }
 
-async function getMic(): Promise<MediaStream> {
+async function getMedia(video: boolean): Promise<MediaStream> {
   if (!navigator.mediaDevices?.getUserMedia) throw new Error("call_insecure");
   try {
-    return await navigator.mediaDevices.getUserMedia({ audio: true });
+    return await navigator.mediaDevices.getUserMedia(
+      video ? { audio: true, video: true } : { audio: true },
+    );
   } catch {
-    throw new Error("call_denied");
+    throw new Error(video ? "video_denied" : "call_denied");
   }
-}
-
-function attachRemote(stream: MediaStream) {
-  if (!current) return;
-  current.remote = stream;
-  const audio = current.audio ?? new Audio();
-  if (!current.audio) {
-    // Colgarlo del DOM ayuda al autoplay en algunos navegadores (iOS).
-    audio.setAttribute("playsinline", "");
-    audio.style.display = "none";
-    document.body.appendChild(audio);
-  }
-  current.audio = audio;
-  audio.autoplay = true;
-  audio.srcObject = stream;
-  void audio.play().catch(() => undefined);
 }
 
 function newPc(peer: string): RTCPeerConnection {
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
   pc.onicecandidate = (event) => {
     if (event.candidate && current && current.pc === pc) {
-      sendSigned(peer, { id: current.id, cand: iceJson(event.candidate) });
+      sendSigned(peer, { id: current.id, video: current.video, cand: iceJson(event.candidate) });
     }
   };
   pc.ontrack = (event) => {
     if (!current || current.pc !== pc) return;
-    attachRemote(event.streams[0] ?? new MediaStream([event.track]));
+    current.remote = event.streams[0] ?? new MediaStream([event.track]);
+    emit();
   };
   pc.onconnectionstatechange = () => {
     if (!current || current.pc !== pc) return;
@@ -212,7 +230,7 @@ function cleanup(notify: boolean) {
   const call = current;
   current = null;
   if (call) {
-    if (notify) sendSigned(call.peer, { id: call.id, end: true });
+    if (notify) sendSigned(call.peer, { id: call.id, video: call.video, end: true });
     window.clearTimeout(call.timer);
     try {
       call.pc.close();
@@ -222,10 +240,6 @@ function cleanup(notify: boolean) {
     if (call.local) {
       for (const track of call.local.getTracks()) track.stop();
     }
-    if (call.audio) {
-      call.audio.srcObject = null;
-      call.audio.remove();
-    }
   }
   emit();
 }
@@ -234,22 +248,23 @@ export function isCallActive(): boolean {
   return current !== null;
 }
 
-/** El que llama: pide micro, monta la oferta y la firma al otro extremo. */
-export async function startCall(peer: string): Promise<void> {
+/** El que llama: pide micro (y cámara), monta la oferta y la firma al otro extremo. */
+export async function startCall(peer: string, video = false): Promise<void> {
   if (current) return;
   if (!isPeerLive(peer)) throw new Error("call_offline");
-  const local = await getMic();
+  const local = await getMedia(video);
   const id = newId();
   current = {
     peer,
     id,
+    video,
     phase: "outgoing",
     muted: false,
+    camOff: false,
     caller: true,
     pc: newPc(peer),
     local,
     remote: null,
-    audio: null,
     queuedIce: [],
     timer: 0,
   };
@@ -258,7 +273,7 @@ export async function startCall(peer: string): Promise<void> {
     const offer = await current.pc.createOffer();
     await current.pc.setLocalDescription(offer);
     if (!current || current.id !== id) return;
-    sendSigned(peer, { id, desc: current.pc.localDescription ?? offer });
+    sendSigned(peer, { id, video, desc: current.pc.localDescription ?? offer });
     emit();
     current.timer = window.setTimeout(() => {
       if (current?.id === id && current.phase === "outgoing") cleanup(true);
@@ -269,11 +284,11 @@ export async function startCall(peer: string): Promise<void> {
   }
 }
 
-/** El que recibe: acepta, pide micro, responde la oferta pendiente. */
+/** El que recibe: acepta, pide micro (y cámara), responde la oferta pendiente. */
 export async function acceptCall(): Promise<void> {
   const call = current;
   if (!call || call.phase !== "incoming" || !call.pendingOffer) return;
-  const local = await getMic();
+  const local = await getMedia(call.video);
   if (current !== call) {
     for (const track of local.getTracks()) track.stop();
     return;
@@ -289,7 +304,7 @@ export async function acceptCall(): Promise<void> {
     const answer = await call.pc.createAnswer();
     await call.pc.setLocalDescription(answer);
     if (current !== call) return;
-    sendSigned(call.peer, { id: call.id, desc: call.pc.localDescription ?? answer });
+    sendSigned(call.peer, { id: call.id, video: call.video, desc: call.pc.localDescription ?? answer });
     call.phase = "active";
     emit();
   } catch (error) {
@@ -302,7 +317,7 @@ export function declineCall(): void {
   if (current?.phase !== "incoming") return;
   const call = current;
   current = null;
-  sendSigned(call.peer, { id: call.id, decline: true });
+  sendSigned(call.peer, { id: call.id, video: call.video, decline: true });
   window.clearTimeout(call.timer);
   try {
     call.pc.close();
@@ -323,10 +338,19 @@ export function toggleMute(): void {
   emit();
 }
 
+export function toggleCam(): void {
+  if (!current || !current.local || !current.video) return;
+  current.camOff = !current.camOff;
+  for (const track of current.local.getVideoTracks()) track.enabled = !current.camOff;
+  emit();
+}
+
 function handleSignal(from: string, call: CallSignal) {
   if (!call || typeof call.id !== "string") return;
   // Firma del par obligatoria: sin esto el relé podría falsear la llamada.
   if (!verifyIncoming(from, call)) return;
+
+  const video = Boolean(call.video);
 
   if (call.end || call.decline || call.busy) {
     if (current && current.id === call.id) cleanup(false);
@@ -336,25 +360,26 @@ function handleSignal(from: string, call: CallSignal) {
   if (call.desc?.type === "offer") {
     // Ya hay una llamada: se contesta ocupado salvo que sea de la misma.
     if (current) {
-      if (current.id !== call.id) sendSigned(from, { id: call.id, busy: true });
+      if (current.id !== call.id) sendSigned(from, { id: call.id, video, busy: true });
       return;
     }
-    // La política decide si esta persona puede llamarme ahora.
-    if (!canCallPeer(from)) {
-      sendSigned(from, { id: call.id, busy: true });
+    // La política (con el override por contacto) decide si puede llamarme.
+    if (!canReceiveFrom(video ? "video" : "audio", from)) {
+      sendSigned(from, { id: call.id, video, busy: true });
       return;
     }
     const pc = newPc(from);
     current = {
       peer: from,
       id: call.id,
+      video,
       phase: "incoming",
       muted: false,
+      camOff: false,
       caller: false,
       pc,
       local: null,
       remote: null,
-      audio: null,
       pendingOffer: call.desc,
       queuedIce: [],
       timer: 0,
@@ -390,3 +415,17 @@ function handleSignal(from: string, call: CallSignal) {
 }
 
 onCallSignal(handleSignal);
+
+// El mesh pide el permiso al abrir un canal; aquí se calcula con la política
+// general más el override por contacto. `notifyCallPerms` lo reenvía tras un
+// cambio para que el otro extremo oculte/muestre sus iconos.
+setCallPermProvider((rpub) => ({
+  audio: canReceiveFrom("audio", rpub),
+  video: canReceiveFrom("video", rpub),
+}));
+
+export function notifyCallPerms(): void {
+  publishCallPerms();
+}
+
+export { getPeerCallPerm, onPeerCallPerm, type CallPerm } from "./mesh";
