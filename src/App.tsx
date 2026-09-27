@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { SessionToast } from "@/components/ui/SessionToast";
+import { BetaInvitePrompt } from "@/components/ui/BetaInvitePrompt";
 import { RitaProvider } from "@/context/RitaProvider";
 import { AppShell } from "@/components/layout/AppShell";
 import { WelcomePage } from "@/features/onboarding/WelcomePage";
@@ -51,6 +52,7 @@ export default function App() {
   return (
     <I18nProvider>
       <SessionToast />
+      <BetaInvitePrompt />
       <RitaProvider>
         <BrowserRouter>
           <Routes>

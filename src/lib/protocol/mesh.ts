@@ -138,7 +138,7 @@ const assemblingWs = new Map<
 const lastAsk = new Map<string, number>();
 const sendChain = new WeakMap<RTCDataChannel, Promise<void>>();
 let socket: WebSocket | null = null;
-let self: { rpub: string; name: string; interests: string[]; secret: Uint8Array } | null = null;
+let self: { rpub: string; name: string; interests: string[]; secret: Uint8Array; invite?: string } | null = null;
 let challenge = "";
 let packetHandler: ((packet: MeshPacket) => void) | null = null;
 let peersHandler: ((peers: LivePeer[]) => void) | null = null;
@@ -893,7 +893,7 @@ export function requestPeerData(rpub: string): void {
 }
 
 export function listenMesh(
-  hello: { rpub: string; name: string; interests: string[]; secret: Uint8Array },
+  hello: { rpub: string; name: string; interests: string[]; secret: Uint8Array; invite?: string },
   onPacket: (packet: MeshPacket) => void,
   onPeers?: (peers: LivePeer[]) => void,
 ): () => void {
@@ -971,6 +971,7 @@ export function listenMesh(
             interests,
             avatar,
             pow,
+            invite: hello.invite ?? "",
             auth: { n: challenge, sig },
           });
         } catch {
@@ -995,6 +996,13 @@ export function listenMesh(
       if (msg.type === "error" && (msg.error === "hello_rate" || msg.error === "pow" || msg.error === "auth")) {
         // el relé manda unnonce nuevo con cada error, así que el reintento sale solo
         setLinked(false);
+      }
+      if (msg.type === "error" && msg.error === "invite") {
+        // Beta cerrada y el codigo no vale: se avisa para pedir uno nuevo.
+        setLinked(false);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("magicrita-invite-required"));
+        }
       }
       if (msg.type === "error" && msg.error === "rpub_switch") {
         // El relé ata una conexión a una identidad. Reconectar en limpio.

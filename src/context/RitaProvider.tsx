@@ -843,6 +843,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
         name: (meta?.type === "profile" ? meta.body.name : "") || "",
         interests: meta?.type === "profile" ? (meta.body.interests ?? []) : [],
         secret: identity.secret,
+        invite: loadBetaInvite(),
       },
       (packet) => {
         void ingestMeshPacket(packet).then((changed) => {

@@ -56,6 +56,7 @@ There is no account server and no content server.
 
 - Every `hello` to the relay carries a SHA-256 proof of work (`rita-pow-v1:rpub:nonce`). The relay checks it in RAM and cuts IPs or keys that fire too often.
 - `hello` is also **signed with the `rsec`** over a single-use nonce issued by the relay, and one socket serves one identity. A `rpub` cannot be listed without its signature.
+- When the beta is closed, `hello` must carry a **valid invitation code**, or the relay rejects the connection. The check is server-side and does not count a use (that is only done when the code is redeemed during signup/import).
 - The relay applies per-IP and per-`rpub` budgets: sockets, hellos, and each message type (`signal`, `hold`, `pic`, `blob`, `need-blob`). All of it is RAM only and vanishes on restart.
 - `invite` envelope: someone in your network signs a 7-day voucher toward an `rpub`. People you follow stop quarantining that person. There is no invite list on the server.
 - Young accounts (under 12 h, with no follow and no invite) do not enter the home feed. With 3 reports they are hidden; others, at 10.

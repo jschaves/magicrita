@@ -57,7 +57,7 @@ Libraries `@noble/curves`, `@noble/ciphers`, and `@noble/hashes` are **math only
 
 - **`server/signal.mjs`** — Node + `ws`, **RAM only**. It never serves the SPA and never stores notes, profiles, or keys. In memory it keeps: who is online (`live`/`byRpub`), a small **mailbox** of signed envelopes for a briefly absent peer (≤ 250 envelopes / 24 KB, 30 min TTL), and a **blob box** of media chunks waiting for a peer (≤ 800 chunks / 32 MB, 30 min TTL). A restart empties all of it.
 - **HTTP routes:** `GET /beta`, `POST /beta/check`, `GET /admin-path`, `GET /brand`, `GET /brand/logo`, `GET /admin-api/captcha`, `POST /admin-api/login`, and the token-guarded admin API (`/admin-api/session`, `/admin-api/blocks`, `/admin-api/invites`, `/admin-api/invites/toggle`, `/admin-api/admin-path`, `/admin-api/logo`), plus `POST /moderation/check`.
-- **WebSocket:** `hello` (signed + PoW) → `challenge`, `hello-ok`, `join`, `leave`, `peers`, `held`; then `signal` (WebRTC SDP/ICE), `hold`, `pic`, `blob`, `need-blob`, `scan`/`ping`, and `moderation-changed`. The relay introduces peers; once a data channel is open, envelopes and media move **peer to peer**.
+- **WebSocket:** `hello` (signed + PoW, plus a valid beta invite when the beta is closed) → `challenge`, `hello-ok`, `join`, `leave`, `peers`, `held`; then `signal` (WebRTC SDP/ICE), `hold`, `pic`, `blob`, `need-blob`, `scan`/`ping`, and `moderation-changed`. The relay introduces peers; once a data channel is open, envelopes and media move **peer to peer**.
 - **Limits (all RAM, wiped on restart):** hello 60/min per `rpub` and 240/min per IP; ≤ 16 sockets and ≤ 16 distinct `rpub` per IP; per-type message budgets (`blob` 2500/min, `pic` 240/min, `need-blob` 60/min, `signal` 240/min, `hold` 30/min); `/beta/check` 10 per 10 min per IP; `/moderation/check` 30 calls/min per IP; admin login 8 failures per 15 min per IP. `X-Forwarded-For` is trusted only when `TRUST_PROXY` is set.
 - **Admin:** the invite-only beta code can be a fixed `BETA_INVITE` or a list of codes managed in the panel (stored in clear in `data/beta-invites.json`, on purpose, so they can be re-copied). The admin can block an `rpub` or a signature, change the panel path at runtime, and upload the site logo. That is moderation of **this relay**, not a global ban.
 
@@ -137,7 +137,7 @@ The in-app protocol page and the sidebar philosophy copy mark these steps done. 
 
 ## Beta
 
-This is a trial. The beta is **invite-only** when `BETA_INVITE` is set or invite codes exist; otherwise it is open. The invite code is **requested by email** — it is not published anywhere. It can be revoked at any time without notice, and the project can be deleted without prior warning. The invite is checked when **creating an account** or **importing an identity or backup**, never on unlock. If a saved or bundled code is no longer valid, it is discarded and you are asked for a new one.
+This is a trial. The beta is **invite-only** when `BETA_INVITE` is set or invite codes exist; otherwise it is open. The invite code is **requested by email** — it is not published anywhere. It can be revoked at any time without notice, and the project can be deleted without prior warning. The invite is checked when **creating an account**, **importing an identity or backup**, and on the relay's WebSocket **`hello`**: a connection without a valid code is rejected. It is **not** required to unlock an account already stored on this device. If a saved or bundled code is no longer valid, it is discarded and you are asked for a new one.
 
 ---
 

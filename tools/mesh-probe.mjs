@@ -103,6 +103,7 @@ ws.on("message", (raw) => {
       name: "",
       interests: [],
       pow: minePow(rpub),
+      invite: process.env.BETA_INVITE || "",
       auth: { n: msg.nonce, sig: crypto.sign(null, canonical(fields), key.privateKey).toString("hex") },
     });
     return;

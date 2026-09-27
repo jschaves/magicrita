@@ -253,6 +253,25 @@ function inviteOk(code) {
   return Boolean(matched);
 }
 
+/**
+ * Igual que `inviteOk` pero sin efectos: no cuenta usos ni escribe disco. Es la
+ * que usa cada `hello`, donde se comprueba muchas veces por sesion.
+ */
+function inviteValid(code) {
+  if (!betaRequired()) return true;
+  const got = crypto.createHash("sha256").update(String(code || "").trim()).digest();
+  for (const invite of invites) {
+    if (invite.disabled) continue;
+    const expect = crypto.createHash("sha256").update(invite.code).digest();
+    if (crypto.timingSafeEqual(got, expect)) return true;
+  }
+  if (BETA_INVITE) {
+    const expect = crypto.createHash("sha256").update(String(BETA_INVITE).trim()).digest();
+    if (crypto.timingSafeEqual(got, expect)) return true;
+  }
+  return false;
+}
+
 function powOk(rpub, nonce) {
   if (typeof rpub !== "string" || !/^rpub_[0-9a-f]{64}$/i.test(rpub)) return false;
   if (typeof nonce !== "string" || nonce.length === 0 || nonce.length > 32) return false;
@@ -1182,6 +1201,14 @@ wss.on("connection", (ws, req) => {
         return;
       }
       ws.nonce = null;
+      // La beta cerrada exige un codigo vigente para listarse y conectar. Se
+      // comprueba aqui (servidor), no solo en el cliente, para que un codigo
+      // revocado no sirva para entrar.
+      if (!inviteValid(msg.invite)) {
+        send(ws, { type: "error", error: "invite" });
+        issueChallenge(ws);
+        return;
+      }
       const ipKeys = rpubsForIp(ws.clientIp);
       if (!already && !ipKeys.has(msg.rpub) && ipKeys.size >= MAX_IP_RPUBS) {
         send(ws, { type: "error", error: "hello_rate" });

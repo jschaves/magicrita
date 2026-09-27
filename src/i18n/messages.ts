@@ -46,6 +46,12 @@ export const es = {
     failed: "No se pudo verificar el navegador. Reintenta.",
     hint: "Antes de entrar, este navegador resuelve una prueba de trabajo. No se envía nada a terceros.",
   },
+  invite: {
+    title: "Invitación de la beta",
+    body: "Tu código ya no vale o falta. Escribe uno vigente para conectar.",
+    submit: "Guardar y conectar",
+    error: "No se pudo validar el código.",
+  },
   time: {
     now: "ahora",
     seconds: "hace {n} s",
@@ -614,6 +620,12 @@ export const en: Messages = {
     failed: "This browser could not be verified. Try again.",
     hint: "Before entering, this browser solves a proof of work. Nothing is sent to third parties.",
   },
+  invite: {
+    title: "Beta invitation",
+    body: "Your code is missing or no longer valid. Enter a current one to connect.",
+    submit: "Save and connect",
+    error: "The code could not be validated.",
+  },
   time: {
     now: "now",
     seconds: "{n}s ago",
@@ -1177,6 +1189,12 @@ export const pt: Messages = {
     failed: "Não foi possível verificar o navegador. Tenta novamente.",
     hint: "Antes de entrar, este navegador resolve uma prova de trabalho. Nada é enviado a terceiros.",
   },
+  invite: {
+    title: "Convite da beta",
+    body: "O teu código já não vale ou falta. Escreve um válido para ligar.",
+    submit: "Guardar e ligar",
+    error: "Não foi possível validar o código.",
+  },
   time: {
     now: "agora",
     seconds: "há {n} s",
@@ -1739,6 +1757,12 @@ export const fr: Messages = {
     done: "Navigateur vérifié",
     failed: "Impossible de vérifier ce navigateur. Réessayez.",
     hint: "Avant d’entrer, ce navigateur résout une preuve de travail. Rien n’est envoyé à des tiers.",
+  },
+  invite: {
+    title: "Invitation bêta",
+    body: "Votre code est absent ou n’est plus valable. Saisissez-en un valide pour vous connecter.",
+    submit: "Enregistrer et se connecter",
+    error: "Le code n’a pas pu être validé.",
   },
   time: {
     now: "maintenant",
@@ -2307,6 +2331,12 @@ export const ar: Messages = {
     failed: "تعذّر التحقق من المتصفح. أعد المحاولة.",
     hint: "قبل الدخول، يحل هذا المتصفح إثبات عمل. لا يُرسل شيء إلى أطراف ثالثة.",
   },
+  invite: {
+    title: "دعوة النسخة التجريبية",
+    body: "رمزك مفقود أو لم يعد صالحًا. اكتب رمزًا ساريًا للاتصال.",
+    submit: "حفظ واتصال",
+    error: "تعذّر التحقق من الرمز.",
+  },
   time: {
     now: "الآن",
     seconds: "منذ {n} ث",
@@ -2859,6 +2889,12 @@ export const ru: Messages = {
     done: "Браузер проверен",
     failed: "Не удалось проверить браузер. Повторите попытку.",
     hint: "Перед входом этот браузер решает задачу proof of work. Ничего не отправляется третьим лицам.",
+  },
+  invite: {
+    title: "Приглашение в бету",
+    body: "Твой код отсутствует или больше не действует. Введи действующий, чтобы подключиться.",
+    submit: "Сохранить и подключиться",
+    error: "Не удалось проверить код.",
   },
   time: {
     now: "сейчас",
@@ -3417,6 +3453,12 @@ export const zh: Messages = {
     failed: "无法验证此浏览器。请重试。",
     hint: "登录前，浏览器会在本地完成一次工作量证明。不会发送给第三方。",
   },
+  invite: {
+    title: "测试版邀请",
+    body: "你的邀请码缺失或已失效。请输入有效的邀请码以连接。",
+    submit: "保存并连接",
+    error: "无法验证邀请码。",
+  },
   time: {
     now: "刚刚",
     seconds: "{n} 秒前",
@@ -3968,6 +4010,12 @@ export const ja: Messages = {
     done: "ブラウザ確認済み",
     failed: "ブラウザを確認できませんでした。もう一度お試しください。",
     hint: "ログイン前に、このブラウザで proof of work を解きます。第三者には送信しません。",
+  },
+  invite: {
+    title: "ベータの招待",
+    body: "コードがないか、もう有効ではありません。有効なコードを入力して接続してください。",
+    submit: "保存して接続",
+    error: "コードを確認できませんでした。",
   },
   time: {
     now: "たった今",
@@ -4524,6 +4572,12 @@ export const it: Messages = {
     done: "Browser verificato",
     failed: "Impossibile verificare il browser. Riprova.",
     hint: "Prima di entrare, questo browser risolve una prova di lavoro. Non viene inviato nulla a terzi.",
+  },
+  invite: {
+    title: "Invito alla beta",
+    body: "Il tuo codice manca o non è più valido. Inseriscine uno valido per connetterti.",
+    submit: "Salva e connetti",
+    error: "Impossibile verificare il codice.",
   },
   time: {
     now: "ora",
@@ -5091,6 +5145,12 @@ export const de: Messages = {
     done: "Browser verifiziert",
     failed: "Dieser Browser konnte nicht verifiziert werden. Versuche es erneut.",
     hint: "Vor dem Anmelden löst dieser Browser einen Proof of Work. Es wird nichts an Dritte gesendet.",
+  },
+  invite: {
+    title: "Beta-Einladung",
+    body: "Dein Code fehlt oder ist nicht mehr gültig. Gib einen gültigen ein, um dich zu verbinden.",
+    submit: "Speichern und verbinden",
+    error: "Der Code konnte nicht geprüft werden.",
   },
   time: {
     now: "jetzt",
