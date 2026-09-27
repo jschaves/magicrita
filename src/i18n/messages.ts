@@ -39,6 +39,18 @@ export const es = {
     back: "← Volver",
     copy: "Copiar",
     language: "Idioma",
+    info: "Info",
+    close: "Cerrar",
+    more: "Ver más",
+    less: "Ver menos",
+  },
+  info: {
+    home: "Notas en vivo de la gente que sigues, de la más nueva a la más antigua. Pausa para leer con calma.",
+    saved: "Notas que has guardado en este dispositivo. Si una nota se borra, desaparece también de aquí.",
+    protocol: "Identidad local, archivo portátil, relé propio, chat cifrado y fotos: cómo funciona por dentro.",
+    messages: "Solo conversaciones con líneas. 280 caracteres por mensaje y 100 por chat; este dispositivo guarda 100 chats.",
+    settings: "Tu identidad vive en este dispositivo. Aquí editas tu perfil, cambias el idioma, exportas o importas una copia y borras la cuenta.",
+    profile: "Tu identidad y tus notas. Puedes editar una nota o comentario durante 15 minutos; después, solo borrarlos.",
   },
   verify: {
     working: "Verificando el navegador…",
@@ -170,6 +182,7 @@ export const es = {
     failed: "No se pudo desbloquear.",
   },
   home: {
+    info: "Notas en vivo, de la más nueva a la más vieja. Sin algoritmo ni ranking; puedes pausar el flujo y reanudarlo.",
     title: "Inicio",
     subtitle: "Publicaciones en vivo. Pausa el flujo para mirar con calma.",
     emptyTitle: "Nada en el flujo todavía",
@@ -280,6 +293,7 @@ export const es = {
     },
   },
   settings: {
+    info: "Tu identidad y tus datos viven en este dispositivo. Aquí editas tu perfil, cambias el idioma, exportas o importas una copia y borras la cuenta.",
     title: "Ajustes",
     identity: "Identidad",
     hideRsec: "Ocultar rsec",
@@ -356,6 +370,7 @@ export const es = {
     imported: "Datos restaurados. Si pide contraseña, usa la de esta cuenta.",
   },
   live: {
+    savedInfo: "Notas que has guardado en este dispositivo. Si una nota se borra, desaparece de aquí.",
     pause: "Pausar flujo",
     resume: "Seguir flujo",
     pausedHint: "Flujo en pausa. Puedes hacer scroll. Al reanudar, lo nuevo entra por arriba.",
@@ -613,6 +628,18 @@ export const en: Messages = {
     back: "← Back",
     copy: "Copy",
     language: "Language",
+    info: "Info",
+    close: "Close",
+    more: "More",
+    less: "Less",
+  },
+  info: {
+    home: "Live notes from the people you follow, newest first. Pause to read calmly.",
+    saved: "Notes you saved on this device. If a note is deleted, it disappears from here too.",
+    protocol: "Local identity, portable file, our own relay, encrypted chat and photos: how it works inside.",
+    messages: "Only conversations with lines. 280 characters per message and 100 per chat; this device keeps 100 chats.",
+    settings: "Your identity lives on this device. Here you edit your profile, change the language, export or import a copy, and delete the account.",
+    profile: "Your identity and your notes. You can edit a note or comment for 15 minutes; after that you can only delete them.",
   },
   verify: {
     working: "Verifying this browser…",
@@ -745,6 +772,7 @@ export const en: Messages = {
     failed: "Could not unlock.",
   },
   home: {
+    info: "Live notes, newest first. No algorithm, no ranking; you can pause the feed and resume it.",
     title: "Home",
     subtitle: "Your notes on this device.",
     emptyTitle: "Nothing in the live feed yet",
@@ -853,6 +881,7 @@ export const en: Messages = {
     },
   },
   settings: {
+    info: "Your identity and data live on this device. Here you edit your profile, change the language, export or import a copy, and delete the account.",
     title: "Settings",
     identity: "Identity",
     hideRsec: "Hide rsec",
@@ -929,6 +958,7 @@ export const en: Messages = {
     imported: "Data restored. If it asks for a password, use this account’s password.",
   },
   live: {
+    savedInfo: "Notes you saved on this device. If a note is deleted, it disappears from here.",
     pause: "Pause feed",
     resume: "Resume feed",
     pausedHint: "Feed paused. You can scroll. When you resume, new posts enter from the top.",
@@ -1182,6 +1212,18 @@ export const pt: Messages = {
     back: "← Voltar",
     copy: "Copiar",
     language: "Idioma",
+    info: "Info",
+    close: "Fechar",
+    more: "Ver mais",
+    less: "Ver menos",
+  },
+  info: {
+    home: "Notas em direto das pessoas que segues, da mais recente à mais antiga. Pausa para ler com calma.",
+    saved: "Notas que guardaste neste dispositivo. Se uma nota for apagada, desaparece também daqui.",
+    protocol: "Identidade local, ficheiro portátil, relé próprio, chat cifrado e fotos: como funciona por dentro.",
+    messages: "Só conversas com mensagens. 280 caracteres por mensagem e 100 por chat; este dispositivo guarda 100 chats.",
+    settings: "A tua identidade vive neste dispositivo. Aqui editas o teu perfil, mudas o idioma, exportas ou importas uma cópia e apagas a conta.",
+    profile: "A tua identidade e as tuas notas. Podes editar uma nota ou comentário durante 15 minutos; depois, só apagá-los.",
   },
   verify: {
     working: "A verificar o navegador…",
@@ -1314,6 +1356,7 @@ export const pt: Messages = {
     failed: "Não foi possível desbloquear.",
   },
   home: {
+    info: "Notas ao vivo, da mais recente para a mais antiga. Sem algoritmo nem ranking; podes pausar e retomar o fluxo.",
     title: "Início",
     subtitle: "O teu log local. Só este dispositivo.",
     emptyTitle: "Nada no fluxo ainda",
@@ -1423,6 +1466,7 @@ export const pt: Messages = {
     },
   },
   settings: {
+    info: "A tua identidade e os teus dados vivem neste dispositivo. Aqui editas o perfil, mudas o idioma, exportas ou importas uma cópia e apagas a conta.",
     title: "Definições",
     identity: "Identidade",
     hideRsec: "Ocultar rsec",
@@ -1498,6 +1542,7 @@ export const pt: Messages = {
     imported: "Dados restaurados. Se pedir a palavra-passe, usa a desta conta.",
   },
   live: {
+    savedInfo: "Notas que guardaste neste dispositivo. Se uma nota for apagada, desaparece daqui.",
     pause: "Pausar fluxo",
     resume: "Retomar fluxo",
     pausedHint: "Fluxo em pausa. Podes fazer scroll. Ao retomar, o novo entra por cima.",
@@ -1751,6 +1796,18 @@ export const fr: Messages = {
     back: "← Retour",
     copy: "Copier",
     language: "Langue",
+    info: "Infos",
+    close: "Fermer",
+    more: "Plus",
+    less: "Moins",
+  },
+  info: {
+    home: "Notes en direct des personnes que tu suis, de la plus récente à la plus ancienne. Mets en pause pour lire tranquillement.",
+    saved: "Notes que tu as enregistrées sur cet appareil. Si une note est supprimée, elle disparaît aussi d’ici.",
+    protocol: "Identité locale, fichier portable, relais maison, chat chiffré et photos : comment cela fonctionne à l’intérieur.",
+    messages: "Uniquement les conversations avec des messages. 280 caractères par message et 100 par chat ; cet appareil garde 100 chats.",
+    settings: "Ton identité vit sur cet appareil. Ici tu modifies ton profil, changes la langue, exportes ou importes une copie et supprimes le compte.",
+    profile: "Ton identité et tes notes. Tu peux modifier une note ou un commentaire pendant 15 minutes ; ensuite, seulement les supprimer.",
   },
   verify: {
     working: "Vérification du navigateur…",
@@ -1884,6 +1941,7 @@ export const fr: Messages = {
     failed: "Impossible de déverrouiller.",
   },
   home: {
+    info: "Notes en direct, de la plus récente à la plus ancienne. Sans algorithme ni classement ; tu peux mettre en pause et reprendre.",
     title: "Accueil",
     subtitle: "Ton journal local. Cet appareil uniquement.",
     emptyTitle: "Rien dans le flux pour l’instant",
@@ -1994,6 +2052,7 @@ export const fr: Messages = {
     },
   },
   settings: {
+    info: "Ton identité et tes données vivent sur cet appareil. Ici tu modifies ton profil, changes la langue, exportes ou importes une copie et supprimes le compte.",
     title: "Réglages",
     identity: "Identité",
     hideRsec: "Masquer la rsec",
@@ -2069,6 +2128,7 @@ export const fr: Messages = {
     imported: "Données restaurées. S’il demande le mot de passe, utilise celui de ce compte.",
   },
   live: {
+    savedInfo: "Notes que tu as enregistrées sur cet appareil. Si une note est supprimée, elle disparaît d'ici.",
     pause: "Mettre en pause",
     resume: "Reprendre le flux",
     pausedHint: "Flux en pause. Tu peux défiler. En reprenant, le nouveau entre par le haut.",
@@ -2324,6 +2384,18 @@ export const ar: Messages = {
     back: "رجوع",
     copy: "نسخ",
     language: "اللغة",
+    info: "معلومات",
+    close: "إغلاق",
+    more: "المزيد",
+    less: "أقل",
+  },
+  info: {
+    home: "ملاحظات مباشرة من الأشخاص الذين تتابعهم، الأحدث أولًا. أوقف للقراءة بهدوء.",
+    saved: "الملاحظات التي حفظتها على هذا الجهاز. إن حُذفت ملاحظة تختفي من هنا أيضًا.",
+    protocol: "هوية محلية، ملف محمول، مرسل خاص، محادثة مشفرة وصور: كيف يعمل من الداخل.",
+    messages: "المحادثات التي بها رسائل فقط. 280 حرفًا لكل رسالة و100 لكل محادثة؛ هذا الجهاز يحفظ 100 محادثة.",
+    settings: "هويتك تعيش على هذا الجهاز. هنا تُعدّل ملفك، تغيّر اللغة، تصدّر أو تستورد نسخة، وتحذف الحساب.",
+    profile: "هويتك وملاحظاتك. يمكنك تعديل ملاحظة أو تعليق خلال 15 دقيقة؛ بعد ذلك الحذف فقط.",
   },
   verify: {
     working: "جارٍ التحقق من المتصفح…",
@@ -2454,6 +2526,7 @@ export const ar: Messages = {
     failed: "تعذّر الفتح.",
   },
   home: {
+    info: "ملاحظات مباشرة، من الأحدث إلى الأقدم. بلا خوارزمية ولا ترتيب؛ يمكنك إيقاف التدفق مؤقتًا واستئنافه.",
     title: "الرئيسية",
     subtitle: "سجلك المحلي. هذا الجهاز فقط.",
     emptyTitle: "لا شيء في البث بعد",
@@ -2558,6 +2631,7 @@ export const ar: Messages = {
     },
   },
   settings: {
+    info: "هويتك وبياناتك على هذا الجهاز. من هنا تحرّر ملفك، تغيّر اللغة، تصدّر أو تستورد نسخة، وتحذف الحساب.",
     title: "الإعدادات",
     identity: "الهوية",
     hideRsec: "إخفاء rsec",
@@ -2630,6 +2704,7 @@ export const ar: Messages = {
     imported: "تمت استعادة البيانات. إن طلب كلمة المرور فاستخدم كلمة هذه الحساب.",
   },
   live: {
+    savedInfo: "الملاحظات التي حفظتها على هذا الجهاز. إذا حُذفت ملاحظة، تختفي من هنا.",
     pause: "إيقاف التدفق",
     resume: "استئناف التدفق",
     pausedHint: "التدفق متوقف. يمكنك التمرير. عند الاستئناف يدخل الجديد من الأعلى.",
@@ -2883,6 +2958,18 @@ export const ru: Messages = {
     back: "← Назад",
     copy: "Копировать",
     language: "Язык",
+    info: "Инфо",
+    close: "Закрыть",
+    more: "Ещё",
+    less: "Свернуть",
+  },
+  info: {
+    home: "Живые заметки от людей, за которыми ты следишь, сначала новые. Поставь на паузу, чтобы почитать спокойно.",
+    saved: "Заметки, которые ты сохранил на этом устройстве. Если заметку удаляют, она исчезает и отсюда.",
+    protocol: "Локальная идентичность, переносимый файл, свой релей, шифрованный чат и фото: как это устроено внутри.",
+    messages: "Только переписки с сообщениями. 280 символов на сообщение и 100 на чат; это устройство хранит 100 чатов.",
+    settings: "Твоя идентичность живёт на этом устройстве. Здесь ты правишь профиль, меняешь язык, экспортируешь или импортируешь копию и удаляешь аккаунт.",
+    profile: "Твоя идентичность и твои заметки. Заметку или комментарий можно править 15 минут; потом только удалить.",
   },
   verify: {
     working: "Проверяем браузер…",
@@ -3013,6 +3100,7 @@ export const ru: Messages = {
     failed: "Не удалось разблокировать.",
   },
   home: {
+    info: "Живые заметки, сначала новые. Без алгоритма и рейтинга; поток можно приостановить и продолжить.",
     title: "Главная",
     subtitle: "Ваш локальный журнал. Только это устройство.",
     emptyTitle: "В ленте пока пусто",
@@ -3118,6 +3206,7 @@ export const ru: Messages = {
     },
   },
   settings: {
+    info: "Твоя личность и данные живут на этом устройстве. Здесь можно править профиль, менять язык, экспортировать или импортировать копию и удалить аккаунт.",
     title: "Настройки",
     identity: "Личность",
     hideRsec: "Скрыть rsec",
@@ -3192,6 +3281,7 @@ export const ru: Messages = {
     imported: "Данные восстановлены. Если спросят пароль — пароль этой учётной записи.",
   },
   live: {
+    savedInfo: "Заметки, сохранённые на этом устройстве. Если заметку удалить, она исчезнет отсюда.",
     pause: "Пауза ленты",
     resume: "Продолжить ленту",
     pausedHint: "Лента на паузе. Можно листать. После возобновления новое входит сверху.",
@@ -3446,6 +3536,18 @@ export const zh: Messages = {
     back: "← 返回",
     copy: "复制",
     language: "语言",
+    info: "信息",
+    close: "关闭",
+    more: "更多",
+    less: "收起",
+  },
+  info: {
+    home: "你关注的人发布的实时笔记，最新的在最前。暂停后慢慢阅读。",
+    saved: "你在这台设备上保存的笔记。如果笔记被删除，这里也会消失。",
+    protocol: "本地身份、便携文件、自有中继、加密聊天和照片：它是如何运作的。",
+    messages: "只显示已有内容的会话。每条消息 280 个字符，每聊天 100 条；本设备保留 100 个聊天。",
+    settings: "你的身份保存在这台设备上。在这里编辑资料、切换语言、导出或导入副本，以及删除账号。",
+    profile: "你的身份和笔记。笔记或评论可在 15 分钟内编辑；之后只能删除。",
   },
   verify: {
     working: "正在验证浏览器…",
@@ -3576,6 +3678,7 @@ export const zh: Messages = {
     failed: "无法解锁。",
   },
   home: {
+    info: "实时笔记，最新在前。没有算法，没有排名；可以暂停或继续。",
     title: "首页",
     subtitle: "你的本地日志。仅限此设备。",
     emptyTitle: "实时流里还没有内容",
@@ -3679,6 +3782,7 @@ export const zh: Messages = {
     },
   },
   settings: {
+    info: "你的身份和数据都在此设备上。在这里可编辑资料、切换语言、导出或导入副本、删除账号。",
     title: "设置",
     identity: "身份",
     hideRsec: "隐藏 rsec",
@@ -3751,6 +3855,7 @@ export const zh: Messages = {
     imported: "数据已恢复。若要求密码，请使用此账户的密码。",
   },
   live: {
+    savedInfo: "你在此设备上保存的笔记。若笔记被删除，会从这里消失。",
     pause: "暂停信息流",
     resume: "继续信息流",
     pausedHint: "已暂停。可以滚动。恢复后新内容从上方进入。",
@@ -4004,6 +4109,18 @@ export const ja: Messages = {
     back: "← 戻る",
     copy: "コピー",
     language: "言語",
+    info: "情報",
+    close: "閉じる",
+    more: "もっと見る",
+    less: "折りたたむ",
+  },
+  info: {
+    home: "フォローしている人の最新ノートを新しい順に表示します。一時停止してゆっくり読めます。",
+    saved: "この端末で保存したノート。ノートが削除されるとここからも消えます。",
+    protocol: "ローカルな本人確認、持ち運べるファイル、自前の中継、暗号化チャットと写真。仕組みの説明。",
+    messages: "やり取りのある会話のみ。1 メッセージ 280 文字、1 チャット 100 件。この端末は 100 チャット保持します。",
+    settings: "あなたの本人確認情報はこの端末にあります。ここでプロフィール編集、言語変更、コピーの書き出し・読み込み、アカウント削除ができます。",
+    profile: "あなたの本人確認情報とノート。ノートやコメントは 15 分間だけ編集でき、その後は削除のみです。",
   },
   verify: {
     working: "ブラウザを確認しています…",
@@ -4136,6 +4253,7 @@ export const ja: Messages = {
     failed: "解除できませんでした。",
   },
   home: {
+    info: "ライブのノート。新しい順。アルゴリズムもランキングもありません。一時停止・再開できます。",
     title: "ホーム",
     subtitle: "ローカルログ。この端末のみ。",
     emptyTitle: "ライブの流れはまだ空です",
@@ -4240,6 +4358,7 @@ export const ja: Messages = {
     },
   },
   settings: {
+    info: "あなたの身元とデータはこの端末にあります。ここでプロフィール編集、言語変更、コピーの書き出し・読み込み、アカウント削除ができます。",
     title: "設定",
     identity: "身元",
     hideRsec: "rsec を隠す",
@@ -4313,6 +4432,7 @@ export const ja: Messages = {
       "データを復元しました。パスワードを求められたら、このアカウントのものを使ってください。",
   },
   live: {
+    savedInfo: "この端末で保存したノートです。ノートが削除されると、ここから消えます。",
     pause: "流れを止める",
     resume: "流れを再開",
     pausedHint: "一時停止中。スクロールできます。再開すると新しい投稿が上から入ります。",
@@ -4566,6 +4686,18 @@ export const it: Messages = {
     back: "← Indietro",
     copy: "Copia",
     language: "Lingua",
+    info: "Info",
+    close: "Chiudi",
+    more: "Altro",
+    less: "Meno",
+  },
+  info: {
+    home: "Note in diretta delle persone che segui, dalla più recente. Metti in pausa per leggere con calma.",
+    saved: "Note che hai salvato su questo dispositivo. Se una nota viene eliminata, sparisce anche da qui.",
+    protocol: "Identità locale, file portatile, relay nostro, chat cifrata e foto: come funziona dentro.",
+    messages: "Solo conversazioni con messaggi. 280 caratteri per messaggio e 100 per chat; questo dispositivo tiene 100 chat.",
+    settings: "La tua identità vive su questo dispositivo. Qui modifichi il profilo, cambi lingua, esporti o importi una copia e elimini l’account.",
+    profile: "La tua identità e le tue note. Puoi modificare una nota o un commento per 15 minuti; poi solo eliminarli.",
   },
   verify: {
     working: "Verifica del browser…",
@@ -4700,6 +4832,7 @@ export const it: Messages = {
     failed: "Impossibile sbloccare.",
   },
   home: {
+    info: "Note dal vivo, dalla più recente. Nessun algoritmo né classifica; puoi mettere in pausa e riprendere.",
     title: "Home",
     subtitle: "Le tue note su questo dispositivo.",
     emptyTitle: "Ancora niente nel flusso",
@@ -4810,6 +4943,7 @@ export const it: Messages = {
     },
   },
   settings: {
+    info: "La tua identità e i tuoi dati vivono su questo dispositivo. Qui modifichi il profilo, cambi lingua, esporti o importi una copia ed elimini l'account.",
     title: "Impostazioni",
     identity: "Identità",
     hideRsec: "Nascondi rsec",
@@ -4886,6 +5020,7 @@ export const it: Messages = {
     imported: "Dati ripristinati. Se chiede una password, usa quella di questo account.",
   },
   live: {
+    savedInfo: "Note che hai salvato su questo dispositivo. Se una nota viene eliminata, sparisce da qui.",
     pause: "Metti in pausa il flusso",
     resume: "Riprendi il flusso",
     pausedHint: "Flusso in pausa. Puoi scorrere. Quando riprendi, i nuovi post entrano dall’alto.",
@@ -5139,6 +5274,18 @@ export const de: Messages = {
     back: "← Zurück",
     copy: "Kopieren",
     language: "Sprache",
+    info: "Info",
+    close: "Schließen",
+    more: "Mehr",
+    less: "Weniger",
+  },
+  info: {
+    home: "Live-Notizen der Personen, denen du folgst, neueste zuerst. Pausiere, um in Ruhe zu lesen.",
+    saved: "Notizen, die du auf diesem Gerät gespeichert hast. Wird eine Notiz gelöscht, verschwindet sie auch hier.",
+    protocol: "Lokale Identität, portable Datei, eigener Relay, verschlüsselter Chat und Fotos: wie es innen funktioniert.",
+    messages: "Nur Unterhaltungen mit Nachrichten. 280 Zeichen pro Nachricht und 100 pro Chat; dieses Gerät behält 100 Chats.",
+    settings: "Deine Identität lebt auf diesem Gerät. Hier bearbeitest du dein Profil, änderst die Sprache, exportierst oder importierst eine Kopie und löschst das Konto.",
+    profile: "Deine Identität und deine Notizen. Du kannst eine Notiz oder einen Kommentar 15 Minuten lang bearbeiten; danach nur löschen.",
   },
   verify: {
     working: "Browser wird geprüft…",
@@ -5273,6 +5420,7 @@ export const de: Messages = {
     failed: "Entsperren fehlgeschlagen.",
   },
   home: {
+    info: "Live-Notizen, neueste zuerst. Kein Algorithmus, kein Ranking; du kannst den Feed pausieren und fortsetzen.",
     title: "Start",
     subtitle: "Deine Notizen auf diesem Gerät.",
     emptyTitle: "Noch nichts im Live-Feed",
@@ -5383,6 +5531,7 @@ export const de: Messages = {
     },
   },
   settings: {
+    info: "Deine Identität und Daten liegen auf diesem Gerät. Hier bearbeitest du dein Profil, änderst die Sprache, exportierst oder importierst eine Kopie und löschst das Konto.",
     title: "Einstellungen",
     identity: "Identität",
     hideRsec: "rsec verbergen",
@@ -5459,6 +5608,7 @@ export const de: Messages = {
     imported: "Daten wiederhergestellt. Wenn nach einem Passwort gefragt wird, nutze das dieses Kontos.",
   },
   live: {
+    savedInfo: "Notizen, die du auf diesem Gerät gespeichert hast. Wird eine Notiz gelöscht, verschwindet sie hier.",
     pause: "Feed pausieren",
     resume: "Feed fortsetzen",
     pausedHint: "Feed pausiert. Du kannst scrollen. Wenn du fortsetzt, kommen neue Beiträge von oben.",

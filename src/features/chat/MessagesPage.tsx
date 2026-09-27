@@ -11,6 +11,7 @@ import { VoiceNote } from "@/components/note/VoiceNote";
 import { VideoNote } from "@/components/note/VideoNote";
 import { VideoClip } from "@/components/ui/VideoClip";
 import { ResponsiveDock } from "@/components/ui/MobileDock";
+import { InfoButton } from "@/components/ui/InfoButton";
 import { ingestPhoto, ingestVideo, ingestVoice, type MediaRef } from "@/lib/protocol/media";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n, type MessageKey } from "@/i18n/I18nProvider";
@@ -194,9 +195,11 @@ export function MessagesPage() {
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="shrink-0 border-b border-line bg-paper px-4 py-4">
-        <h1 className="font-display text-2xl">{t("messages.title")}</h1>
-        <p className="text-sm text-muted">{t("messages.hint")}</p>
+      <header className="shrink-0 border-b border-line bg-paper px-4 py-3 md:py-4">
+        <div className="flex items-center gap-2">
+          <h1 className="font-display text-2xl">{t("messages.title")}</h1>
+          <InfoButton title={t("messages.title")} body={t("info.messages")} />
+        </div>
       </header>
 
       {!them ? (

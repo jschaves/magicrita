@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/Card";
+import { InfoButton } from "@/components/ui/InfoButton";
 import { useI18n, type MessageKey } from "@/i18n/I18nProvider";
 
 const DONE = new Set([1, 2, 3, 4, 5]);
@@ -17,8 +18,10 @@ export function ProtocolPage() {
   return (
     <section>
       <header className="sticky top-0 z-10 border-b border-line bg-paper/80 px-4 py-4 backdrop-blur">
-        <h1 className="font-display text-2xl">{t("protocol.title")}</h1>
-        <p className="text-sm text-muted">{t("protocol.subtitle")}</p>
+        <div className="flex items-center gap-2">
+          <h1 className="font-display text-2xl">{t("protocol.title")}</h1>
+          <InfoButton title={t("protocol.title")} body={t("info.protocol")} />
+        </div>
       </header>
       <div className="space-y-4 p-4">
         {steps.map((step) => (

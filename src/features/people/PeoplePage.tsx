@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "re
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/Field";
+import { InfoButton } from "@/components/ui/InfoButton";
 import { Avatar } from "@/components/note/Avatar";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -183,9 +184,13 @@ export function PeoplePage() {
   return (
     <section>
       <header className="sticky top-0 z-10 border-b border-line bg-paper/80 px-4 py-4 backdrop-blur">
-        <h1 className="font-display text-2xl">{t("people.title")}</h1>
-        <p className="text-sm text-muted">{t("people.subtitle")}</p>
-        <p className="mt-1 text-xs text-muted">{t("people.quarantineHint")}</p>
+        <div className="flex items-center gap-2">
+          <h1 className="font-display text-2xl">{t("people.title")}</h1>
+          <InfoButton
+            title={t("people.title")}
+            body={`${t("people.subtitle")}\n\n${t("people.quarantineHint")}`}
+          />
+        </div>
         <p className={`mt-1 text-xs font-semibold ${signalOn ? "text-emerald-700" : "text-accent"}`}>
           {signalOn ? t("people.signalOn") : t("people.signalOff")}
         </p>

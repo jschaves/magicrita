@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/Field";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -45,11 +46,11 @@ export function BetaInvitePrompt() {
     }
   }
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-ink/40 px-4"
     >
       <form
         onSubmit={(e) => void submit(e)}
@@ -70,6 +71,7 @@ export function BetaInvitePrompt() {
           {busy ? t("compose.saving") : t("invite.submit")}
         </Button>
       </form>
-    </div>
+    </div>,
+    document.body,
   );
 }

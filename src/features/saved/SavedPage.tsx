@@ -15,7 +15,7 @@ export function SavedPage() {
     <LiveFeed
       items={items}
       title={t("live.savedTitle")}
-      subtitle={t("home.subtitle")}
+      subtitle={t("info.saved")}
       emptyTitle={t("live.savedTitle")}
       emptyBody={t("live.savedEmpty")}
     />

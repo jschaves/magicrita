@@ -11,7 +11,7 @@ export function HomePage() {
     <LiveFeed
       items={feed}
       title={t("home.title")}
-      subtitle={t("home.subtitle")}
+      subtitle={t("info.home")}
       emptyTitle={t("home.emptyTitle")}
       emptyBody={t("home.emptyBody")}
       emptyAction={

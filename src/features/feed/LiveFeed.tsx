@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pause, Play } from "lucide-react";
 import { NoteCard } from "@/components/note/NoteCard";
+import { InfoButton } from "@/components/ui/InfoButton";
 import { useRita, type FeedItem } from "@/context/RitaProvider";
 import { useI18n } from "@/i18n/I18nProvider";
 import { FEED_VISIBLE } from "@/lib/protocol/social";
@@ -61,9 +62,12 @@ export function LiveFeed({
   return (
     <section className="flex min-h-0 flex-col">
       <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-line bg-paper/80 px-4 py-4 backdrop-blur">
-        <div>
-          <h1 className="font-display text-2xl">{title}</h1>
-          <p className="text-sm text-muted">{paused ? t("live.pausedHint") : subtitle}</p>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h1 className="font-display text-2xl">{title}</h1>
+            <InfoButton title={title} body={subtitle} />
+          </div>
+          {paused ? <p className="text-sm text-muted">{t("live.pausedHint")}</p> : null}
           <p className="mt-1 text-xs text-muted">
             {signalOn ? t("people.signalOn") : t("people.signalOff")}
             {signalOn ? ` · ${others}` : ""}

@@ -14,6 +14,7 @@ import { VideoClip } from "@/components/ui/VideoClip";
 import { VideoNote } from "@/components/note/VideoNote";
 import { MobileDock } from "@/components/ui/MobileDock";
 import { useVisualViewport } from "@/lib/useVisualViewport";
+import { InfoButton } from "@/components/ui/InfoButton";
 
 
 type Preview = {
@@ -88,10 +89,13 @@ export function ComposePage() {
   return (
     <section>
       <header className="sticky top-0 z-10 border-b border-line bg-paper/80 px-4 py-4 backdrop-blur">
-        <h1 className="font-display text-2xl">{t("compose.title")}</h1>
-        <p className="text-sm text-muted">{t("compose.subtitle")}</p>
-        <p className="mt-2 text-xs leading-5 text-muted">{t("profile.editNote")}</p>
-        <p className="mt-1 text-xs leading-5 text-muted">{t("profile.capNote")}</p>
+        <div className="flex items-center gap-2">
+          <h1 className="font-display text-2xl">{t("compose.title")}</h1>
+          <InfoButton
+            title={t("compose.title")}
+            body={`${t("compose.subtitle")}\n\n${t("profile.editNote")}\n${t("profile.capNote")}`}
+          />
+        </div>
       </header>
       <form
         id="compose-form"

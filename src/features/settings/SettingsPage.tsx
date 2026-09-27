@@ -11,6 +11,7 @@ import { ingestPhoto, isAcceptedPhoto } from "@/lib/protocol/media";
 import { MAX_BIO_CHARS, MAX_NAME_CHARS } from "@/lib/protocol/envelope";
 import { MobileDock } from "@/components/ui/MobileDock";
 import { useVisualViewport } from "@/lib/useVisualViewport";
+import { InfoButton } from "@/components/ui/InfoButton";
 import { betaInviteRequired, loadBetaInvite } from "@/lib/protocol/betaInvite";
 
 export function SettingsPage() {
@@ -88,12 +89,17 @@ export function SettingsPage() {
   return (
     <section>
       <header className="sticky top-0 z-10 border-b border-line bg-paper/80 px-4 py-4 backdrop-blur">
-        <h1 className="font-display text-2xl">{t("settings.title")}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="font-display text-2xl">{t("settings.title")}</h1>
+          <InfoButton title={t("settings.title")} body={t("info.settings")} />
+        </div>
       </header>
       <div className="space-y-8 p-4">
         <div>
-          <h2 className="font-display text-xl">{t("settings.language")}</h2>
-          <p className="mt-1 text-sm text-muted">{t("settings.languageHint")}</p>
+          <div className="flex items-center gap-2">
+            <h2 className="font-display text-xl">{t("settings.language")}</h2>
+            <InfoButton title={t("settings.language")} body={t("settings.languageHint")} />
+          </div>
           <LanguageSwitch className="mt-3" showLabel={false} />
         </div>
 
@@ -196,8 +202,10 @@ export function SettingsPage() {
         {message ? <p className="text-sm text-plum">{message}</p> : null}
 
         <div className="space-y-3">
-          <h2 className="font-display text-xl">{t("bundle.title")}</h2>
-          <p className="text-sm text-muted">{t("bundle.hint")}</p>
+          <div className="flex items-center gap-2">
+            <h2 className="font-display text-xl">{t("bundle.title")}</h2>
+            <InfoButton title={t("bundle.title")} body={t("bundle.hint")} />
+          </div>
           {needInvite ? (
             <TextField
               label={t("create.inviteCode")}
@@ -250,7 +258,7 @@ export function SettingsPage() {
           >
             {t("settings.logout")}
           </Button>
-          <p className="text-xs text-muted">{t("settings.logoutHint")}</p>
+          <InfoButton title={t("settings.logout")} body={t("settings.logoutHint")} />
           {wipeOpen ? (
             <WipeConfirm
               onConfirm={() => {
@@ -263,7 +271,7 @@ export function SettingsPage() {
               <Button type="button" variant="danger" className="w-full" onClick={() => setWipeOpen(true)}>
                 {t("settings.delete")}
               </Button>
-              <p className="text-xs text-muted">{t("settings.deleteHint")}</p>
+              <InfoButton title={t("settings.delete")} body={t("settings.deleteHint")} />
             </>
           )}
         </div>

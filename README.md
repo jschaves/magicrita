@@ -116,7 +116,7 @@ Spam cannot be “banned at the protocol” the way a company account can. Defen
 - **Publish** — text, optional photo, optional voice, optional video. Media-only notes are allowed.
 - **Comments** — 280 characters, emoji picker, voice, same report/hide rules as notes.
 - **People** — who is online now, follows, signed 7-day invites.
-- **Messages** — only conversations that already have lines, plus an inbox of chat requests. Request / accept / revoke / block stay on the thread.
+- **Messages** — only conversations that already have lines, plus an inbox of chat requests. Request / accept / revoke / block stay on the thread. On mobile the long explanation sits behind an **Info** button so the chat list keeps the space.
 - **Alerts** — last 10 notices locally (chat, request, invite); the bell and the messages counter sit in the header.
 - **Saved** — local list of post signatures; deleted targets are dropped.
 - **Settings** — language, profile, export/import, logout, delete-identity. Signal URL is **not** chosen in the UI; it is fixed at build (`VITE_SIGNAL_URL` or same-host `/signal/`).

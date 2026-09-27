@@ -52,7 +52,7 @@ export function ProfilePage() {
     <LiveFeed
       items={items}
       title={name || t("common.unnamed")}
-      subtitle={t("home.subtitle")}
+      subtitle={t("info.profile")}
       emptyTitle={isMe ? t("home.emptyTitle") : t("profile.emptyOther")}
       emptyBody={isMe ? t("home.emptyBody") : t("profile.emptyOtherBody")}
       banner={
@@ -76,12 +76,6 @@ export function ProfilePage() {
               <Button variant="ghost" onClick={() => (blocked ? unblock(rpub) : block(rpub))}>
                 {blocked ? t("live.unblock") : t("live.block")}
               </Button>
-            </div>
-          ) : null}
-          {isMe ? (
-            <div className="mt-4 space-y-2 rounded-2xl border border-line bg-paper px-3 py-3 text-xs leading-5 text-muted">
-              <p>{t("profile.editNote")}</p>
-              <p>{t("profile.capNote")}</p>
             </div>
           ) : null}
         </div>

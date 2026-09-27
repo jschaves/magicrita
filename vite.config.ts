@@ -4,7 +4,47 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 import net from "node:net";
 import { execFileSync, spawn } from "node:child_process";
-import { sanitizeAdminPath } from "./src/lib/sanitizeAdminPath";
+
+/**
+ * Copia local de `src/lib/sanitizeAdminPath`. NO se importa desde `src` a
+ * proposito: si el config dependiera de un fichero de la app, cada edicion de
+ * ese fichero reiniciaria el servidor de Vite (y con reinicios seguidos el
+ * servicio de esbuild se cae: "The service is no longer running").
+ */
+const DEFAULT_ADMIN_PATH = "topogue";
+const RESERVED_ADMIN_PATHS = new Set([
+  "welcome",
+  "unlock",
+  "legal",
+  "people",
+  "saved",
+  "protocolo",
+  "discover",
+  "compose",
+  "messages",
+  "settings",
+  "n",
+  "p",
+  "brand",
+  "beta",
+  "signal",
+  "admin-api",
+  "moderation",
+  "assets",
+]);
+
+function parseAdminPath(raw: string | undefined): string | null {
+  const value = String(raw ?? "")
+    .trim()
+    .replace(/^\/+|\/+$/g, "");
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(value)) return null;
+  if (RESERVED_ADMIN_PATHS.has(value.toLowerCase())) return null;
+  return value;
+}
+
+function sanitizeAdminPath(raw: string | undefined): string {
+  return parseAdminPath(raw) ?? DEFAULT_ADMIN_PATH;
+}
 
 const RELAY_SCRIPT = "server/signal.mjs";
 const RELAY_SALIR_ESPERA_MS = 150;
