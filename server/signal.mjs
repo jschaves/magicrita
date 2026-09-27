@@ -1173,31 +1173,31 @@ wss.on("connection", (ws, req) => {
       // rpub, re-vincularlo dejaba entradas ranciadas en byRpub y hacia que
       // `previous?.name` metiera en el roster un nombre que el titular nunca
       // firmo. Para cambiar de identidad hay que reconectar.
+      // Ante un error NO se emite un nonce nuevo: el cliente responde a cada
+      // `challenge` con un `hello`, así que encadenarlos convertía cualquier
+      // rechazo (código inválido, PoW, límite) en un bucle cerrado de `hello`
+      // que quemaba el cupo y reventaba el relé. El reintento va con el `scan`
+      // periódico, que sí pide un nonce si el socket sigue sin vincular.
       if (already && already.rpub !== msg.rpub) {
         send(ws, { type: "error", error: "rpub_switch" });
-        issueChallenge(ws);
         return;
       }
       if (!already) {
         if (tooMany(`hello:${msg.rpub}`, 60, 60_000)) {
           send(ws, { type: "error", error: "hello_rate" });
-          issueChallenge(ws);
           return;
         }
         if (tooMany(`hello-ip:${ws.clientIp}`, 240, 60_000)) {
           send(ws, { type: "error", error: "hello_rate" });
-          issueChallenge(ws);
           return;
         }
       }
       if (!powOk(msg.rpub, msg.pow)) {
         send(ws, { type: "error", error: "pow" });
-        issueChallenge(ws);
         return;
       }
       if (!helloAuthOk(msg, ws)) {
         send(ws, { type: "error", error: "auth" });
-        issueChallenge(ws);
         return;
       }
       ws.nonce = null;
@@ -1206,13 +1206,11 @@ wss.on("connection", (ws, req) => {
       // revocado no sirva para entrar.
       if (!inviteValid(msg.invite)) {
         send(ws, { type: "error", error: "invite" });
-        issueChallenge(ws);
         return;
       }
       const ipKeys = rpubsForIp(ws.clientIp);
       if (!already && !ipKeys.has(msg.rpub) && ipKeys.size >= MAX_IP_RPUBS) {
         send(ws, { type: "error", error: "hello_rate" });
-        issueChallenge(ws);
         return;
       }
       const previousWs = byRpub.get(msg.rpub);
@@ -1226,7 +1224,8 @@ wss.on("connection", (ws, req) => {
         : [];
       bindSocket(ws, { rpub: msg.rpub, name, interests });
       send(ws, { type: "hello-ok", rpub: msg.rpub });
-      issueChallenge(ws);
+      // Ya está vinculado: un `challenge` aquí provocaría otro `hello` en el
+      // cliente y un bucle de handshake sin fin.
       if (first) {
         broadcastRaw(JSON.stringify({ type: "join", peer: slim(live.get(ws)) }), ws);
       }
@@ -1297,9 +1296,14 @@ wss.on("connection", (ws, req) => {
     }
 
     if (msg.type === "scan" || msg.type === "ping") {
-      issueChallenge(ws);
       const info = live.get(ws);
-      if (!info) return;
+      // Sin vincular (p. ej. tras un `hello` rechazado) sí se pide un nonce
+      // para reintentar; ya vinculado, el `scan` solo refresca el roster y no
+      // debe disparar otro `hello`.
+      if (!info) {
+        issueChallenge(ws);
+        return;
+      }
       send(ws, { type: "peers", peers: snapshot(info.rpub) });
       return;
     }

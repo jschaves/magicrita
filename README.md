@@ -28,7 +28,7 @@ Security is the design constraint, not a feature bolted on. Nothing secret ever 
 | Stolen device / storage | The secret is sealed in a local vault: **scrypt** (`N = 2¹⁵`, `r = 8`, `p = 1`, 32-byte key) + **XChaCha20-Poly1305**. Unlocking needs your password on that device. |
 | Forged or altered content | Every envelope is **Ed25519**-signed over canonical JSON of `v`, `type`, `author`, `ts`, `body`; remote envelopes are verified before they are stored. |
 | Malicious payloads | Received envelopes pass hard limits (total size, depth, key/item counts, string lengths, media refs, forward `ts` skew) before they are accepted. |
-| Impersonation on the relay | `hello` is signed with the `rsec` over a **single-use nonce** issued by the relay. One socket = one identity. |
+| Impersonation on the relay | `hello` is signed with the `rsec` over a **single-use nonce** issued by the relay (on connect, and again on `scan`/`ping` only while the socket is unbound). One socket = one identity; a rejected `hello` does not immediately get a new nonce, so it cannot spin a `hello`/`challenge` loop. |
 | DoS / spam floods | Proof of work on `hello` (16 bits) plus RAM-only per-IP and per-`rpub` rate limits on sockets, hellos, and each message type. |
 | Man-in-the-middle in chat | Chat is end-to-end: Ed25519 keys are converted to Montgomery form, **X25519** ECDH gives a shared secret, hashed with **SHA-256**, sealed with **XChaCha20-Poly1305**. The relay forwards a box it cannot read. |
 | Admin brute force | Admin login needs a **signed proof-of-work captcha** (18 bits, issued per attempt, single-use) plus timing-safe credential compare and a per-IP fail limit. |

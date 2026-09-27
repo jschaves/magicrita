@@ -949,13 +949,17 @@ export function listenMesh(
   };
 
   const attach = (ws: WebSocket) => {
+    // `bound` evita reenviar el hello con cada `challenge`: el relé pide nonce
+    // al conectar y al reintentar, pero una vez aceptado el hello no hay que
+    // volver a firmarse (eso encadenaba hello→challenge→hello sin fin).
+    let bound = false;
     // El relé manda unnonce de un solo uso y el hello va firmado con la rsec:
     // sin eso cualquiera podría.listarse como el rpub de otra persona.
     const sendHello = () => {
       void (async () => {
         try {
           const [avatar, pow] = await Promise.all([ownThumb(), cachedPow(hello.rpub)]);
-          if (stopped || socket !== ws || !challenge) return;
+          if (bound || stopped || socket !== ws || !challenge) return;
           const name = hello.name.slice(0, HELLO_NAME_MAX);
           const interests = hello.interests.slice(0, HELLO_INTERESTS_MAX);
           const sig = bytesToHex(
@@ -989,16 +993,22 @@ export function listenMesh(
       }
       if (msg.type === "challenge" && typeof msg.nonce === "string") {
         challenge = msg.nonce;
-        sendHello();
+        if (!bound) sendHello();
         return;
       }
-      if (msg.type === "hello-ok") setLinked(true);
+      if (msg.type === "hello-ok") {
+        bound = true;
+        setLinked(true);
+      }
       if (msg.type === "error" && (msg.error === "hello_rate" || msg.error === "pow" || msg.error === "auth")) {
-        // el relé manda unnonce nuevo con cada error, así que el reintento sale solo
+        // El relé no reencadena errores: el reintento va con el `scan`, que
+        // pide un nonce nuevo si el socket sigue sin vincular.
+        bound = false;
         setLinked(false);
       }
       if (msg.type === "error" && msg.error === "invite") {
         // Beta cerrada y el codigo no vale: se avisa para pedir uno nuevo.
+        bound = false;
         setLinked(false);
         if (typeof window !== "undefined") {
           window.dispatchEvent(new Event("magicrita-invite-required"));
@@ -1006,6 +1016,7 @@ export function listenMesh(
       }
       if (msg.type === "error" && msg.error === "rpub_switch") {
         // El relé ata una conexión a una identidad. Reconectar en limpio.
+        bound = false;
         setLinked(false);
         try {
           ws.close();
@@ -1050,6 +1061,7 @@ export function listenMesh(
     };
     ws.onclose = () => {
       if (socket !== ws) return;
+      bound = false;
       socket = null;
       setLinked(false);
       if (stopped) {
@@ -1070,7 +1082,8 @@ export function listenMesh(
   connect();
   scan = window.setInterval(() => {
     if (socket?.readyState !== WebSocket.OPEN) return;
-    // el relé responde a scan con la lista y unnonce nuevo, que dispara el hello
+    // El relé responde con el roster; si el socket quedó sin vincular pide un
+    // nonce nuevo, y ahí sí se reenvía el hello.
     sendSignal({ type: "scan" });
     repairPeers();
   }, 8_000);
