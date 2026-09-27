@@ -179,7 +179,7 @@ export function MessagesPage() {
         </Button>
       ) : null}
       {phase === "outgoing" || phase === "open" || phase === "incoming" ? (
-        <Button type="button" variant="secondary" onClick={() => run(() => revokeChat(them))}>
+        <Button type="button" variant="danger" onClick={() => run(() => revokeChat(them))}>
           {phase === "incoming" ? t("messages.decline") : t("messages.revoke")}
         </Button>
       ) : null}
@@ -273,11 +273,11 @@ export function MessagesPage() {
         </>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="shrink-0 border-b border-line bg-paper px-4 py-3">
-            <Link to="/messages" className="text-sm text-muted hover:text-ink">
+          <div className="shrink-0 border-b border-line bg-paper px-4 py-2 md:py-3">
+            <Link to="/messages" className="text-xs text-muted hover:text-ink md:text-sm">
               {t("common.back")}
             </Link>
-            <div className="mt-2 flex flex-wrap items-center gap-3">
+            <div className="mt-1 flex flex-wrap items-center gap-2 md:gap-3">
               <Avatar name={name} picture={profileOf(them)?.picture} src={person?.avatarUrl} />
               <div className="min-w-0 flex-1">
                 <p className="font-semibold">{name}</p>
@@ -286,7 +286,7 @@ export function MessagesPage() {
                 </p>
               </div>
             </div>
-            <div className="mt-3">{actions}</div>
+            <div className="mt-2 md:mt-3">{actions}</div>
             {error ? <p className="mt-2 text-sm text-accent">{error}</p> : null}
           </div>
           <div
@@ -381,7 +381,7 @@ export function MessagesPage() {
             </div>
           </div>
           {phase === "open" ? (
-            <ResponsiveDock className="shrink-0 border-t border-line bg-paper p-4" mobileClassName="border-t border-line bg-white p-3">
+            <ResponsiveDock className="shrink-0 border-t border-line bg-paper p-4" mobileClassName="border-t border-line bg-white p-2">
             <form onSubmit={onSend}>
               {replyTo ? (
                 <div className="mb-2 flex items-center justify-between gap-2 rounded-xl bg-cream px-3 py-1.5 text-xs">
@@ -417,13 +417,13 @@ export function MessagesPage() {
                 value={draft}
                 onChange={(e) => setDraft(e.target.value.slice(0, MAX_CHAT_CHARS))}
                 maxLength={MAX_CHAT_CHARS}
-                rows={2}
+                rows={view.mobile ? 1 : 2}
                 enterKeyHint="send"
                 autoComplete="off"
                 placeholder={t("messages.write")}
-                className="w-full rounded-2xl border border-line bg-paper px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30"
+                className="w-full rounded-2xl border border-line bg-paper px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-accent/30 md:py-2"
               />
-              <div className="mt-2 flex items-center justify-between gap-2">
+              <div className="mt-1.5 flex items-center justify-between gap-2 md:mt-2">
                 <span className="flex items-center gap-1">
                   <EmojiInsert value={draft} max={MAX_CHAT_CHARS} onChange={setDraft} />
                   <button
