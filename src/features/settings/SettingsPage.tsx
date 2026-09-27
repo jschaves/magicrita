@@ -19,6 +19,7 @@ export function SettingsPage() {
     identity,
     profile,
     logout,
+    changePassword,
     wipeIdentity,
     publishProfile,
     exportBackup,
@@ -41,6 +42,11 @@ export function SettingsPage() {
   const [wipeOpen, setWipeOpen] = useState(false);
   const [needInvite, setNeedInvite] = useState(true);
   const [invite, setInvite] = useState(() => loadBetaInvite());
+  const [curPassword, setCurPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
   const view = useVisualViewport();
   const pinSave = view.mobile && view.keyboard;
 
@@ -83,6 +89,27 @@ export function SettingsPage() {
       setError(errorMessage(err, "compose.failed"));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function onChangePassword(event: FormEvent) {
+    event.preventDefault();
+    setPwError(null);
+    if (newPassword !== confirmPassword) {
+      setPwError(t("create.mismatch"));
+      return;
+    }
+    setPwBusy(true);
+    try {
+      await changePassword(curPassword, newPassword);
+      // Se cambia la bóveda, así que se saca al usuario para que entre con la
+      // nueva contraseña.
+      logout();
+      navigate("/unlock");
+    } catch (err) {
+      setPwError(errorMessage(err, "settings.passwordFailed"));
+    } finally {
+      setPwBusy(false);
     }
   }
 
@@ -200,6 +227,41 @@ export function SettingsPage() {
         </MobileDock>
 
         {message ? <p className="text-sm text-plum">{message}</p> : null}
+
+        <form className="space-y-3" onSubmit={(event) => void onChangePassword(event)}>
+          <h2 className="font-display text-xl">{t("settings.changePassword")}</h2>
+          <TextField
+            label={t("settings.currentPassword")}
+            type="password"
+            autoComplete="current-password"
+            value={curPassword}
+            onChange={(e) => setCurPassword(e.target.value)}
+            required
+          />
+          <TextField
+            label={t("settings.newPassword")}
+            type="password"
+            autoComplete="new-password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            hint={t("create.passwordHint")}
+            required
+            minLength={8}
+          />
+          <TextField
+            label={t("create.repeat")}
+            type="password"
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            minLength={8}
+          />
+          {pwError ? <p className="text-sm text-accent">{pwError}</p> : null}
+          <Button type="submit" variant="secondary" disabled={pwBusy}>
+            {pwBusy ? t("compose.saving") : t("settings.changePasswordSubmit")}
+          </Button>
+        </form>
 
         <div className="space-y-3">
           <div className="flex items-center gap-2">

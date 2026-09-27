@@ -13,6 +13,8 @@ import {
   type MediaRef,
 } from "./media";
 import { loadSignalUrl } from "./signalUrl";
+import { clearBetaInvite } from "./betaInvite";
+import { clearVaultInvite } from "./vault";
 import { cachedPow } from "./pow";
 import {
   clearAssemblyLog,
@@ -33,6 +35,8 @@ const OUTBOX_KEY = "magicrita.outbox";
 const STUN_URL =
   (import.meta.env.VITE_STUN_URL as string | undefined)?.trim() || "stun:stun.cloudflare.com:3478";
 const STUN = [{ urls: STUN_URL }];
+/** Mismos servidores ICE para los canales de datos y para la llamada de voz. */
+export const ICE_SERVERS = STUN;
 
 export type MeshPacket = {
   envelope: Envelope;
@@ -46,11 +50,29 @@ export type LivePeer = {
   avatar?: string;
 };
 
+/** Señalización de una llamada de voz, viaja dentro del mismo `signal` del relé. */
+export type CallSignal = {
+  id: string;
+  /** Identidad que firma la señal; el receptor exige que coincida con el `from` del relé. */
+  rpub?: string;
+  /** Ed25519 sobre `canonicalCall`; ata el SDP/ICE a la `rsec`, no al relé. */
+  sig?: string;
+  desc?: RTCSessionDescriptionInit;
+  cand?: RTCIceCandidateInit;
+  end?: boolean;
+  decline?: boolean;
+  busy?: boolean;
+};
+
 type SignalIn =
   | { type: "peers"; peers: LivePeer[] }
   | { type: "join"; peer: LivePeer }
   | { type: "leave"; rpub: string }
-  | { type: "signal"; from: string; payload: { desc?: RTCSessionDescriptionInit; cand?: RTCIceCandidateInit } }
+  | {
+      type: "signal";
+      from: string;
+      payload: { desc?: RTCSessionDescriptionInit; cand?: RTCIceCandidateInit; call?: CallSignal };
+    }
   | { type: "held"; envelopes: Envelope[] }
   | { type: "blob"; hash: string; mime?: string; tier?: string; i: number; n: number; size?: number; data: string }
   | { type: "need-blob"; hash: string; from?: string }
@@ -183,6 +205,36 @@ export function onMeshStatus(handler: (on: boolean) => void): () => void {
   return () => {
     if (statusHandler === handler) statusHandler = null;
   };
+}
+
+let callSignalHandler: ((from: string, call: CallSignal) => void) | null = null;
+
+/** Encamina la señalización de llamada que llega por el canal `signal` del relé. */
+export function onCallSignal(handler: (from: string, call: CallSignal) => void): () => void {
+  callSignalHandler = handler;
+  return () => {
+    if (callSignalHandler === handler) callSignalHandler = null;
+  };
+}
+
+export function sendCallSignal(to: string, call: CallSignal): void {
+  sendSignal({ type: "signal", to, payload: { call } });
+}
+
+/** El relé solo reenvía señales a quien está en el roster ahora mismo. */
+export function isPeerLive(rpub: string): boolean {
+  return live.some((peer) => peer.rpub === rpub);
+}
+
+/** `rpub` de la sesión actual, o `null` si aún no hay `hello` aceptado. */
+export function selfRpub(): string | null {
+  return self?.rpub ?? null;
+}
+
+/** Firma con la `rsec` de la sesión: ata la señalización de llamada a la identidad. */
+export function signWithSelf(message: string): string | null {
+  if (!self) return null;
+  return bytesToHex(signBytes(self.secret, utf8ToBytes(message)));
 }
 
 function setLinked(on: boolean) {
@@ -1007,9 +1059,12 @@ export function listenMesh(
         setLinked(false);
       }
       if (msg.type === "error" && msg.error === "invite") {
-        // Beta cerrada y el codigo no vale: se avisa para pedir uno nuevo.
+        // Beta cerrada y el codigo no vale: se descarta para no reenviarlo (ni
+        // que `loadVault` lo reinyecte) y se avisa para pedir uno nuevo.
         bound = false;
         setLinked(false);
+        clearVaultInvite();
+        clearBetaInvite();
         if (typeof window !== "undefined") {
           window.dispatchEvent(new Event("magicrita-invite-required"));
         }
@@ -1034,7 +1089,11 @@ export function listenMesh(
         closeLink(msg.rpub);
         setLive(live.filter((peer) => peer.rpub !== msg.rpub));
       }
-      if (msg.type === "signal" && msg.from) void onSignal(msg.from, msg.payload);
+      if (msg.type === "signal" && msg.from) {
+        // La llamada de voz reutiliza el mismo `signal`; se distingue por `call`.
+        if (msg.payload.call) callSignalHandler?.(msg.from, msg.payload.call);
+        else void onSignal(msg.from, msg.payload);
+      }
       if (msg.type === "held" && Array.isArray(msg.envelopes)) takeHeld(msg.envelopes);
       if (msg.type === "blob") void takeWsBlob(msg);
       if (msg.type === "pic" && msg.hash && msg.data) {

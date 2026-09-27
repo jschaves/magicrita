@@ -52,7 +52,7 @@ import {
   type ChatLine,
   type ChatPhase,
 } from "@/lib/protocol/chat";
-import { dropMedia, MAX_PHOTOS, onMediaStored, type MediaRef } from "@/lib/protocol/media";
+import { dropMedia, ingestPhoto, MAX_PHOTOS, onMediaStored, type MediaRef } from "@/lib/protocol/media";
 import {
   applyBundle,
   buildBundle,
@@ -155,7 +155,7 @@ type RitaContextValue = {
     password: string;
     name: string;
     about: string;
-    picture?: MediaRef;
+    picture?: File;
     invite?: string;
   }) => Promise<Identity>;
   importSecret: (
@@ -166,6 +166,7 @@ type RitaContextValue = {
   ) => Promise<void>;
   unlock: (password: string) => Promise<void>;
   logout: () => void;
+  changePassword: (currentPassword: string, nextPassword: string) => Promise<void>;
   wipeIdentity: () => Promise<void>;
   publishPost: (text: string, media?: MediaRef[]) => void;
   editPost: (post: Envelope, text: string, media?: MediaRef[]) => void;
@@ -309,19 +310,22 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       password,
       name,
       about,
-      picture,
+      picture: pictureFile,
       invite,
     }: {
       password: string;
       name: string;
       about: string;
-      picture?: MediaRef;
+      picture?: File;
       invite?: string;
     }) => {
       if (loadVault()) throw new ProtocolError("account_exists");
       await wipeRitaPreservingInvite();
       await assertBetaInvite(invite);
       const next = createIdentity();
+      // La foto se ingiere DESPUÉS del borrado: al crear cuenta se limpia el
+      // almacén de media, así que si se guardara antes se perdería el avatar.
+      const picture = pictureFile ? await ingestPhoto(pictureFile) : undefined;
       const record = await wrapSecret(next, password);
       setVault(record);
       const profile = signProfile(next, { name: name.trim() || "Rita", about, picture });
@@ -391,6 +395,21 @@ export function RitaProvider({ children }: { children: ReactNode }) {
     setStatus(loadVault() ? "locked" : "anonymous");
     bump();
   }, [bump, identity]);
+
+  /**
+   * Cambia la contraseña local probando la actual y re-cifrando la misma rsec
+   * con la nueva. La bóveda queda con la nueva; el usuario se saca para que
+   * vuelva a entrar con ella.
+   */
+  const changePassword = useCallback(
+    async (currentPassword: string, nextPassword: string) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      await assertVaultOwnership(currentPassword);
+      const record = await wrapSecret(identity, nextPassword);
+      setVault(record);
+    },
+    [identity],
+  );
 
   const wipeIdentity = useCallback(async () => {
     if (identity) {
@@ -1149,6 +1168,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       importSecret,
       unlock,
       logout,
+      changePassword,
       wipeIdentity,
       publishPost,
       editPost,
@@ -1231,6 +1251,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       importSecret,
       log,
       logout,
+      changePassword,
       wipeIdentity,
       people,
       signalOn,

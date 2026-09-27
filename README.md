@@ -31,6 +31,7 @@ Security is the design constraint, not a feature bolted on. Nothing secret ever 
 | Impersonation on the relay | `hello` is signed with the `rsec` over a **single-use nonce** issued by the relay (on connect, and again on `scan`/`ping` only while the socket is unbound). One socket = one identity; a rejected `hello` does not immediately get a new nonce, so it cannot spin a `hello`/`challenge` loop. |
 | DoS / spam floods | Proof of work on `hello` (16 bits) plus RAM-only per-IP and per-`rpub` rate limits on sockets, hellos, and each message type. |
 | Man-in-the-middle in chat | Chat is end-to-end: Ed25519 keys are converted to Montgomery form, **X25519** ECDH gives a shared secret, hashed with **SHA-256**, sealed with **XChaCha20-Poly1305**. The relay forwards a box it cannot read. |
+| Eavesdropping on calls | A voice call is **P2P** over WebRTC with **DTLS-SRTP**. Its SDP/ICE signaling is **signed with the `rsec`** and the receiver verifies the signature against the peer's `rpub` (bound to the call id and the recipient), so the relay cannot alter the DTLS fingerprints or inject ICE candidates: no MITM. The microphone needs a secure context and the user's permission. |
 | Admin brute force | Admin login needs a **signed proof-of-work captcha** (18 bits, issued per attempt, single-use) plus timing-safe credential compare and a per-IP fail limit. |
 | Cross-origin abuse of admin routes | `/admin-api/*` checks the `Origin` and never sets CORS; the bearer token is kept **in memory** (no cookies, no disk). |
 | XSS / injection | A strict `Content-Security-Policy` (`default-src 'self'`, no `object-src`, `frame-ancestors 'none'`). The production build drops `script-src 'unsafe-inline'` (dev keeps it for React Refresh) and tightens `connect-src` to the signaling host; nginx adds the header (needed for `frame-ancestors`), plus `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Referrer-Policy: no-referrer`. |
@@ -49,17 +50,17 @@ Libraries `@noble/curves`, `@noble/ciphers`, and `@noble/hashes` are **math only
 - **Feed:** live notes as they arrive, newest `ts` first, no ranking and no engagement reordering. Young untrusted keys stay out of home until followed, invited, or older than 12 h (peers seen live skip that quarantine). Pause/resume.
 - **Compose:** text, one optional photo, optional voice, optional video; media-only notes allowed. You may edit a post or comment for 15 minutes; after that you can only delete.
 - **People / profile:** who is online now, follows, and signed 7-day invites (an `invite` envelope). Chats start from People or a profile.
-- **Messages:** request / accept / revoke / block; text is sealed in the browser, at most 280 characters per line.
-- **Settings:** profile, language, export/import (`magicrita-bundle`), logout, and delete-identity. There is a shared header with the alerts bell and the messages counter.
+- **Messages:** request / accept / revoke / block; text is sealed in the browser, at most 280 characters per line. In an open chat the red phone button starts a **P2P voice call** (WebRTC); only SDP/ICE signaling goes through the relay. A local **incoming-call policy** (Nobody by default, Follows = mutual, Everyone) both hides the call button when it does not apply and auto-rejects disallowed incoming calls. It is stored only on the device.
+- **Settings:** profile, language, export/import (`magicrita-bundle`), logout, delete-identity, and **change the local password** (it re-wraps the vault; after changing you are signed out to log in with the new one). There is a shared header with the alerts bell and the messages counter.
 - **Onboarding:** create an identity (local canvas captcha, no Google/phone/KYC), import an `rsec`, or import a portable file; unlock an existing vault with your password.
 
 ### Backend (relay)
 
 - **`server/signal.mjs`** — Node + `ws`, **RAM only**. It never serves the SPA and never stores notes, profiles, or keys. In memory it keeps: who is online (`live`/`byRpub`), a small **mailbox** of signed envelopes for a briefly absent peer (≤ 250 envelopes / 24 KB, 30 min TTL), and a **blob box** of media chunks waiting for a peer (≤ 800 chunks / 32 MB, 30 min TTL). A restart empties all of it.
 - **HTTP routes:** `GET /beta`, `POST /beta/check`, `GET /admin-path`, `GET /brand`, `GET /brand/logo`, `GET /admin-api/captcha`, `POST /admin-api/login`, and the token-guarded admin API (`/admin-api/session`, `/admin-api/blocks`, `/admin-api/invites`, `/admin-api/invites/toggle`, `/admin-api/admin-path`, `/admin-api/logo`), plus `POST /moderation/check`.
-- **WebSocket:** `hello` (signed + PoW, plus a valid beta invite when the beta is closed) → `challenge`, `hello-ok`, `join`, `leave`, `peers`, `held`; then `signal` (WebRTC SDP/ICE), `hold`, `pic`, `blob`, `need-blob`, `scan`/`ping`, and `moderation-changed`. The relay introduces peers; once a data channel is open, envelopes and media move **peer to peer**.
+- **WebSocket:** `hello` (signed + PoW, plus a valid beta invite when the beta is closed) → `challenge`, `hello-ok`, `join`, `leave`, `peers`, `held`; then `signal` (WebRTC SDP/ICE, for the data channels and for voice calls), `hold`, `pic`, `blob`, `need-blob`, `scan`/`ping`, and `moderation-changed`. The relay introduces peers; once a data channel is open, envelopes and media move **peer to peer**.
 - **Limits (all RAM, wiped on restart):** hello 60/min per `rpub` and 240/min per IP; ≤ 16 sockets and ≤ 16 distinct `rpub` per IP; per-type message budgets (`blob` 2500/min, `pic` 240/min, `need-blob` 60/min, `signal` 240/min, `hold` 30/min); `/beta/check` 10 per 10 min per IP; `/moderation/check` 30 calls/min per IP; admin login 8 failures per 15 min per IP. `X-Forwarded-For` is trusted only when `TRUST_PROXY` is set.
-- **Admin:** the invite-only beta code can be a fixed `BETA_INVITE` or a list of codes managed in the panel (stored in clear in `data/beta-invites.json`, on purpose, so they can be re-copied). The admin can block an `rpub` or a signature, change the panel path at runtime, and upload the site logo. That is moderation of **this relay**, not a global ban.
+- **Admin:** beta invite codes are created and managed **only in the panel** (stored in clear in `data/beta-invites.json`, on purpose, so they can be re-copied); a code works only while it exists and is enabled. The admin can block an `rpub` or a signature, change the panel path at runtime, and upload the site logo. That is moderation of **this relay**, not a global ban.
 
 ### Mobile
 
@@ -137,7 +138,7 @@ The in-app protocol page and the sidebar philosophy copy mark these steps done. 
 
 ## Beta
 
-This is a trial. The beta is **invite-only** when `BETA_INVITE` is set or invite codes exist; otherwise it is open. The invite code is **requested by email** — it is not published anywhere. It can be revoked at any time without notice, and the project can be deleted without prior warning. The invite is checked when **creating an account**, **importing an identity or backup**, and on the relay's WebSocket **`hello`**: a connection without a valid code is rejected. It is **not** required to unlock an account already stored on this device. If a saved or bundled code is no longer valid, it is discarded and you are asked for a new one.
+This is a trial. The beta is **invite-only** while invite codes exist in the panel; if the panel has no codes, it is open. The invite code is **requested by email** — it is not published anywhere. It can be revoked at any time (delete or disable it in the panel) without notice, and the project can be deleted without prior warning. The invite is checked when **creating an account**, **importing an identity or backup**, and on the relay's WebSocket **`hello`**: a connection without a valid code is rejected. It is **not** required to unlock an account already stored on this device. If a saved or bundled code is no longer valid, it is discarded and you are asked for a new one.
 
 ---
 
@@ -205,7 +206,6 @@ Copy-Item .env.example .env
 | `ADMIN_USER` | Admin panel user |
 | `ADMIN_PASSWORD` | Admin panel password |
 | `RUTA_ADMINISTRACION` | Admin URL path (default `topogue`). Restart `npm run dev`; production needs a rebuild |
-| `BETA_INVITE` | Closed-beta code. Empty = anyone can enter. **Request the code by email**; do not publish it |
 | `PORT` | Signaler port (default `8787`) |
 | `HOST` | Signaler bind address. `.env.example` uses `127.0.0.1`; production must keep it behind nginx and never expose the relay |
 | `VITE_SIGNAL_URL` | Only when **building** for production if signaling is not on the same host (example `wss://magicrita.com/signal/`) |
@@ -233,7 +233,7 @@ Stop with Ctrl+C. After relay or `.env` changes, restart `npm run dev` so `signa
 The public site is static files. `git pull` alone does **not** update what people see; you must build.
 
 1. Clone (section above) and enter the directory.
-2. Install dependencies and create `.env` (admin credentials, `HOST=127.0.0.1`, `TRUST_PROXY=1` behind nginx, optional `BETA_INVITE`, optional `ADMIN_ORIGINS`).
+2. Install dependencies and create `.env` (admin credentials, `HOST=127.0.0.1`, `TRUST_PROXY=1` behind nginx, optional `ADMIN_ORIGINS`). Beta invite codes are created later in the admin panel, not in `.env`.
 3. Build. Same-host signaling needs no `VITE_SIGNAL_URL`; set `VITE_STUN_URL` only if you use your own STUN server:
 
 ```bash

@@ -110,7 +110,6 @@ Leave this (change the three secrets). **`HOST=127.0.0.1` is required**, and **`
 ADMIN_USER=your-admin
 ADMIN_PASSWORD=a-long-password
 RUTA_ADMINISTRACION=topogue
-BETA_INVITE=<code requested by email>
 PORT=8787
 HOST=127.0.0.1
 TRUST_PROXY=1
@@ -375,7 +374,7 @@ sudo ss -lntp | grep -E ':80|:443|:8787'
 Security: `.env` has `HOST=127.0.0.1` and `TRUST_PROXY=1`, and nginx **overwrites** `X-Forwarded-For` (`$remote_addr`). nginx sends the `Content-Security-Policy` (with `frame-ancestors`), `X-Content-Type-Options`, `X-Frame-Options` and `Referrer-Policy` headers.
 
 Panel: `https://YOUR-DOMAIN/` plus the `RUTA_ADMINISTRACION` value in `.env` (default `/topogue`)  
-Beta code: the `BETA_INVITE` value in `.env`; the beta invitation code is **requested by email**, it is not published  
+Beta codes: created and managed **only in the admin panel** (`data/beta-invites.json`); a code works only while it exists and is enabled. The code is **requested by email**, it is not published.  
 Legal notes: `https://YOUR-DOMAIN/legal`
 
 ---

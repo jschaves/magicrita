@@ -108,7 +108,7 @@ export function AdminPage() {
   const [liveQuery, setLiveQuery] = useState("");
   const [livePage, setLivePage] = useState(0);
   const [invites, setInvites] = useState<Invite[]>([]);
-  const [betaRequired, setBetaRequired] = useState(false);
+  const [betaRequired, setBetaRequired] = useState(true);
   const [inviteNote, setInviteNote] = useState("");
   const [inviteCount, setInviteCount] = useState("1");
   const [inviteBusy, setInviteBusy] = useState(false);

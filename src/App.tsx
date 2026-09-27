@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { SessionToast } from "@/components/ui/SessionToast";
 import { BetaInvitePrompt } from "@/components/ui/BetaInvitePrompt";
+import { CallOverlay } from "@/components/ui/CallOverlay";
 import { RitaProvider } from "@/context/RitaProvider";
 import { AppShell } from "@/components/layout/AppShell";
 import { WelcomePage } from "@/features/onboarding/WelcomePage";
@@ -54,6 +55,7 @@ export default function App() {
       <SessionToast />
       <BetaInvitePrompt />
       <RitaProvider>
+        <CallOverlay />
         <BrowserRouter>
           <Routes>
             <Route path="/legal" element={<LegalPage />} />

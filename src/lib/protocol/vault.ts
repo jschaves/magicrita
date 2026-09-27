@@ -33,6 +33,25 @@ export function saveVault(record: VaultRecord): void {
   localStorage.setItem(VAULT_KEY, JSON.stringify(record));
 }
 
+/**
+ * Quita el código de invitación guardado dentro de la bóveda. Se usa cuando el
+ * relé lo rechaza (borrado o deshabilitado): como `loadVault` reinyecta ese
+ * código en `localStorage`, si no se borra de aquí el código inválido vuelve una
+ * y otra vez.
+ */
+export function clearVaultInvite(): void {
+  try {
+    const raw = localStorage.getItem(VAULT_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as VaultRecord;
+    if (!parsed || !parsed.invite) return;
+    delete parsed.invite;
+    localStorage.setItem(VAULT_KEY, JSON.stringify(parsed));
+  } catch {
+    // ignore
+  }
+}
+
 export async function wrapSecret(identity: Identity, password: string): Promise<VaultRecord> {
   if (password.length < 8) {
     throw new ProtocolError("password_short");

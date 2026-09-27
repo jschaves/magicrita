@@ -42,7 +42,6 @@ const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || "0.0.0.0";
 const ADMIN_USER = process.env.ADMIN_USER || "";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
-const BETA_INVITE = process.env.BETA_INVITE || "";
 const RESERVED_ADMIN = new Set([
   "welcome",
   "unlock",
@@ -241,10 +240,6 @@ function inviteOk(code) {
     const expect = crypto.createHash("sha256").update(invite.code).digest();
     if (crypto.timingSafeEqual(got, expect)) matched = invite;
   }
-  if (!matched && BETA_INVITE) {
-    const expect = crypto.createHash("sha256").update(String(BETA_INVITE).trim()).digest();
-    if (crypto.timingSafeEqual(got, expect)) return true;
-  }
   if (matched) {
     matched.uses += 1;
     matched.lastUsed = Date.now();
@@ -263,10 +258,6 @@ function inviteValid(code) {
   for (const invite of invites) {
     if (invite.disabled) continue;
     const expect = crypto.createHash("sha256").update(invite.code).digest();
-    if (crypto.timingSafeEqual(got, expect)) return true;
-  }
-  if (BETA_INVITE) {
-    const expect = crypto.createHash("sha256").update(String(BETA_INVITE).trim()).digest();
     if (crypto.timingSafeEqual(got, expect)) return true;
   }
   return false;
@@ -508,7 +499,7 @@ function newInviteCode() {
  * por accidente, hace falta borrarlos del todo.
  */
 function betaRequired() {
-  return Boolean(BETA_INVITE) || invites.length > 0;
+  return invites.length > 0;
 }
 
 function unique(list) {

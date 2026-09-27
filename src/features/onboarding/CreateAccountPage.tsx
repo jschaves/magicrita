@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { TextArea, TextField } from "@/components/ui/Field";
 import { Avatar } from "@/components/note/Avatar";
 import { LocalCaptcha } from "@/components/ui/LocalCaptcha";
-import { ingestPhoto, isAcceptedPhoto } from "@/lib/protocol/media";
+import { isAcceptedPhoto } from "@/lib/protocol/media";
 import { MAX_BIO_CHARS, MAX_NAME_CHARS } from "@/lib/protocol/envelope";
 import { verifyCaptcha } from "@/lib/protocol/captcha";
 import { createBlock, noteCreateAttempt } from "@/lib/protocol/signupGuard";
@@ -76,8 +76,15 @@ export function CreateAccountPage() {
     }
     setBusy(true);
     try {
-      const picture = pictureFile ? await ingestPhoto(pictureFile) : undefined;
-      const keys = await createAccount({ password, name, about, picture, invite });
+      // El archivo se pasa tal cual: se ingiere tras limpiar el almacén, si no
+      // el avatar recién subido se borraría al crear la cuenta.
+      const keys = await createAccount({
+        password,
+        name,
+        about,
+        picture: pictureFile ?? undefined,
+        invite,
+      });
       setRsec(keys.rsec);
     } catch (err) {
       setError(errorMessage(err, "create.failed"));

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type UIEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ImagePlus, X } from "lucide-react";
+import { ImagePlus, Phone, X } from "lucide-react";
 import { Avatar } from "@/components/note/Avatar";
 import { Photo } from "@/components/note/Photo";
 import { Button } from "@/components/ui/Button";
@@ -13,6 +13,8 @@ import { VideoClip } from "@/components/ui/VideoClip";
 import { ResponsiveDock } from "@/components/ui/MobileDock";
 import { InfoButton } from "@/components/ui/InfoButton";
 import { ingestPhoto, ingestVideo, ingestVoice, type MediaRef } from "@/lib/protocol/media";
+import { canCallPeer, startCall } from "@/lib/protocol/call";
+import { CALL_POLICIES, loadCallPolicy, saveCallPolicy, type CallPolicy } from "@/lib/protocol/callPrefs";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n, type MessageKey } from "@/i18n/I18nProvider";
 import { timeAgo } from "@/lib/format";
@@ -48,6 +50,7 @@ export function MessagesPage() {
   const { t, locale, errorMessage } = useI18n();
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [callPolicy, setCallPolicy] = useState<CallPolicy>(() => loadCallPolicy());
   const [chatsPage, setChatsPage] = useState(0);
   const [chatQuery, setChatQuery] = useState("");
   const [photo, setPhoto] = useState<MediaRef | null>(null);
@@ -155,6 +158,29 @@ export function MessagesPage() {
     }
   }
 
+  async function callPeer() {
+    if (!them) return;
+    setError(null);
+    try {
+      await startCall(them);
+    } catch (err) {
+      const code = err instanceof Error ? err.message : "";
+      if (code === "call_offline") setError(t("messages.call.offline"));
+      else if (code === "call_denied") setError(t("live.voiceDenied"));
+      else if (code === "call_insecure") setError(t("live.voiceInsecure"));
+      else setError(t("messages.failed"));
+    }
+  }
+
+  function changeCallPolicy(policy: CallPolicy) {
+    setCallPolicy(policy);
+    saveCallPolicy(policy);
+  }
+
+  // La política manda: "Nadie" no muestra el botón; "Seguidos" solo con
+  // seguimiento mutuo; "Todos" siempre. El mismo criterio rechaza al recibir.
+  const canCall = them ? canCallPeer(them) : false;
+
   function onSend(event: FormEvent) {
     event.preventDefault();
     if (!them) return;
@@ -199,11 +225,54 @@ export function MessagesPage() {
         <div className="flex items-center gap-2">
           <h1 className="font-display text-2xl">{t("messages.title")}</h1>
           <InfoButton title={t("messages.title")} body={t("info.messages")} />
+          {them && phase === "open" && canCall ? (
+            <button
+              type="button"
+              onClick={() => void callPeer()}
+              aria-label={t("messages.call.button")}
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-accent/40 px-3 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent hover:text-white"
+            >
+              <Phone size={16} /> {t("messages.call.button")}
+            </button>
+          ) : null}
         </div>
       </header>
 
       {!them ? (
         <>
+        <div className="shrink-0 border-b border-line bg-paper px-4 py-3">
+          <p className="mb-2 text-sm font-semibold">{t("messages.call.policy")}</p>
+          <div
+            role="group"
+            aria-label={t("messages.call.policy")}
+            className="flex flex-wrap gap-2"
+          >
+            {CALL_POLICIES.map((option) => {
+              const active = option === callPolicy;
+              const label =
+                option === "nobody"
+                  ? t("messages.call.policyNobody")
+                  : option === "follows"
+                    ? t("messages.call.policyFollows")
+                    : t("messages.call.policyEveryone");
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => changeCallPolicy(option)}
+                  aria-pressed={active}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    active
+                      ? "bg-accent text-white"
+                      : "border border-line bg-paper text-ink hover:border-accent/40"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <div className="shrink-0 border-b border-line bg-paper px-4 py-3">
           <TextField
             label={t("messages.search")}
