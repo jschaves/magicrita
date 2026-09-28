@@ -12,6 +12,7 @@ import {
   toggleCam,
   toggleMute,
 } from "@/lib/protocol/call";
+import { startRinging, stopRinging } from "@/lib/protocol/ringtone";
 
 /**
  * Panel de llamada de audio o vídeo. Vive en `App` para que la llamada entrante
@@ -44,6 +45,13 @@ export function CallOverlay() {
     const localVideo = localVideoRef.current;
     if (localVideo) localVideo.srcObject = call?.local ?? null;
   }, [call?.remote, call?.local, call?.video, call?.phase]);
+
+  // Tono de llamada entrante hasta descolgar (o rechazar / caducar).
+  useEffect(() => {
+    if (call?.phase === "incoming") startRinging();
+    else stopRinging();
+    return stopRinging;
+  }, [call?.phase]);
 
   if (!call) return null;
 
