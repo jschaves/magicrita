@@ -25,6 +25,10 @@ export function CallOverlay() {
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
 
+  // `phase` importa: al pasar a `active` se montan los `<video>`, así que hay
+  // que reasignar el `srcObject` de los elementos recién creados aunque el
+  // stream no haya cambiado. Sin esto la videollamada se conecta pero se ve
+  // negra (y sin audio): el `<video>` nuevo se quedaba sin stream.
   useEffect(() => {
     const remote = call?.remote ?? null;
     const audio = audioRef.current;
@@ -39,7 +43,7 @@ export function CallOverlay() {
     }
     const localVideo = localVideoRef.current;
     if (localVideo) localVideo.srcObject = call?.local ?? null;
-  }, [call?.remote, call?.local, call?.video]);
+  }, [call?.remote, call?.local, call?.video, call?.phase]);
 
   if (!call) return null;
 

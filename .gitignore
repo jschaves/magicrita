@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 dist
+dist-android
 dist-ssr
 .vite
 *.local
@@ -25,6 +26,10 @@ dist-ssr
 .env
 .env.*
 !.env.example
+!.env.android
 *.pem
 *.key
+*.jks
+*.keystore
+keystore.properties
 data/

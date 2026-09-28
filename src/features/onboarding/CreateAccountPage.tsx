@@ -8,6 +8,7 @@ import { TextArea, TextField } from "@/components/ui/Field";
 import { Avatar } from "@/components/note/Avatar";
 import { LocalCaptcha } from "@/components/ui/LocalCaptcha";
 import { isAcceptedPhoto } from "@/lib/protocol/media";
+import { copyText } from "@/lib/protocol/native";
 import { MAX_BIO_CHARS, MAX_NAME_CHARS } from "@/lib/protocol/envelope";
 import { verifyCaptcha } from "@/lib/protocol/captcha";
 import { createBlock, noteCreateAttempt } from "@/lib/protocol/signupGuard";
@@ -109,7 +110,7 @@ export function CreateAccountPage() {
               type="button"
               variant="secondary"
               onClick={() => {
-                void navigator.clipboard.writeText(rsec).then(() => setCopied(true));
+                void copyText(rsec).then(() => setCopied(true));
               }}
             >
               {copied ? t("create.copied") : t("create.copyRsec")}

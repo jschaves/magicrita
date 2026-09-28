@@ -5,6 +5,12 @@ viven en el dispositivo (`rpub`/`rsec` + sobres Ed25519 firmados). El único ser
 un **relé de señalización** en RAM. Mantén siempre: sin servidor de cuentas, sin base de datos de
 publicaciones y sin claves en el relé.
 
+## Regla obligatoria: rama independiente
+
+La rama `apk-android-magicrita` es **independiente**. Nunca se debe hacer merge, rebase, push ni
+mezclar cambios de esta rama hacia `main` **ni hacia ninguna otra rama** (ni viceversa) salvo
+petición explícita del usuario.
+
 ## Regla obligatoria: cero almacenamiento (solo este proyecto)
 
 Este proyecto **nunca** guarda datos de usuario fuera del dispositivo. Es innegociable:

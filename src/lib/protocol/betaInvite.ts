@@ -1,4 +1,5 @@
 import { ProtocolError } from "./errors";
+import { apiUrl } from "./apiBase";
 
 const KEY = "magicrita.betaInvite";
 const AT_KEY = "magicrita.betaInviteAt";
@@ -35,7 +36,7 @@ export function clearBetaInvite(): void {
 
 export async function betaInviteRequired(): Promise<boolean> {
   try {
-    const res = await fetch("/beta");
+    const res = await fetch(apiUrl("/beta"));
     if (!res.ok) return false;
     const data = (await res.json()) as { required?: boolean };
     return Boolean(data.required);
@@ -66,7 +67,7 @@ function recentlyRedeemed(code: string): boolean {
 export async function redeemBetaInvite(code: string): Promise<void> {
   const invite = code.trim();
   if (!invite) throw new ProtocolError("invite_required");
-  const res = await fetch("/beta/check", {
+  const res = await fetch(apiUrl("/beta/check"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ invite }),

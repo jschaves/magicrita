@@ -1,4 +1,5 @@
 import { parseAdminPath, sanitizeAdminPath } from "./sanitizeAdminPath";
+import { apiUrl } from "./protocol/apiBase";
 
 /**
  * La ruta viene del build (VITE_ADMIN_PATH), pero la que manda es la que guarde
@@ -17,7 +18,7 @@ export function currentAdminPath(): string {
 export async function loadAdminPath(): Promise<string> {
   if (asked) return current;
   try {
-    const res = await fetch("/admin-path", { cache: "no-store" });
+    const res = await fetch(apiUrl("/admin-path"), { cache: "no-store" });
     if (res.ok) {
       const data = (await res.json()) as { path?: unknown };
       // `parseAdminPath` devuelve null en vez del valor por defecto a proposito:

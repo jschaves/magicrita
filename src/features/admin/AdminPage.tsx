@@ -12,6 +12,7 @@ import {
 } from "@/lib/protocol/brand";
 import { assemblyReport, clearAssemblyLog, type AssemblyEvent } from "@/lib/protocol/diagnostics";
 import { runAssemblyGuardSelfTest, type GuardReport } from "@/lib/protocol/mesh";
+import { apiUrl } from "@/lib/protocol/apiBase";
 import {
   captchaFresh,
   fetchAdminCaptcha,
@@ -55,7 +56,7 @@ try {
 
 async function api(path: string, init?: RequestInit) {
   const token = adminToken ?? "";
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     ...init,
     headers: {
       "Content-Type": "application/json",
