@@ -224,7 +224,6 @@ export function MessagesPage() {
               className="inline-flex shrink-0 items-center gap-1 rounded-full border border-accent/40 px-3 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent hover:text-white"
             >
               <Phone size={16} />
-              <span className="hidden md:inline">{t("messages.call.button")}</span>
             </button>
           ) : null}
           {them && phase === "open" ? (
@@ -235,7 +234,6 @@ export function MessagesPage() {
               className="inline-flex shrink-0 items-center gap-1 rounded-full border border-accent/40 px-3 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent hover:text-white"
             >
               <Video size={16} />
-              <span className="hidden md:inline">{t("messages.videoCall.button")}</span>
             </button>
           ) : null}
         </div>
