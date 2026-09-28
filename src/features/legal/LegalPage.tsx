@@ -16,6 +16,7 @@ export function LegalPage() {
     { title: t("legal.philosophyTitle"), body: t("legal.philosophyBody") },
     { title: t("legal.dataTitle"), body: t("legal.dataBody") },
     { title: t("legal.termsTitle"), body: t("legal.termsBody") },
+    { title: t("terms.rulesTitle"), body: t("terms.rulesBody") },
     { title: t("legal.contactTitle"), body: t("legal.contactBody") },
   ];
 

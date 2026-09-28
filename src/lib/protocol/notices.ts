@@ -1,4 +1,5 @@
 import type { Envelope } from "./envelope";
+import { isNativeApp, notifyNative } from "./native";
 
 export const MAX_NOTICES = 10;
 
@@ -108,6 +109,10 @@ export function playNoticeBeep(): void {
 }
 
 export function pingDesktop(title: string, body: string, tag: string): void {
+  if (isNativeApp()) {
+    void notifyNative(title, body, tag);
+    return;
+  }
   if (typeof Notification === "undefined") return;
   if (Notification.permission !== "granted") return;
   try {

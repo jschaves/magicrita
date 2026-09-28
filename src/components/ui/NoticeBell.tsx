@@ -5,6 +5,7 @@ import { useRita } from "@/context/RitaProvider";
 import { useI18n, type MessageKey } from "@/i18n/I18nProvider";
 import { timeAgo } from "@/lib/format";
 import type { NoticeKind } from "@/lib/protocol/notices";
+import { ensureNativeNotifications, isNativeApp } from "@/lib/protocol/native";
 
 const KIND_KEY: Record<NoticeKind, MessageKey> = {
   chat: "notices.chat",
@@ -33,6 +34,10 @@ export function NoticeBell() {
   }, [open]);
 
   useEffect(() => {
+    if (isNativeApp()) {
+      void ensureNativeNotifications();
+      return;
+    }
     if (typeof Notification === "undefined") return;
     if (Notification.permission === "default") void Notification.requestPermission();
   }, []);

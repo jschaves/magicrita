@@ -38,7 +38,7 @@ Signed envelope:
 
 The canonical JSON of `v`, `type`, `author`, `ts`, and `body` is signed (without `sig`). Older envelopes signed with plain `JSON.stringify` key order are still accepted on receive.
 
-The secret is sealed on the device with **scrypt** (`N = 2¹⁵`, `r = 8`, `p = 1`) + **XChaCha20-Poly1305**; the unlocked key lives only in the tab's memory.
+The secret is sealed on the device with **scrypt** (`N = 2¹⁵`, `r = 8`, `p = 1`) + **XChaCha20-Poly1305**; the unlocked key lives in the tab's memory and, to survive a restart, is also kept **AES-GCM-encrypted** under a non-extractable device key in IndexedDB (erased on log out or delete identity, so the password is asked again only then).
 
 Every envelope received from the network also passes hard limits before it is stored: total size, nesting depth, key/item counts, string lengths, media refs, and a maximum forward `ts` skew (a signed future timestamp would break every “newest wins” rule).
 

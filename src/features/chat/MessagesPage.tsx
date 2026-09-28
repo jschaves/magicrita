@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type FormEvent, type UIEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type UIEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ImagePlus, Phone, PhoneOff, Video, VideoOff, X } from "lucide-react";
+import { ImagePlus, Phone, Video, X } from "lucide-react";
 import { Avatar } from "@/components/note/Avatar";
 import { Photo } from "@/components/note/Photo";
 import { Button } from "@/components/ui/Button";
@@ -13,8 +13,7 @@ import { VideoClip } from "@/components/ui/VideoClip";
 import { ResponsiveDock } from "@/components/ui/MobileDock";
 import { InfoButton } from "@/components/ui/InfoButton";
 import { ingestPhoto, ingestVideo, ingestVoice, type MediaRef } from "@/lib/protocol/media";
-import { canCallPeer, canReceiveFrom, getPeerCallPerm, notifyCallPerms, onPeerCallPerm, startCall } from "@/lib/protocol/call";
-import { CALL_POLICIES, loadCallPolicy, saveCallPolicy, savePeerCall, type CallMedia, type CallPolicy } from "@/lib/protocol/callPrefs";
+import { startCall } from "@/lib/protocol/call";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n, type MessageKey } from "@/i18n/I18nProvider";
 import { timeAgo } from "@/lib/format";
@@ -51,11 +50,6 @@ export function MessagesPage() {
   const { t, locale, errorMessage } = useI18n();
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [callPolicy, setCallPolicy] = useState<CallPolicy>(() => loadCallPolicy("audio"));
-  const [videoCallPolicy, setVideoCallPolicy] = useState<CallPolicy>(() => loadCallPolicy("video"));
-  // Los overrides por contacto viven en localStorage; este contador fuerza el
-  // re-render al cambiarlos.
-  const [, refreshPeerCall] = useReducer((n: number) => n + 1, 0);
   const [chatsPage, setChatsPage] = useState(0);
   const [chatQuery, setChatQuery] = useState("");
   const [photo, setPhoto] = useState<MediaRef | null>(null);
@@ -178,55 +172,6 @@ export function MessagesPage() {
     }
   }
 
-  function changeCallPolicy(media: CallMedia, policy: CallPolicy) {
-    if (media === "audio") setCallPolicy(policy);
-    else setVideoCallPolicy(policy);
-    saveCallPolicy(media, policy);
-    notifyCallPerms();
-  }
-
-  // El par comparte por el canal de datos si acepta nuestras llamadas; al
-  // recibirlo hay que repintar para ocultar/mostrar los iconos del header.
-  useEffect(() => onPeerCallPerm(() => refreshPeerCall()), []);
-
-  // La política manda: "Nadie" no muestra el botón; "Seguidos" solo con
-  // seguimiento mutuo; "Todos" siempre. Además, si el par ha marcado que no
-  // acepta nuestras llamadas, el icono no aparece.
-  const peerPerm = them ? getPeerCallPerm(them) : null;
-  const canCall = them ? canCallPeer("audio", them) && (peerPerm ? peerPerm.audio : true) : false;
-  const canVideoCall = them ? canCallPeer("video", them) && (peerPerm ? peerPerm.video : true) : false;
-  // Permiso de ENTRADA por contacto (con override): si puedo recibir llamadas o
-  // videollamadas de esta persona ahora mismo.
-  const receivesCalls = them ? canReceiveFrom("audio", them) : false;
-  const receivesVideo = them ? canReceiveFrom("video", them) : false;
-  // En un chat abierto (iniciado) se muestra el toggle por contacto salvo que la
-  // política sea "nadie" (no tendría sentido). Esté o no le sigas.
-  const showCallToggle = Boolean(them && phase === "open" && callPolicy !== "nobody");
-  const showVideoToggle = Boolean(them && phase === "open" && videoCallPolicy !== "nobody");
-
-  function togglePeerCall(media: CallMedia) {
-    if (!them) return;
-    savePeerCall(media, them, canReceiveFrom(media, them) ? "deny" : "allow");
-    refreshPeerCall();
-    notifyCallPerms();
-  }
-  const policyGroups = [
-    {
-      media: "audio" as const,
-      value: callPolicy,
-      title: t("messages.call.policy"),
-      hint: t("messages.call.policyHint"),
-      Icon: Phone,
-    },
-    {
-      media: "video" as const,
-      value: videoCallPolicy,
-      title: t("messages.videoCall.policy"),
-      hint: t("messages.videoCall.policyHint"),
-      Icon: Video,
-    },
-  ];
-
   function onSend(event: FormEvent) {
     event.preventDefault();
     if (!them) return;
@@ -255,26 +200,6 @@ export function MessagesPage() {
           {phase === "incoming" ? t("messages.decline") : t("messages.revoke")}
         </Button>
       ) : null}
-      {showCallToggle ? (
-        <Button
-          type="button"
-          variant={receivesCalls ? "secondary" : "danger"}
-          onClick={() => togglePeerCall("audio")}
-        >
-          {receivesCalls ? <PhoneOff size={16} /> : <Phone size={16} />}
-          {receivesCalls ? t("messages.call.disallowCalls") : t("messages.call.allowCalls")}
-        </Button>
-      ) : null}
-      {showVideoToggle ? (
-        <Button
-          type="button"
-          variant={receivesVideo ? "secondary" : "danger"}
-          onClick={() => togglePeerCall("video")}
-        >
-          {receivesVideo ? <VideoOff size={16} /> : <Video size={16} />}
-          {receivesVideo ? t("messages.videoCall.disallowCalls") : t("messages.videoCall.allowCalls")}
-        </Button>
-      ) : null}
       <Button
         type="button"
         variant="danger"
@@ -291,24 +216,26 @@ export function MessagesPage() {
         <div className="flex items-center gap-2">
           <h1 className="font-display text-2xl">{t("messages.title")}</h1>
           <InfoButton title={t("messages.title")} body={t("info.messages")} />
-          {them && phase === "open" && canCall ? (
+          {them && phase === "open" ? (
             <button
               type="button"
               onClick={() => void callPeer(false)}
               aria-label={t("messages.call.button")}
               className="inline-flex shrink-0 items-center gap-1 rounded-full border border-accent/40 px-3 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent hover:text-white"
             >
-              <Phone size={16} /> {t("messages.call.button")}
+              <Phone size={16} />
+              <span className="hidden md:inline">{t("messages.call.button")}</span>
             </button>
           ) : null}
-          {them && phase === "open" && canVideoCall ? (
+          {them && phase === "open" ? (
             <button
               type="button"
               onClick={() => void callPeer(true)}
               aria-label={t("messages.videoCall.button")}
               className="inline-flex shrink-0 items-center gap-1 rounded-full border border-accent/40 px-3 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent hover:text-white"
             >
-              <Video size={16} /> {t("messages.videoCall.button")}
+              <Video size={16} />
+              <span className="hidden md:inline">{t("messages.videoCall.button")}</span>
             </button>
           ) : null}
         </div>
@@ -316,41 +243,6 @@ export function MessagesPage() {
 
       {!them ? (
         <>
-        {policyGroups.map(({ media, value, title, hint, Icon }) => (
-          <div key={media} className="shrink-0 border-b border-line bg-paper px-4 py-3">
-            <div className="mb-1 flex items-center gap-1.5">
-              <Icon size={14} className="shrink-0 text-accent" />
-              <p className="text-sm font-semibold">{title}</p>
-            </div>
-            <p className="mb-2 text-xs text-muted">{hint}</p>
-            <div role="group" aria-label={title} className="flex flex-wrap gap-2">
-              {CALL_POLICIES.map((option) => {
-                const active = option === value;
-                const label =
-                  option === "nobody"
-                    ? t("messages.call.policyNobody")
-                    : option === "follows"
-                      ? t("messages.call.policyFollows")
-                      : t("messages.call.policyEveryone");
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => changeCallPolicy(media, option)}
-                    aria-pressed={active}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      active
-                        ? "bg-accent text-white"
-                        : "border border-line bg-paper text-ink hover:border-accent/40"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
         <div className="shrink-0 border-b border-line bg-paper px-4 py-3">
           <TextField
             label={t("messages.search")}

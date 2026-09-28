@@ -9,13 +9,15 @@ const LEGACY_LIVE_KEY = "magicrita.unlockedLive";
 const LOCK_TTL_MS = 15_000;
 
 /**
- * La rsec desbloqueada vive solo en la memoria de esta pestaña, nunca en
+ * La rsec desbloqueada vive en la memoria de esta pestaña, nunca en claro en
  * almacenamiento. `sessionStorage` ya era lo mínimo persistente, pero Firefox
- * lo escribe a disco y sobrevive a un cierre por fallo; con la clave en un
- * `CryptoKey` no extraíble habría sido mejor, salvo por el bug de Safari
- * 312279 (una clave no extraíble guardada en IndexedDB vuelve `null` al
- * releerla). El coste es que recargar vuelve a pedir la contraseña: es
- * justamente lo que la contraseña del vault debe hacer.
+ * lo escribe a disco y sobrevive a un cierre por fallo.
+ *
+ * Para no pedir la contraseña al reabrir la app, la sesión se recuerda aparte:
+ * una copia **cifrada** (AES-GCM con una clave del dispositivo no extraíble)
+ * vive en `sessionPersist.ts` y solo se borra al cerrar sesión o al borrar la
+ * identidad. `main.tsx` la descifra antes de montar la app y la deja aquí, en
+ * memoria; el resto del arranque sigue siendo síncrono.
  */
 let unlockedRsec: string | null = null;
 

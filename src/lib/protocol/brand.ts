@@ -1,3 +1,5 @@
+import { apiUrl } from "./apiBase";
+
 export const SITE_NAME = "MagicRita";
 export const LOGO_MAX_BYTES = 1_000_000;
 // Sin SVG a proposito: el logo se sirve en linea con su propio Content-Type, y
@@ -15,7 +17,7 @@ const EVENT = "magicrita-brand";
 
 export async function fetchBrand(): Promise<BrandInfo> {
   try {
-    const res = await fetch("/brand");
+    const res = await fetch(apiUrl("/brand"));
     if (!res.ok) return { logo: false };
     const data = (await res.json()) as BrandInfo;
     return {
@@ -29,7 +31,9 @@ export async function fetchBrand(): Promise<BrandInfo> {
 }
 
 export function logoUrl(updated?: number): string {
-  return typeof updated === "number" && updated > 0 ? `/brand/logo?t=${updated}` : "/brand/logo";
+  return typeof updated === "number" && updated > 0
+    ? `${apiUrl("/brand/logo")}?t=${updated}`
+    : apiUrl("/brand/logo");
 }
 
 export function notifyBrandChange(): void {
