@@ -8,6 +8,7 @@ import { Avatar } from "@/components/note/Avatar";
 import { useRita } from "@/context/RitaProvider";
 import { useI18n } from "@/i18n/I18nProvider";
 import { ingestPhoto, isAcceptedPhoto } from "@/lib/protocol/media";
+import { copyText } from "@/lib/protocol/native";
 import { MAX_BIO_CHARS, MAX_NAME_CHARS } from "@/lib/protocol/envelope";
 import { MobileDock } from "@/components/ui/MobileDock";
 import { useVisualViewport } from "@/lib/useVisualViewport";
@@ -141,7 +142,7 @@ export function SettingsPage() {
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => void navigator.clipboard.writeText(identity.rsec)}
+                onClick={() => void copyText(identity.rsec)}
               >
                 {t("common.copy")}
               </Button>

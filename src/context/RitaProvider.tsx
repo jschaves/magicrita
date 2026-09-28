@@ -82,6 +82,7 @@ import {
   saveUnlockedRsec,
   watchSessionLock,
 } from "@/lib/protocol/session";
+import { forgetSession, rememberSession } from "@/lib/protocol/sessionPersist";
 import { acceptRemoteEnvelope, broadcastEnvelope, listenEnvelopes } from "@/lib/protocol/bus";
 import {
   ingestMeshPacket,
@@ -296,6 +297,9 @@ export function RitaProvider({ children }: { children: ReactNode }) {
   const hydrate = useCallback((next: Identity) => {
     assertSingleSession(next.rpub);
     saveUnlockedRsec(next.rsec);
+    // Recuerda la sesion en el dispositivo: reabrir la app no vuelve a pedir la
+    // contraseña hasta que se cierre sesion o se borre la identidad.
+    void rememberSession(next.rsec, next.rpub);
     pruneDistinctChats();
     const stored = loadLog(next.rpub);
     setIdentity(next);
@@ -387,14 +391,25 @@ export function RitaProvider({ children }: { children: ReactNode }) {
     [hydrate],
   );
 
-  const logout = useCallback(() => {
-    if (identity) releaseSession(identity.rpub);
-    clearUnlockedRsec();
-    setIdentity(null);
-    setLog([]);
-    setStatus(loadVault() ? "locked" : "anonymous");
-    bump();
-  }, [bump, identity]);
+  /**
+   * Cierra la sesion en memoria. `forget` borra ademas la sesion recordada, de
+   * modo que la proxima vez se pida la contraseña. Al perder el lock frente a
+   * otra pestaña se conserva, porque eso no es un cierre de sesion del usuario.
+   */
+  const endSession = useCallback(
+    (forget: boolean) => {
+      if (identity) releaseSession(identity.rpub);
+      clearUnlockedRsec();
+      if (forget) void forgetSession();
+      setIdentity(null);
+      setLog([]);
+      setStatus(loadVault() ? "locked" : "anonymous");
+      bump();
+    },
+    [bump, identity],
+  );
+
+  const logout = useCallback(() => endSession(true), [endSession]);
 
   /**
    * Cambia la contraseña local probando la actual y re-cifrando la misma rsec
@@ -424,6 +439,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       }
     }
     clearUnlockedRsec();
+    void forgetSession();
     // El borrado nunca debe rechazar: aunque falle media o IndexedDB, se sale
     // igual a /welcome en vez de quedarse en una pantalla ya vacia.
     try {
@@ -713,7 +729,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
   const exportPublic = useCallback(async () => {
     if (!identity) throw new ProtocolError("not_unlocked");
     const bundle = await buildBundle({ kind: "public", rpubs: [identity.rpub] });
-    downloadBundle(bundle, `magicrita-${identity.rpub.slice(0, 12)}.json`);
+    await downloadBundle(bundle, `magicrita-${identity.rpub.slice(0, 12)}.json`);
   }, [identity]);
 
   const exportBackup = useCallback(async () => {
@@ -728,7 +744,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       rpubs,
       vault: vault ? { ...vault, invite } : vault ?? undefined,
     });
-    downloadBundle(bundle, `magicrita-backup-${Date.now()}.json`);
+    await downloadBundle(bundle, `magicrita-backup-${Date.now()}.json`);
   }, [identity, vault]);
 
   const importBundleFile = useCallback(
@@ -834,20 +850,20 @@ export function RitaProvider({ children }: { children: ReactNode }) {
     const beat = () => {
       if (heartbeatSession(identity.rpub)) return;
       notifySessionExists();
-      logout();
+      endSession(false);
     };
     beat();
     const timer = window.setInterval(beat, 4000);
     return () => window.clearInterval(timer);
-  }, [identity, status, logout]);
+  }, [identity, status, endSession]);
 
   useEffect(() => {
     if (status !== "ready") return;
     return watchSessionLock(() => {
       notifySessionExists();
-      logout();
+      endSession(false);
     });
-  }, [status, logout]);
+  }, [status, endSession]);
 
   const profileEnvelope = latestProfile(log);
   const profile = profileEnvelope?.type === "profile" ? profileEnvelope.body : null;

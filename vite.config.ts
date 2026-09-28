@@ -192,24 +192,45 @@ function signalPlugin(env: Record<string, string>): Plugin {
  * produccion no hay scripts en linea, y ademas se acota `connect-src` al host de
  * senalizacion en vez de permitir cualquier `ws:`/`wss:` (vector de exfiltracion
  * si hubiera un XSS).
+ *
+ * En el APK (`VITE_APP_TARGET=android`) el origen del WebView no es el relé, que
+ * vive en un servidor externo, así que hay que permitir ese host de forma
+ * explícita: `connect-src` para WebSocket/API, `img-src` y `media-src` para el
+ * logo servido por el relé.
  */
+function originOf(url: string): string | null {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
 function cspPlugin(env: Record<string, string>): Plugin {
   return {
     name: "magicrita-csp",
     apply: "build",
     transformIndexHtml(html) {
       const signal = String(env.VITE_SIGNAL_URL || "").trim();
-      let connect = "'self'";
-      if (signal) {
-        try {
-          connect += ` ${new URL(signal).origin}`;
-        } catch {
-          // si no es una URL absoluta, se queda solo 'self'
-        }
+      const api = String(env.VITE_API_BASE || "").trim().replace(/\/+$/, "");
+      const connect = new Set<string>(["'self'"]);
+      const img = new Set<string>(["'self'", "data:", "blob:"]);
+      const media = new Set<string>(["'self'", "data:", "blob:"]);
+
+      for (const origin of [originOf(signal), originOf(api)]) {
+        if (!origin) continue;
+        const host = origin.replace(/^[a-z]+:\/\//i, "");
+        connect.add(`wss://${host}`);
+        connect.add(`https://${host}`);
+        img.add(`https://${host}`);
+        media.add(`https://${host}`);
       }
+
       return html
         .replace("script-src 'self' 'unsafe-inline'", "script-src 'self'")
-        .replace("connect-src 'self' ws: wss:", `connect-src ${connect}`);
+        .replace("img-src 'self' data: blob:", `img-src ${[...img].join(" ")}`)
+        .replace("media-src 'self' data: blob:", `media-src ${[...media].join(" ")}`)
+        .replace("connect-src 'self' ws: wss:", `connect-src ${[...connect].join(" ")}`);
     },
   };
 }

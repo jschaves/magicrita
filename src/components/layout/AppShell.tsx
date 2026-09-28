@@ -132,7 +132,7 @@ function ShellLayout() {
               : "overflow-x-clip overflow-y-auto overscroll-y-contain"
           } ${padDock ? "pb-[var(--rita-dock,4.5rem)]" : "pb-0"}`}
         >
-          <div className="flex shrink-0 items-center justify-end border-b border-line px-4 py-2">
+          <div className="flex shrink-0 items-center justify-end border-b border-line px-4 pb-2 pt-[max(1.25rem,env(safe-area-inset-top))] md:py-2">
             <Link to="/" className="mr-auto md:hidden">
               <SiteMark size="sm" />
             </Link>

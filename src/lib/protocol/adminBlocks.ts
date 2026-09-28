@@ -1,3 +1,5 @@
+import { apiUrl } from "./apiBase";
+
 export type StaffBlocks = { users: string[]; comments: string[] };
 
 const empty: StaffBlocks = { users: [], comments: [] };
@@ -16,7 +18,7 @@ export async function checkStaffBlocks(
 ): Promise<StaffBlocks> {
   if (!rpubs.length && !sigs.length) return empty;
   try {
-    const res = await fetch("/moderation/check", {
+    const res = await fetch(apiUrl("/moderation/check"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ rpubs, sigs }),

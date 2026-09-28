@@ -1,5 +1,6 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, utf8ToBytes } from "./bytes";
+import { apiUrl } from "./apiBase";
 
 /**
  * Captcha del login de admin: reto firmado que se resuelve con prueba de trabajo.
@@ -56,7 +57,7 @@ function counterFits(bits: number): boolean {
 }
 
 export async function fetchAdminCaptcha(): Promise<AdminCaptchaChallenge> {
-  const res = await fetch("/admin-api/captcha", { headers: { Accept: "application/json" } });
+  const res = await fetch(apiUrl("/admin-api/captcha"), { headers: { Accept: "application/json" } });
   if (!res.ok) throw new Error("captcha_unavailable");
   const data = (await res.json()) as Partial<AdminCaptchaChallenge>;
   if (

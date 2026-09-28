@@ -1,8 +1,6 @@
-import { ICE_SERVERS, isPeerLive, onCallSignal, publishCallPerms, selfRpub, sendCallSignal, setCallPermProvider, signWithSelf, type CallSignal } from "./mesh";
+import { ICE_SERVERS, isPeerLive, onCallSignal, selfRpub, sendCallSignal, signWithSelf, type CallSignal } from "./mesh";
 import { hexToBytes, utf8ToBytes } from "./bytes";
 import { parseRpub, verifyBytes } from "./identity";
-import { loadCallPolicy, loadPeerCall, type CallMedia } from "./callPrefs";
-import { latestFollows, loadLog } from "./store";
 
 /**
  * Llamada P2P de audio o vídeo.
@@ -146,31 +144,6 @@ function verifyIncoming(from: string, call: CallSignal): boolean {
   }
 }
 
-/**
- * ¿La política general permite llamadas (de audio o vídeo) con `peer`? Con
- * `follows` exige seguimiento mutuo. Decide si se muestra el botón de llamar.
- */
-export function canCallPeer(media: CallMedia, peer: string): boolean {
-  const policy = loadCallPolicy(media);
-  if (policy === "everyone") return true;
-  if (policy === "nobody") return false;
-  const me = selfRpub();
-  if (!me) return false;
-  if (!latestFollows(loadLog(me)).includes(peer)) return false;
-  return latestFollows(loadLog(peer)).includes(me);
-}
-
-/**
- * ¿Puedo recibir llamadas (de audio o vídeo) de `peer`? El override por
- * contacto manda sobre la política general; sin override, aplica la general.
- */
-export function canReceiveFrom(media: CallMedia, peer: string): boolean {
-  const override = loadPeerCall(media, peer);
-  if (override === "allow") return true;
-  if (override === "deny") return false;
-  return canCallPeer(media, peer);
-}
-
 function iceJson(candidate: RTCIceCandidate): RTCIceCandidateInit {
   if (typeof candidate.toJSON === "function") return candidate.toJSON();
   return {
@@ -201,7 +174,18 @@ function newPc(peer: string): RTCPeerConnection {
   };
   pc.ontrack = (event) => {
     if (!current || current.pc !== pc) return;
-    current.remote = event.streams[0] ?? new MediaStream([event.track]);
+    // Normalmente `event.streams[0]` trae ya las dos pistas. Si el navegador no
+    // lo rellena (algunos WebView), se acumulan en un único MediaStream para no
+    // perder el audio al llegar después la pista de vídeo.
+    if (event.streams[0]) {
+      current.remote = event.streams[0];
+    } else {
+      const stream = current.remote ?? new MediaStream();
+      if (!stream.getTracks().some((track) => track.id === event.track.id)) {
+        stream.addTrack(event.track);
+      }
+      current.remote = stream;
+    }
     emit();
   };
   pc.onconnectionstatechange = () => {
@@ -363,11 +347,6 @@ function handleSignal(from: string, call: CallSignal) {
       if (current.id !== call.id) sendSigned(from, { id: call.id, video, busy: true });
       return;
     }
-    // La política (con el override por contacto) decide si puede llamarme.
-    if (!canReceiveFrom(video ? "video" : "audio", from)) {
-      sendSigned(from, { id: call.id, video, busy: true });
-      return;
-    }
     const pc = newPc(from);
     current = {
       peer: from,
@@ -415,17 +394,3 @@ function handleSignal(from: string, call: CallSignal) {
 }
 
 onCallSignal(handleSignal);
-
-// El mesh pide el permiso al abrir un canal; aquí se calcula con la política
-// general más el override por contacto. `notifyCallPerms` lo reenvía tras un
-// cambio para que el otro extremo oculte/muestre sus iconos.
-setCallPermProvider((rpub) => ({
-  audio: canReceiveFrom("audio", rpub),
-  video: canReceiveFrom("video", rpub),
-}));
-
-export function notifyCallPerms(): void {
-  publishCallPerms();
-}
-
-export { getPeerCallPerm, onPeerCallPerm, type CallPerm } from "./mesh";

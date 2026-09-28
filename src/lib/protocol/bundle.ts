@@ -2,6 +2,7 @@ import { base64ToBytes, bytesToBase64 } from "./bytes";
 import { isEnvelope, mediaRefsOf, verifyEnvelope, type Envelope } from "./envelope";
 import { ProtocolError } from "./errors";
 import { loadMediaRecord, putMediaBytes, type MediaRef } from "./media";
+import { saveTextFile } from "./native";
 import { loadLog, mergeEnvelopes } from "./store";
 import type { VaultRecord } from "./vault";
 
@@ -117,12 +118,6 @@ export function parseBundle(text: string): MagicRitaBundle {
   return parsed;
 }
 
-export function downloadBundle(bundle: MagicRitaBundle, filename: string): void {
-  const blob = new Blob([JSON.stringify(bundle)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
+export async function downloadBundle(bundle: MagicRitaBundle, filename: string): Promise<void> {
+  await saveTextFile(filename, JSON.stringify(bundle), "application/json");
 }
