@@ -36,6 +36,8 @@ export type LiveSession =
 export type LiveSnapshot = {
   lives: LiveInfo[];
   session: LiveSession;
+  /** true mientras se espera el primer anuncio tras pedir la lista. */
+  loading: boolean;
 };
 
 const LIVE_DOMAIN = "rita-live-v1";
@@ -64,9 +66,11 @@ const lives = new Map<string, LiveInfo>();
 let broadcast: Broadcast | null = null;
 let viewing: Viewing | null = null;
 let pruneTimer = 0;
+let discovering = false;
+let discoverTimer = 0;
 
 const listeners = new Set<() => void>();
-let snapshot: LiveSnapshot = { lives: [], session: null };
+let snapshot: LiveSnapshot = { lives: [], session: null, loading: false };
 
 function emit() {
   snapshot = {
@@ -82,8 +86,18 @@ function emit() {
       : viewing
         ? { role: "viewing", id: viewing.id, host: viewing.host, remote: viewing.remote }
         : null,
+    loading: discovering,
   };
   for (const listener of listeners) listener();
+}
+
+function stopDiscovering() {
+  if (!discovering) return;
+  discovering = false;
+  if (discoverTimer) {
+    window.clearTimeout(discoverTimer);
+    discoverTimer = 0;
+  }
 }
 
 export function subscribeLive(listener: () => void): () => void {
@@ -264,6 +278,15 @@ export function requestLives(): void {
   if (!me) return;
   const id = newId();
   for (const to of liveRpubs()) sendSigned(to, { id, kind: "discover" });
+  // Muestra el estado de carga hasta el primer anuncio (o un instante corto).
+  discovering = true;
+  emit();
+  if (discoverTimer) window.clearTimeout(discoverTimer);
+  discoverTimer = window.setTimeout(() => {
+    discoverTimer = 0;
+    stopDiscovering();
+    emit();
+  }, 1500);
 }
 
 export async function joinLive(id: string): Promise<void> {
@@ -352,15 +375,27 @@ function handleSignal(from: string, signal: LiveSignal) {
   switch (signal.kind) {
     case "announce": {
       if (typeof signal.startedAt !== "number" || from === selfRpub()) return;
-      lives.set(signal.id, {
-        id: signal.id,
-        host: from,
-        title: (signal.title ?? "Directo").slice(0, 80),
-        startedAt: signal.startedAt,
-        seenAt: Date.now(),
-      });
-      rememberPrune();
-      emit();
+      const title = (signal.title ?? "Directo").slice(0, 80);
+      const info = lives.get(signal.id);
+      const changed =
+        !info || info.host !== from || info.title !== title || info.startedAt !== signal.startedAt;
+      if (info && !changed) {
+        // Mismo directo: solo se refresca el latido, sin repintar (evita el parpadeo).
+        info.seenAt = Date.now();
+      } else {
+        lives.set(signal.id, {
+          id: signal.id,
+          host: from,
+          title,
+          startedAt: signal.startedAt,
+          seenAt: Date.now(),
+        });
+        rememberPrune();
+      }
+      if (changed || discovering) {
+        stopDiscovering();
+        emit();
+      }
       return;
     }
     case "discover": {
@@ -409,11 +444,9 @@ onLiveSignal(handleSignal);
 
 /** Al cerrar sesión o borrar la identidad: corta cualquier directo. */
 export function resetLive(): void {
+  stopDiscovering();
   if (broadcast) stopBroadcast();
-  if (viewing) {
-    endViewing();
-    emit();
-  }
+  if (viewing) endViewing();
   lives.clear();
   emit();
 }

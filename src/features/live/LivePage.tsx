@@ -20,7 +20,7 @@ import {
 import { shortenId } from "@/lib/protocol/identity";
 
 const PAGE = 5;
-const EMPTY: LiveSnapshot = { lives: [], session: null };
+const EMPTY: LiveSnapshot = { lives: [], session: null, loading: false };
 
 export function LivePage() {
   const live = useSyncExternalStore(subscribeLive, getLiveSnapshot, () => EMPTY);
@@ -135,7 +135,12 @@ export function LivePage() {
         </div>
 
         <div>
-          {ordered.length === 0 ? (
+          {live.loading && ordered.length === 0 ? (
+            <div className="flex items-center gap-2 text-sm text-muted">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-accent" />
+              {tt("liveLoading")}
+            </div>
+          ) : ordered.length === 0 ? (
             <p className="text-sm text-muted">{tt("liveEmpty")}</p>
           ) : (
             <>
