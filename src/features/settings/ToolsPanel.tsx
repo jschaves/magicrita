@@ -164,6 +164,7 @@ export function ToolsPanel() {
       <div className="space-y-3">
         <h3 className="font-display text-lg">{tt("recovery")}</h3>
         <p className="text-sm text-muted">{tt("recoveryHint")}</p>
+        <p className="text-xs text-muted">{tt("recoverySetupHint")}</p>
         {candidates.length === 0 ? (
           <p className="text-sm text-muted">{tt("noContacts")}</p>
         ) : (
@@ -205,6 +206,7 @@ export function ToolsPanel() {
                 type="password"
                 value={recPassword}
                 onChange={(e) => setRecPassword(e.target.value)}
+                hint={tt("recoveryPasswordHint")}
                 autoComplete="new-password"
               />
             </div>

@@ -64,6 +64,7 @@ export function RecoverPage() {
       <Card>
         <p className="font-display text-3xl text-plum">{tt("recoverTitle")}</p>
         <p className="mt-2 text-sm text-muted">{tt("recoverHint")}</p>
+        <p className="mt-2 text-xs text-muted">{tt("recoverSteps")}</p>
         <form className="mt-6 space-y-4" onSubmit={(event) => void onSubmit(event)}>
           <TextArea
             label={tt("shares")}
