@@ -17,6 +17,7 @@ import { ComposePage } from "@/features/compose/ComposePage";
 import { NotePage } from "@/features/note/NotePage";
 import { ProfilePage } from "@/features/profile/ProfilePage";
 import { MessagesPage } from "@/features/chat/MessagesPage";
+import { LivePage } from "@/features/live/LivePage";
 import { SettingsPage } from "@/features/settings/SettingsPage";
 import { PeoplePage } from "@/features/people/PeoplePage";
 import { SavedPage } from "@/features/saved/SavedPage";
@@ -118,6 +119,7 @@ export default function App() {
                 <Route path="/p/:rpub" element={<ProfilePage />} />
                 <Route path="/messages" element={<MessagesPage />} />
                 <Route path="/messages/:rpub" element={<MessagesPage />} />
+                <Route path="/live" element={<LivePage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
               {ANDROID ? (

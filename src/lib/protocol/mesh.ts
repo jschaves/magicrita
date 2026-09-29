@@ -66,6 +66,22 @@ export type CallSignal = {
   busy?: boolean;
 };
 
+/**
+ * Señalización de un directo, efímera: viaja dentro del mismo `signal` del relé
+ * y nunca se guarda. Un directo es un anuncio (id, título, inicio) y, por cada
+ * espectador, una conexión P2P de una sola dirección.
+ */
+export type LiveSignal = {
+  id: string;
+  rpub?: string;
+  sig?: string;
+  kind: "announce" | "discover" | "end" | "join" | "leave" | "offer" | "answer" | "cand";
+  title?: string;
+  startedAt?: number;
+  desc?: RTCSessionDescriptionInit;
+  cand?: RTCIceCandidateInit;
+};
+
 type SignalIn =
   | { type: "peers"; peers: LivePeer[] }
   | { type: "join"; peer: LivePeer }
@@ -73,7 +89,12 @@ type SignalIn =
   | {
       type: "signal";
       from: string;
-      payload: { desc?: RTCSessionDescriptionInit; cand?: RTCIceCandidateInit; call?: CallSignal };
+      payload: {
+        desc?: RTCSessionDescriptionInit;
+        cand?: RTCIceCandidateInit;
+        call?: CallSignal;
+        live?: LiveSignal;
+      };
     }
   | { type: "held"; envelopes: Envelope[] }
   | { type: "blob"; hash: string; mime?: string; tier?: string; i: number; n: number; size?: number; data: string }
@@ -221,6 +242,26 @@ export function onCallSignal(handler: (from: string, call: CallSignal) => void):
 
 export function sendCallSignal(to: string, call: CallSignal): void {
   sendSignal({ type: "signal", to, payload: { call } });
+}
+
+let liveSignalHandler: ((from: string, signal: LiveSignal) => void) | null = null;
+
+/** Encamina la señalización de directos que llega por el canal `signal`. */
+export function onLiveSignal(handler: (from: string, signal: LiveSignal) => void): () => void {
+  liveSignalHandler = handler;
+  return () => {
+    if (liveSignalHandler === handler) liveSignalHandler = null;
+  };
+}
+
+export function sendLiveSignal(to: string, signal: LiveSignal): void {
+  sendSignal({ type: "signal", to, payload: { live: signal } });
+}
+
+/** `rpub` de los pares conectados ahora mismo (para difundir un directo). */
+export function liveRpubs(): string[] {
+  const me = self?.rpub;
+  return live.map((peer) => peer.rpub).filter((rpub) => rpub && rpub !== me);
 }
 
 /** El relé solo reenvía señales a quien está en el roster ahora mismo. */
@@ -1092,8 +1133,9 @@ export function listenMesh(
         setLive(live.filter((peer) => peer.rpub !== msg.rpub));
       }
       if (msg.type === "signal" && msg.from) {
-        // La llamada de voz reutiliza el mismo `signal`; se distingue por `call`.
-        if (msg.payload.call) callSignalHandler?.(msg.from, msg.payload.call);
+        // Llamadas y directos reutilizan el mismo `signal`; se distinguen por `call`/`live`.
+        if (msg.payload.live) liveSignalHandler?.(msg.from, msg.payload.live);
+        else if (msg.payload.call) callSignalHandler?.(msg.from, msg.payload.call);
         else void onSignal(msg.from, msg.payload);
       }
       if (msg.type === "held" && Array.isArray(msg.envelopes)) takeHeld(msg.envelopes);

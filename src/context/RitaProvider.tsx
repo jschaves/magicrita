@@ -71,6 +71,7 @@ import {
   type VaultRecord,
 } from "@/lib/protocol/vault";
 import { createRecoveryShares } from "@/lib/protocol/recovery";
+import { resetLive } from "@/lib/protocol/live";
 import { ProtocolError } from "@/lib/protocol/errors";
 import { purgeForeignIdentities, wipeBrowserRita, wipeRitaPreservingInvite } from "@/lib/protocol/wipe";
 import { checkStaffBlocks, MOD_CHECK_CHUNK, type StaffBlocks } from "@/lib/protocol/adminBlocks";
@@ -432,6 +433,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
   const endSession = useCallback(
     (forget: boolean) => {
       if (identity) releaseSession(identity.rpub);
+      resetLive();
       clearUnlockedRsec();
       if (forget) void forgetSession();
       setIdentity(null);
@@ -471,6 +473,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
         // el aviso a los pares no puede impedir borrar la identidad
       }
     }
+    resetLive();
     clearUnlockedRsec();
     void forgetSession();
     // El borrado nunca debe rechazar: aunque falle media o IndexedDB, se sale
