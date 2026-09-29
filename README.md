@@ -4,7 +4,7 @@ MagicRita is a **local-first social network with its own protocol**. It is not a
 
 The product is **100% decentralized for social data**. There is no account server, no post database, and no cloud that owns your life. Your identity, notes, photos, audio, video, follows, and encrypted chat live on **your device**. When someone else is online, envelopes travel **peer to peer** over WebRTC. The only shared machine is a **signaling relay**: it introduces browsers that are connected *right now*. It does not store posts, profiles, or secret keys. A RAM mailbox for a briefly absent peer is wiped when the process restarts.
 
-You are the owner and custodian of your information. If you lose the secret key (`rsec`), nobody can recover the account.
+You are the owner and custodian of your information. There is no central recovery: if you lose the secret key (`rsec`) without setting up **social recovery** with guardians, the account is gone.
 
 MagicRita **does not use email for anything**. There is no signup by mail, no verification mail, no password reset, and no notifications by mail. The app **neither sends nor receives email**. Identity is the key on your device, not an inbox. (The beta invitation code is handed out by a human over email; the app itself never mails anything.)
 
