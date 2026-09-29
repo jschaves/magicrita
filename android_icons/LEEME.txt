@@ -1,39 +1,22 @@
-Iconos Android generados a partir del logo
-==========================================
+Iconos Android — logo con filo blanco
+=====================================
 
-Copia la carpeta res/ dentro de app/src/main/ (fusiona con tu res existente).
+Copia res/ dentro de app/src/main/.
 
-Contenido
----------
-res/mipmap-mdpi … xxxhdpi/
-  ic_launcher.png              icono legacy (48, 72, 96, 144, 192 px)
-  ic_launcher_round.png        misma imagen (máscara redonda la aplica el sistema)
-  ic_launcher_foreground.png   capa foreground del icono adaptativo (108–432 px)
-  ic_launcher_monochrome.png   capa themed icon (Android 13+)
+El dibujo lleva un contorno blanco para separarlo del fondo #0A0A0A
+y de máscaras oscuras. Está dentro de la zona segura (66/108).
 
-res/mipmap-anydpi-v26/
-  ic_launcher.xml
-  ic_launcher_round.xml
-
+res/mipmap-*/ic_launcher.png y ic_launcher_round.png
+res/mipmap-*/ic_launcher_foreground.png
+res/mipmap-*/ic_launcher_monochrome.png
+res/mipmap-anydpi-v26/ic_launcher.xml
+res/mipmap-anydpi-v26/ic_launcher_round.xml
 res/values/ic_launcher_background.xml
-  fondo #0A0A0A
-
-res/drawable-mdpi … xxxhdpi/
-  ic_notification.png          silueta blanca para la barra de estado
-
-playstore/ic_launcher-playstore.png
-  512×512 para Google Play Console
-
+res/drawable-*/ic_notification.png
+playstore/ic_launcher-playstore.png (512)
 master_1024.png
-  master de alta resolución
-
 logo_transparent_512.png
-  logo suelto, fondo transparente
 
-En AndroidManifest.xml
-----------------------
-android:icon="@mipmap/ic_launcher"
-android:roundIcon="@mipmap/ic_launcher_round"
-
-El dibujo está dentro de la zona segura (66/108) para que no se recorte
-en máscaras circulares, squircle o rounded-square.
+AndroidManifest:
+  android:icon="@mipmap/ic_launcher"
+  android:roundIcon="@mipmap/ic_launcher_round"
