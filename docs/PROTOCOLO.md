@@ -52,6 +52,14 @@ On import, every Ed25519 signature and every photo SHA-256 hash is verified.
 
 There is no account server and no content server.
 
+## Tools: provenance, offline sync and social recovery
+
+Three extra mechanisms, all on-device and peer-to-peer; the relay only carries the usual signaling and envelopes.
+
+- **Verifiable provenance.** `magicrita-proof` is portable text `{ "schema": "magicrita-proof", "v": 1, "envelope": <signed envelope> }` for a `post`, `profile`, or `comment`. Anyone can re-verify it offline: the Ed25519 signature over the canonical JSON of `v`, `type`, `author`, `ts`, `body` must match the embedded `author`. Peers can also co-sign with an `attest` envelope (`body.target` = the signed envelope's `sig`), shown as confirmations.
+- **Offline sync.** `magicrita-sync:1:<base64({ "v": 1, "envelopes": [...] })>` packs already-signed envelopes so they can be moved to another device with no network (file, clipboard, QR). Every envelope is re-verified with `isEnvelope` + `verifyEnvelope` on import; nothing is trusted just because it came over a manual channel.
+- **Social recovery.** The 32-byte `rsec` is split with **Shamir over GF(256)** (poly `0x11d`) into N shares, M of which reconstruct it. Each share is encrypted with **XChaCha20-Poly1305** under a 32-byte key derived from the owner's **recovery password** with **scrypt** (`N = 2¹⁵`, `r = 8`, `p = 1`) and a per-set salt, then sent to a guardian as a signed `recovery_share` envelope: `{ to, owner, id, index, total, threshold, generation, salt, n, box }`. The guardian stores an opaque blob it cannot read. Recovery gathers M owner-signed shares (from any channel) plus the password, decrypts each share, recombines the polynomial at `x = 0`, and checks that the resulting key's `rpub` equals `owner`. A new setup uses a new `generation`, invalidating old shares. No server, no email, no phone.
+
 ## Anti-spam (no disk on the relay)
 
 - Every `hello` to the relay carries a SHA-256 proof of work (`rita-pow-v1:rpub:nonce`). The relay checks it in RAM and cuts IPs or keys that fire too often.

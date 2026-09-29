@@ -13,6 +13,7 @@ import { MAX_BIO_CHARS, MAX_NAME_CHARS } from "@/lib/protocol/envelope";
 import { MobileDock } from "@/components/ui/MobileDock";
 import { useVisualViewport } from "@/lib/useVisualViewport";
 import { InfoButton } from "@/components/ui/InfoButton";
+import { ToolsPanel } from "@/features/settings/ToolsPanel";
 import { betaInviteRequired, loadBetaInvite } from "@/lib/protocol/betaInvite";
 
 export function SettingsPage() {
@@ -308,6 +309,8 @@ export function SettingsPage() {
             </Button>
           </div>
         </div>
+
+        <ToolsPanel />
 
         <div className="space-y-2">
           <Button

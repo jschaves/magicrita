@@ -108,6 +108,26 @@ export type ChatTextBody = {
   replies?: string;
 };
 
+/** Co-firma de procedencia: "vi este sobre (sig) y existia en mi ts". */
+export type AttestBody = { target: string };
+
+/**
+ * Participacion de recuperacion social, cifrada con la contraseña de
+ * recuperacion del dueño. El guardian solo guarda un blob que no puede leer.
+ */
+export type RecoveryShareBody = {
+  to: string;
+  owner: string;
+  id: string;
+  index: number;
+  total: number;
+  threshold: number;
+  generation: number;
+  salt: string;
+  n: string;
+  box: string;
+};
+
 export type Envelope =
   | { v: 1; type: "profile"; author: string; ts: number; body: ProfileBody; sig: string }
   | { v: 1; type: "post"; author: string; ts: number; body: PostBody; sig: string }
@@ -121,7 +141,9 @@ export type Envelope =
   | { v: 1; type: "gone"; author: string; ts: number; body: GoneBody; sig: string }
   | { v: 1; type: "invite"; author: string; ts: number; body: InviteBody; sig: string }
   | { v: 1; type: "chat_consent"; author: string; ts: number; body: ChatConsentBody; sig: string }
-  | { v: 1; type: "chat_text"; author: string; ts: number; body: ChatTextBody; sig: string };
+  | { v: 1; type: "chat_text"; author: string; ts: number; body: ChatTextBody; sig: string }
+  | { v: 1; type: "attest"; author: string; ts: number; body: AttestBody; sig: string }
+  | { v: 1; type: "recovery_share"; author: string; ts: number; body: RecoveryShareBody; sig: string };
 
 /**
  * JSON canónico: claves de objeto ordenadas, arrays en su orden. Dos
@@ -319,6 +341,18 @@ export function signChatText(
   return signed(identity, "chat_text", body, ts);
 }
 
+export function signAttest(identity: Identity, target: string, ts = Date.now()): Envelope {
+  return signed(identity, "attest", { target }, ts);
+}
+
+export function signRecoveryShare(
+  identity: Identity,
+  body: RecoveryShareBody,
+  ts = Date.now(),
+): Envelope {
+  return signed(identity, "recovery_share", body, ts);
+}
+
 export function verifyEnvelope(envelope: Envelope): boolean {
   try {
     if (envelope.v !== 1) return false;
@@ -421,6 +455,22 @@ export function isEnvelope(value: unknown): value is Envelope {
         env.body.media.length <= MAX_RECEIVED_MEDIA &&
         env.body.media.every(isMediaRef))
     );
+  }
+  if (env.type === "attest") {
+    return short(env.body?.target, MAX_RECEIVED_LABEL);
+  }
+  if (env.type === "recovery_share") {
+    const body = env.body;
+    if (!short(body?.to, MAX_RECEIVED_HASH) || !short(body?.owner, MAX_RECEIVED_HASH)) return false;
+    if (!short(body?.id, MAX_RECEIVED_LABEL) || !short(body?.salt, 128)) return false;
+    if (!short(body?.n, MAX_RECEIVED_NONCE) || !short(body?.box, MAX_RECEIVED_BOX)) return false;
+    const nums = [body.index, body.total, body.threshold, body.generation];
+    if (!nums.every((value) => Number.isSafeInteger(value))) return false;
+    if (body.index < 1 || body.generation < 1) return false;
+    if (body.total < 2 || body.total > 255 || body.threshold < 2 || body.threshold > body.total) {
+      return false;
+    }
+    return true;
   }
   return false;
 }

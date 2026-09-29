@@ -66,7 +66,7 @@ function detectLocale(): Locale {
   return found;
 }
 
-function lookup(messages: Messages, key: MessageKey): string | undefined {
+function lookup(messages: Messages, key: string): string | undefined {
   const parts = key.split(".");
   let current: unknown = messages;
   for (const part of parts) {
@@ -112,10 +112,16 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const errorMessage = useCallback(
     (error: unknown, fallback: MessageKey) => {
       if (isProtocolError(error)) {
-        return t(`errors.${error.code}` as MessageKey);
+        // Las herramientas nuevas pueden lanzar codigos sin traduccion: en ese
+        // caso se usa el texto de respaldo en vez de mostrar la clave cruda.
+        const key = `errors.${error.code}`;
+        if (lookup(dictionaries[locale], key) || lookup(dictionaries.es, key)) {
+          return t(key as MessageKey);
+        }
+        return t(fallback);
       }
       if (error instanceof Error && error.message in dictionaries.es.errors) {
-        return t(`errors.${error.message as ProtocolErrorCode}`);
+        return t(`errors.${error.message as ProtocolErrorCode}` as MessageKey);
       }
       return t(fallback);
     },

@@ -22,6 +22,7 @@ import {
   listKnownRpubs,
   loadLog,
   appendEnvelope,
+  mergeEnvelopes,
   pruneDistinctChats,
   onStorageTrim,
 } from "@/lib/protocol/store";
@@ -38,6 +39,7 @@ import {
   signPost,
   signProfile,
   signReport,
+  signAttest,
   MAX_CHAT_CHARS,
   type Envelope,
   type ProfileBody,
@@ -68,6 +70,7 @@ import {
   wrapSecret,
   type VaultRecord,
 } from "@/lib/protocol/vault";
+import { createRecoveryShares } from "@/lib/protocol/recovery";
 import { ProtocolError } from "@/lib/protocol/errors";
 import { purgeForeignIdentities, wipeBrowserRita, wipeRitaPreservingInvite } from "@/lib/protocol/wipe";
 import { checkStaffBlocks, MOD_CHECK_CHUNK, type StaffBlocks } from "@/lib/protocol/adminBlocks";
@@ -217,6 +220,9 @@ type RitaContextValue = {
     currentPassword?: string,
     invite?: string,
   ) => Promise<{ authors: number; vaultRestored: boolean }>;
+  attest: (target: string) => void;
+  setupRecovery: (password: string, guardians: string[], threshold: number) => Promise<number>;
+  importEnvelopes: (envelopes: Envelope[]) => number;
 };
 
 const RitaContext = createContext<RitaContextValue | null>(null);
@@ -292,6 +298,33 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       void publishMesh(envelope).catch(() => undefined);
     },
     [bump, identity],
+  );
+
+  const attest = useCallback(
+    (target: string) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      emit(signAttest(identity, target));
+    },
+    [emit, identity],
+  );
+
+  const setupRecovery = useCallback(
+    async (password: string, guardians: string[], threshold: number) => {
+      if (!identity) throw new ProtocolError("not_unlocked");
+      const envelopes = await createRecoveryShares(identity, { password, guardians, threshold });
+      for (const envelope of envelopes) emit(envelope);
+      return envelopes.length;
+    },
+    [emit, identity],
+  );
+
+  const importEnvelopes = useCallback(
+    (envelopes: Envelope[]) => {
+      const authors = mergeEnvelopes(envelopes);
+      bump();
+      return authors.length;
+    },
+    [bump],
   );
 
   const hydrate = useCallback((next: Identity) => {
@@ -1230,8 +1263,14 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       exportPublic,
       exportBackup,
       importBundleFile,
+      attest,
+      setupRecovery,
+      importEnvelopes,
     }),
     [
+      attest,
+      setupRecovery,
+      importEnvelopes,
       createAccount,
       error,
       exportBackup,

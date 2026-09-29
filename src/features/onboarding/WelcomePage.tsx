@@ -10,10 +10,11 @@ import { LanguageSwitch } from "@/components/ui/LanguageSwitch";
 import { SiteMark } from "@/components/ui/SiteMark";
 import { createBlock } from "@/lib/protocol/signupGuard";
 import { betaInviteRequired, loadBetaInvite, redeemBetaInvite } from "@/lib/protocol/betaInvite";
+import { toolsText } from "@/i18n/tools";
 
 export function WelcomePage() {
   const { status, importBundleFile } = useRita();
-  const { t, errorMessage } = useI18n();
+  const { t, locale, errorMessage } = useI18n();
   const fileRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -121,6 +122,11 @@ export function WelcomePage() {
         </Card>
       </div>
       {error ? <p className="mt-4 text-sm text-accent">{error}</p> : null}
+      <p className="mt-6 text-sm">
+        <Link to="/welcome/recover" className="font-semibold text-accent hover:underline">
+          {toolsText(locale, "recoverTitle")}
+        </Link>
+      </p>
       <p className="mt-10 text-sm text-muted">{t("welcome.later")}</p>
       <p className="mt-3 text-sm">
         <Link to="/legal" className="font-semibold text-accent hover:underline">

@@ -9,6 +9,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { WelcomePage } from "@/features/onboarding/WelcomePage";
 import { CreateAccountPage } from "@/features/onboarding/CreateAccountPage";
 import { ImportKeyPage } from "@/features/onboarding/ImportKeyPage";
+import { RecoverPage } from "@/features/onboarding/RecoverPage";
 import { UnlockPage } from "@/features/onboarding/UnlockPage";
 import { HomePage } from "@/features/feed/HomePage";
 import { ProtocolPage } from "@/features/feed/DiscoverPage";
@@ -104,6 +105,7 @@ export default function App() {
               <Route path="/welcome" element={<WelcomePage />} />
               <Route path="/welcome/create" element={<CreateAccountPage />} />
               <Route path="/welcome/import" element={<ImportKeyPage />} />
+              <Route path="/welcome/recover" element={<RecoverPage />} />
               <Route path="/unlock" element={<UnlockPage />} />
               <Route element={<AppShell />}>
                 <Route path="/" element={<HomePage />} />

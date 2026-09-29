@@ -37,7 +37,18 @@ export type ProtocolErrorCode =
   | "chat_self"
   | "chat_blocked"
   | "chat_closed"
-  | "empty_chat";
+  | "empty_chat"
+  | "sync_empty"
+  | "sync_format"
+  | "sync_too_large"
+  | "recovery_guardians"
+  | "recovery_too_many"
+  | "recovery_threshold"
+  | "recovery_password"
+  | "recovery_share_format"
+  | "recovery_need_shares"
+  | "recovery_mismatch"
+  | "recovery_wrong_password";
 
 export class ProtocolError extends Error {
   readonly code: ProtocolErrorCode;

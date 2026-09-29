@@ -414,10 +414,15 @@ export function recipientsOf(envelope: Envelope): string[] {
   if (envelope.type === "follows" || envelope.type === "blocks") {
     return envelope.body.rpubs.filter((rpub) => rpub && rpub !== mine);
   }
-  if (envelope.type === "chat_consent" || envelope.type === "chat_text") {
+  if (envelope.type === "chat_consent" || envelope.type === "chat_text" || envelope.type === "recovery_share") {
     return envelope.body.to && envelope.body.to !== mine ? [envelope.body.to] : [];
   }
-  if (envelope.type === "like" || envelope.type === "comment" || envelope.type === "report") {
+  if (
+    envelope.type === "like" ||
+    envelope.type === "comment" ||
+    envelope.type === "report" ||
+    envelope.type === "attest"
+  ) {
     const target = envelope.body.target;
     const postSig = target.startsWith("image:") ? target.split(":")[1] ?? target : target;
     for (const rpub of listKnownRpubs()) {
