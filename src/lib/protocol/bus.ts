@@ -1,4 +1,5 @@
-import { isEnvelope, verifyEnvelope, type Envelope } from "./envelope";
+import { isEnvelope, mediaRefsOf, verifyEnvelope, type Envelope } from "./envelope";
+import { rememberPreview } from "./media";
 import { shouldRejectSpam } from "./spam";
 import { appendEnvelope, applyAuthorGone, loadLog } from "./store";
 
@@ -59,5 +60,7 @@ export function acceptRemoteEnvelope(envelope: Envelope): boolean {
   if (existing.some((item) => item.sig === envelope.sig)) return false;
   if (shouldRejectSpam(envelope, existing)) return false;
   appendEnvelope(envelope.author, envelope);
+  // Guarda los thumbnails que vienen dentro del sobre para pintarlos al momento.
+  for (const ref of mediaRefsOf(envelope)) rememberPreview(ref.hash, ref.preview);
   return true;
 }

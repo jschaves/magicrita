@@ -47,7 +47,7 @@ Libraries `@noble/curves`, `@noble/ciphers`, and `@noble/hashes` are **math only
 ### Frontend (browser)
 
 - **Vite 7 + React 19 + TypeScript + Tailwind 4**, one SPA. Routes: `/welcome`, `/welcome/create`, `/welcome/import`, `/unlock`, `/` (home feed), `/people`, `/saved`, `/protocolo`, `/compose`, `/n/:id`, `/p/:rpub`, `/messages`, `/messages/:rpub`, `/settings`, `/legal`, plus the admin panel at a configurable path.
-- **Storage:** `localStorage` holds the vault, per-author logs, saves, notices, locale, and the beta-invite cache. **IndexedDB** holds media bytes (and 8-bit previews) and the remembered session (AES-GCM ciphertext + a non-extractable device key). Nothing is uploaded to a server.
+- **Storage:** `localStorage` holds the vault, per-author logs, saves, notices, locale, and the beta-invite cache. **IndexedDB** holds media bytes (and 8-bit previews) and the remembered session (AES-GCM ciphertext + a non-extractable device key). Profiles and posts embed a small inline thumbnail (≤8 KB), so avatars and photos show at once and are swapped for the full image once its bytes reach the device. Nothing is uploaded to a server.
 - **Feed:** live notes as they arrive, newest `ts` first, no ranking and no engagement reordering. Young untrusted keys stay out of home until followed, invited, or older than 12 h (peers seen live skip that quarantine). Pause/resume.
 - **Compose:** text, one optional photo, optional voice, optional video; media-only notes allowed. You may edit a post or comment for 15 minutes; after that you can only delete.
 - **People / profile:** who is online now, follows, and signed 7-day invites (an `invite` envelope). Chats start from People or a profile.

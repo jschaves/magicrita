@@ -210,11 +210,17 @@ export function signProfile(identity: Identity, body: ProfileBody, ts = Date.now
     about: clip(body.about.trim(), MAX_BIO_CHARS),
   };
   if (body.picture) {
-    next.picture = {
+    const picture: MediaRef = {
       hash: body.picture.hash,
       mime: body.picture.mime,
       name: body.picture.name,
     };
+    // El avatar lleva su propio thumbnail en el sobre: así se ve al instante en
+    // el feed y los chats, sin esperar a que llegue la imagen completa P2P.
+    if (body.picture.preview && body.picture.preview.startsWith("data:image/") && body.picture.preview.length <= 8_000) {
+      picture.preview = body.picture.preview;
+    }
+    next.picture = picture;
   }
   if (body.interests && body.interests.length > 0) {
     next.interests = body.interests.map((item) => item.trim()).filter(Boolean);
