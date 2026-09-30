@@ -4,7 +4,7 @@ The VPS **does not store** notes, photos, or keys. It only keeps in **RAM** who 
 
 When someone disconnects, they leave the list. There is no user database.
 
-Admin-panel blocks **are** stored in `data/admin-blocks.json` (that folder is not in Git).
+The only things written to disk are operator configuration, never user content: `data/admin-blocks.json` (admin-panel blocks), `data/beta-invites.json` (invite codes), `data/admin-path.json` (runtime panel path), and `data/brand/` (uploaded logo). `data/` is not in Git.
 
 ## Requirements
 

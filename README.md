@@ -50,8 +50,8 @@ Libraries `@noble/curves`, `@noble/ciphers`, and `@noble/hashes` are **math only
 
 ### Frontend (browser)
 
-- **Vite 7 + React 19 + TypeScript + Tailwind 4**, one SPA. Routes: `/welcome`, `/welcome/create`, `/welcome/import`, `/welcome/recover`, `/unlock`, `/` (home feed), `/people`, `/saved`, `/protocolo`, `/compose`, `/n/:id`, `/p/:rpub`, `/messages`, `/messages/:rpub`, `/live`, `/settings`, `/legal`, plus the admin panel at a configurable path.
-- **Storage:** `localStorage` holds the vault, per-author logs, saves, notices, locale, and the beta-invite cache. **IndexedDB** holds media bytes (and 8-bit previews) and the remembered session (AES-GCM ciphertext + a non-extractable device key). Profiles and posts embed a small inline thumbnail (≤8 KB), so avatars and photos show at once and are swapped for the full image once its bytes reach the device. Nothing is uploaded to a server.
+- **Vite 7 + React 19 + TypeScript + Tailwind 4**, one SPA. Routes: `/welcome`, `/welcome/create`, `/welcome/import`, `/welcome/recover`, `/unlock`, `/` (home feed), `/people`, `/saved`, `/protocolo` (`/discover` redirects here), `/compose`, `/n/:id`, `/p/:rpub`, `/messages`, `/messages/:rpub`, `/live`, `/settings`, `/legal`, plus the admin panel at a configurable path.
+- **Storage:** `localStorage` holds the vault, per-author logs, saves, locale, the beta-invite cache, the accepted-terms flag, and the signup guard; `sessionStorage` holds the ephemeral alerts list and the cached `hello` proof of work. **IndexedDB** holds media bytes (and 8-bit previews) and the remembered session (AES-GCM ciphertext + a non-extractable device key). Profiles and posts embed a small inline thumbnail (≤8 KB), so avatars and photos show at once and are swapped for the full image once its bytes reach the device. Nothing is uploaded to a server.
 - **Feed:** live notes as they arrive, newest `ts` first, no ranking and no engagement reordering. Young untrusted keys stay out of home until followed, invited, or older than 12 h (peers seen live skip that quarantine). Pause/resume.
 - **Compose:** text, one optional photo, optional voice, optional video; media-only notes allowed. You may edit a post or comment for 15 minutes; after that you can only delete.
 - **People / profile:** who is online now, follows, and signed 7-day invites (an `invite` envelope). Chats start from People or a profile.
@@ -63,7 +63,7 @@ Libraries `@noble/curves`, `@noble/ciphers`, and `@noble/hashes` are **math only
 
 ### Backend (relay)
 
-- **`server/signal.mjs`** — Node + `ws`, **RAM only**. It never serves the SPA and never stores notes, profiles, or keys. In memory it keeps: who is online (`live`/`byRpub`), a small **mailbox** of signed envelopes for a briefly absent peer (≤ 250 envelopes / 24 KB, 30 min TTL), and a **blob box** of media chunks waiting for a peer (≤ 800 chunks / 32 MB, 30 min TTL). A restart empties all of it.
+- **`server/signal.mjs`** — Node + `ws`, **RAM only**. It never serves the SPA and never stores notes, profiles, or keys. In memory it keeps: who is online (`live`/`byRpub`), a small **mailbox** of signed envelopes for a briefly absent peer (≤ 250 envelopes, each ≤ 24 KB, 30 min TTL), and a **blob box** of media chunks waiting for a peer (≤ 800 chunks / 32 MB, 30 min TTL). A restart empties all of it.
 - **HTTP routes:** `GET /beta`, `POST /beta/check`, `GET /admin-path`, `GET /brand`, `GET /brand/logo`, `GET /admin-api/captcha`, `POST /admin-api/login`, and the token-guarded admin API (`/admin-api/session`, `/admin-api/blocks`, `/admin-api/invites`, `/admin-api/invites/toggle`, `/admin-api/admin-path`, `/admin-api/logo`), plus `POST /moderation/check`.
 - **WebSocket:** `hello` (signed + PoW, plus a valid beta invite when the beta is closed) → `challenge`, `hello-ok`, `join`, `leave`, `peers`, `held`; then `signal` (WebRTC SDP/ICE, for the data channels and for voice calls), `hold`, `pic`, `blob`, `need-blob`, `scan`/`ping`, and `moderation-changed`. The relay introduces peers; once a data channel is open, envelopes and media move **peer to peer**.
 - **Limits (all RAM, wiped on restart):** hello 60/min per `rpub` and 240/min per IP; ≤ 16 sockets and ≤ 16 distinct `rpub` per IP; per-type message budgets (`blob` 2500/min, `pic` 240/min, `need-blob` 60/min, `signal` 240/min, `hold` 30/min); `/beta/check` 10 per 10 min per IP; `/moderation/check` 30 calls/min per IP; admin login 8 failures per 15 min per IP. `X-Forwarded-For` is trusted only when `TRUST_PROXY` is set.
@@ -101,7 +101,7 @@ MagicRita is built so that **old data leaves the device by itself**. There is no
 - You may **edit a post or comment for 15 minutes**; after that you can only delete.
 - The relay's RAM mailbox is **empty after a restart**. It is not a backup.
 
-Limits that travel with content: **280 characters** per post, comment, and chat line; **50** for the display name; **160** for the bio; **one photo** per note (JPEG, PNG, WEBP, or GIF, 8 MB); **voice up to 30 s** (WAV, 16 kHz mono, 1.2 MB); **video up to 10 s** (8 MB). A post may carry a small image preview (up to 8,000 characters) so it shows something before the full file arrives.
+Limits that travel with content: **280 characters** per post, comment, and chat line; **50** for the display name; **160** for the bio; **one photo** per note (JPEG, PNG, WEBP, or GIF, 8 MB); **voice up to 30 s** (mono WAV, 1.2 MB); **video up to 10 s** (8 MB). A post may carry a small image preview (up to 8,000 characters) so it shows something before the full file arrives.
 
 ---
 
@@ -140,7 +140,7 @@ One identity per browser. Two accounts need two browsers (or a window plus incog
 2. **Portable account** — Export a `magicrita-bundle` (encrypted identity, notes, and media) and import it in another browser or device. The file is *your* copy; it does not open someone else’s session. Signatures and media hashes are verified on import.
 3. **Own relay** — WebRTC signaling, a live peer list, and an in-RAM mailbox. No notes, profiles, or keys on disk.
 4. **Encrypted chat** — Request, accept, revoke, or block on either side. Messages send only when both latest `chat_consent` events are on. Block also turns consent off.
-5. **Media** — Signed SHA-256 refs in the envelope. One photo per note. Voice (WAV, 16 kHz mono) and video (file or camera, auto-stop at 10 s) in posts and chat. Files travel between peers and in the portable export; the relay does not store them.
+5. **Media** — Signed SHA-256 refs in the envelope. One photo per note. Voice (mono WAV) and video (file or camera, auto-stop at 10 s) in posts and chat. Files travel between peers and in the portable export; the relay does not store them.
 
 The in-app protocol page and the sidebar philosophy copy mark these steps done. A persistent federated history store is **not** in scope: it would contradict “we do not store your life on a server.”
 

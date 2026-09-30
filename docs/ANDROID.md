@@ -1,8 +1,8 @@
 # Android (APK)
 
-This document describes how MagicRita is packaged for Android. It is the plan
-and the current status on the `apk-android-magicrita` branch (an independent
-branch: never merged with `main`).
+This document describes how MagicRita is packaged for Android. The Android work
+happens on the `apk-android-magicrita` branch, which tracks `main`: the SPA is
+the same code, and changes are also pushed to `main`.
 
 ## Model
 

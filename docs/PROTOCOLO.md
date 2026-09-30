@@ -13,8 +13,8 @@ The `@noble/*` libraries are math only (signatures and encryption), not a networ
    WebRTC signaling, live peer list, and a RAM mailbox. It does not store notes or keys. Live exchange goes between browsers.
 4. **Chat** — done  
    You ask anyone to chat; the other person accepts. Either of you can revoke or block. Text is encrypted (X25519 + XChaCha20) in a signed envelope; the relay cannot read it.
-5. **Photos** — done  
-   SHA-256 hash in the envelope, one photo per note, travels between peers and in the portable file. Image handling will not be expanded.
+5. **Media** — done  
+   SHA-256 hash in the envelope; one photo per note, plus voice (mono WAV, ≤ 30 s) and video (≤ 10 s) in posts and chat. Media travels between peers and in the portable file; the relay does not store it.
 
 ## Step 1 — format
 
