@@ -127,6 +127,7 @@ Spam cannot be “banned at the protocol” the way a company account can. Defen
 - **Messages** — only conversations that already have lines, plus an inbox of chat requests. Request / accept / revoke / block stay on the thread. On mobile the long explanation sits behind an **Info** button so the chat list keeps the space.
 - **Alerts** — last 10 notices locally (chat, request, invite); the bell and the messages counter sit in the header.
 - **Saved** — local list of post signatures; deleted targets are dropped.
+- **Hashtags** — writing `#word` in a note or comment makes it a link; tapping it filters Home (or Saved, depending on where you are) to the notes containing that hashtag, comments included. A banner shows the active tag with a clear button.
 - **Settings** — language, profile, export/import, logout, delete-identity. Signal URL is **not** chosen in the UI; it is fixed at build (`VITE_SIGNAL_URL` or same-host `/signal/`).
 - **Legal** — `/legal` (beta notes, 16+, Germany/EU relay, no tracking cookies).
 - **Admin** — Spanish panel at `RUTA_ADMINISTRACION` (default `/topogue`, rotatable at runtime): login with a proof-of-work captcha, live peers, user/comment blocks, beta invites, runtime panel path, site logo, and an assembly-diagnostics view. API under `/admin-api/` with a bearer token kept in memory (no cookies). **Web build only** — the Android app ships without the panel.
