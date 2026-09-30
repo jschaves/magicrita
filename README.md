@@ -306,7 +306,7 @@ The `android/` Capacitor project is committed. `cap:sync` regenerates its web as
 - `docs/PROTOCOLO.md` — envelope format, identity, anti-spam
 - `docs/VPS.md` — relay, nginx, systemd
 - `docs/INSTALAR-VPS.md` — numbered install on a clean Ubuntu VPS
-- `docs/INSTALAR-WINDOWS.md` — install web + admin on Windows 11 (no Android)
+- `docs/INSTALAR-WINDOWS.md` — install web + admin on Windows 11 (no Android), and publish on a domain with HTTPS (nginx + win-acme)
 - `docs/ANDROID.md` — Android/APK build plan (external relay, no admin)
 - `LICENSE` — GNU Affero GPL v3
 

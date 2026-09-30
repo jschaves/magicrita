@@ -35,7 +35,7 @@ Mapa de dónde va cada cosa:
 | Formato de sobres, identidad, cadena local, anti-spam, cifrado del protocolo | `docs/PROTOCOLO.md` |
 | Relé, WebSocket, límites en RAM, nginx, systemd, HTTPS | `docs/VPS.md` |
 | Instalación numerada en Ubuntu limpio | `docs/INSTALAR-VPS.md` |
-| Instalación de web + admin en Windows 11 (sin Android) | `docs/INSTALAR-WINDOWS.md` |
+| Instalación de web + admin en Windows 11 (sin Android), con dominio y SSL opcional | `docs/INSTALAR-WINDOWS.md` |
 | Variables de entorno / secretos | `.env.example` **y** la tabla del `README.md` |
 | Rutas HTTP/WS, mensajes, cabeceras, CSP, proxy | `README.md` + `docs/VPS.md` + `docs/INSTALAR-VPS.md` |
 
