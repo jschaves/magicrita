@@ -20,6 +20,7 @@ export function WelcomePage() {
   const [busy, setBusy] = useState(false);
   const [needInvite, setNeedInvite] = useState(true);
   const [invite, setInvite] = useState(() => loadBetaInvite());
+  const [bundlePassword, setBundlePassword] = useState("");
 
   useEffect(() => {
     void betaInviteRequired().then(setNeedInvite);
@@ -35,7 +36,7 @@ export function WelcomePage() {
     setError(null);
     try {
       if (needInvite && invite.trim()) await redeemBetaInvite(invite);
-      const result = await importBundleFile(file, undefined, invite);
+      const result = await importBundleFile(file, undefined, invite, bundlePassword);
       if (!result.vaultRestored) {
         setError(t("welcome.portableNeedBackup"));
       }
@@ -90,6 +91,16 @@ export function WelcomePage() {
           <FileUp className="text-gold" />
           <h2 className="mt-3 font-display text-xl">{t("welcome.portableTitle")}</h2>
           <p className="mt-2 text-sm text-muted">{t("welcome.portableBody")}</p>
+          <div className="mt-4">
+            <TextField
+              label={t("create.password")}
+              type="password"
+              autoComplete="current-password"
+              value={bundlePassword}
+              onChange={(e) => setBundlePassword(e.target.value)}
+              hint={t("bundle.passwordOptional")}
+            />
+          </div>
           <input
             ref={fileRef}
             type="file"

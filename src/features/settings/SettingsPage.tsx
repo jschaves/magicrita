@@ -44,6 +44,7 @@ export function SettingsPage() {
   const [wipeOpen, setWipeOpen] = useState(false);
   const [needInvite, setNeedInvite] = useState(true);
   const [invite, setInvite] = useState(() => loadBetaInvite());
+  const [bundlePassword, setBundlePassword] = useState("");
   const [curPassword, setCurPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -278,11 +279,19 @@ export function SettingsPage() {
               hint={t("create.inviteHint")}
             />
           ) : null}
+          <TextField
+            label={t("create.password")}
+            type="password"
+            autoComplete="new-password"
+            value={bundlePassword}
+            onChange={(e) => setBundlePassword(e.target.value)}
+            hint={t("bundle.passwordOptional")}
+          />
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
               variant="secondary"
-              onClick={() => void exportBackup().then(() => setMessage(t("bundle.exportedBackup")))}
+              onClick={() => void exportBackup(bundlePassword).then(() => setMessage(t("bundle.exportedBackup")))}
             >
               {t("bundle.exportBackup")}
             </Button>
@@ -295,7 +304,7 @@ export function SettingsPage() {
                 const next = event.target.files?.[0];
                 event.target.value = "";
                 if (!next) return;
-                void importBundleFile(next, undefined, invite)
+                void importBundleFile(next, undefined, invite, bundlePassword)
                   .then(() => setMessage(t("bundle.imported")))
                   .catch((err) => {
                     setError(errorMessage(err, "people.importFailed"));

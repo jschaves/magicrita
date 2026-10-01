@@ -1,4 +1,5 @@
 import { saveUnlockedRsec } from "./session";
+import { restKeyFromHex, setRestKey } from "./rest";
 
 /**
  * Sesion recordada ("mantener la sesion"). Cerrar y volver a abrir la app no
@@ -100,17 +101,21 @@ async function deviceKey(db: IDBDatabase, create: boolean): Promise<CryptoKey | 
   return key;
 }
 
-export async function rememberSession(rsec: string, rpub: string): Promise<void> {
+export async function rememberSession(rsec: string, rpub: string, restKeyHex: string | null): Promise<void> {
   if (!supported()) return;
   try {
     const db = await openDb();
     const key = await deviceKey(db, true);
     if (!key) return;
     const iv = crypto.getRandomValues(new Uint8Array(12));
+    // Se guarda tambien la clave de cifrado en reposo para que reabrir no pida la
+    // contrasena y el log/media sigan legibles. El contenido entero va cifrado
+    // bajo la clave no extraible del dispositivo.
+    const payload = JSON.stringify({ rsec, rest: restKeyHex });
     const data = await crypto.subtle.encrypt(
       { name: "AES-GCM", iv },
       key,
-      new TextEncoder().encode(rsec),
+      new TextEncoder().encode(payload),
     );
     await write(db, { id: SESSION_ID, rpub, iv, data });
   } catch {
@@ -141,7 +146,17 @@ export async function restoreRememberedSession(): Promise<boolean> {
     const key = await deviceKey(db, false);
     if (!key) return false;
     const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: record.iv }, key, record.data);
-    saveUnlockedRsec(new TextDecoder().decode(plain));
+    const payload = new TextDecoder().decode(plain);
+    // Formato nuevo: JSON con la rsec y la clave de reposo. Formato viejo: la
+    // rsec a pelo (sin clave de reposo, el log se lee como texto plano legado).
+    if (payload.startsWith("{")) {
+      const parsed = JSON.parse(payload) as { rsec?: string; rest?: string | null };
+      if (!parsed.rsec) return false;
+      saveUnlockedRsec(parsed.rsec);
+      setRestKey(restKeyFromHex(parsed.rest ?? null));
+      return true;
+    }
+    saveUnlockedRsec(payload);
     return true;
   } catch {
     return false;

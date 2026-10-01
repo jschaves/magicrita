@@ -4,6 +4,7 @@ import { ProtocolError } from "./errors";
 import { dropNoticesFor } from "./notices";
 import { dropSavedPosts } from "./saves";
 import { noteAuthorSeen } from "./spam";
+import { hasRestKey, isSealedString, openString, sealString } from "./rest";
 
 export const MAX_STORED_POSTS = 100;
 export const MAX_STORED_CHATS = 100;
@@ -209,7 +210,14 @@ export function loadLog(rpub: string): Envelope[] {
       logCache.set(rpub, []);
       return [];
     }
-    const parsed = JSON.parse(raw) as unknown;
+    // `openString` devuelve el valor tal cual si es legado (texto plano) y `null`
+    // si el log esta cifrado y todavia no hay clave (sin desbloquear).
+    const text = openString(raw);
+    if (text === null) {
+      logCache.set(rpub, []);
+      return [];
+    }
+    const parsed = JSON.parse(text) as unknown;
     if (!Array.isArray(parsed)) {
       logCache.set(rpub, []);
       return [];
@@ -244,7 +252,24 @@ function isQuotaError(error: unknown): boolean {
 function writeLogRaw(rpub: string, log: Envelope[]): void {
   logCache.set(rpub, log);
   invalidateAll();
-  localStorage.setItem(logKey(rpub), JSON.stringify(log));
+  localStorage.setItem(logKey(rpub), sealString(JSON.stringify(log)));
+}
+
+/**
+ * Re-cifra los logs que aun esten en texto plano (instalaciones anteriores al
+ * cifrado en reposo). Se llama una vez tras desbloquear; es idempotente.
+ */
+export function migrateLogsAtRest(): void {
+  if (!hasRestKey()) return;
+  for (const rpub of listKnownRpubs()) {
+    try {
+      const raw = localStorage.getItem(logKey(rpub));
+      if (!raw || isSealedString(raw)) continue;
+      writeLogRaw(rpub, loadLog(rpub));
+    } catch {
+      // cuota o almacen no disponible: se reintentara en el proximo desbloqueo
+    }
+  }
 }
 
 function readLogRaw(rpub: string): Envelope[] {

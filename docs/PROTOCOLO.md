@@ -38,7 +38,22 @@ Signed envelope:
 
 The canonical JSON of `v`, `type`, `author`, `ts`, and `body` is signed (without `sig`). Older envelopes signed with plain `JSON.stringify` key order are still accepted on receive.
 
-The secret is sealed on the device with **scrypt** (`N = 2¹⁵`, `r = 8`, `p = 1`) + **XChaCha20-Poly1305**; the unlocked key lives in the tab's memory and, to survive a restart, is also kept **AES-GCM-encrypted** under a non-extractable device key in IndexedDB (erased on log out or delete identity, so the password is asked again only then).
+The secret is sealed on the device with **scrypt** (`N = 2¹⁵`, `r = 8`, `p = 1`) + **XChaCha20-Poly1305**; the unlocked key lives in the tab's memory and, to survive a restart, is also kept **AES-GCM-encrypted** under a non-extractable device key in IndexedDB (erased on log out or delete identity, so the password is asked again only then). The vault also carries a random 32-byte **at-rest key** (see below).
+
+### Encryption at rest
+
+Everything MagicRita keeps on the device is encrypted under a single random 32-byte
+**at-rest key**: the per-author logs in `localStorage` and the media bytes in
+`IndexedDB`. Each value is sealed with **XChaCha20-Poly1305** under that key; sealed
+text carries the prefix `mrest1:` and sealed bytes the magic `MRB1`, so plaintext from
+an older install is never mistaken for ciphertext. The key itself is never stored in
+the clear: it lives inside the vault (which is encrypted with your password) and, for
+the remembered session, inside the AES-GCM device record. Without the key (locked, or
+the vault not yet opened) logs and media read as empty; a `null` is returned rather
+than a wrong decode. The first time an old install is unlocked, plaintext logs and
+media are **re-encrypted in place** (idempotent migration). This protects data at rest
+if the device or browser profile is stolen; it does **not** hide public content, which
+is still published signed but in the clear.
 
 Every envelope received from the network also passes hard limits before it is stored: total size, nesting depth, key/item counts, string lengths, media refs, and a maximum forward `ts` skew (a signed future timestamp would break every “newest wins” rule).
 
@@ -46,9 +61,9 @@ Every envelope received from the network also passes hard limits before it is st
 
 Package `magicrita-bundle`:
 
-- `kind: "backup"` — your encrypted identity, notes, and photos, to continue in another environment.
+- `kind: "backup"` — your encrypted identity, notes, and photos, to continue in another environment. You may protect the whole file with a password: it is then sealed with **scrypt** (`N = 2¹⁵`, `r = 8`, `p = 1`) + **XChaCha20-Poly1305** (`{"encrypted": true, kdf, N, r, p, salt, nonce, data}`), so notes and media are encrypted too and not just the identity. Leaving the password empty keeps the old plaintext container (only the `rsec` inside the vault is encrypted); the plaintext format is still accepted on import.
 
-On import, every Ed25519 signature and every photo SHA-256 hash is verified.
+On import, every Ed25519 signature and every photo SHA-256 hash is verified. A password-protected backup asks for that password first; a wrong one fails without touching the device.
 
 There is no account server and no content server.
 

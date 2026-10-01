@@ -16,6 +16,8 @@ export type ProtocolErrorCode =
   | "media_too_many"
   | "empty_post"
   | "invalid_bundle"
+  | "bundle_password"
+  | "bundle_wrong_password"
   | "media_hash"
   | "backup_conflict"
   | "cannot_follow_self"

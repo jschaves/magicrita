@@ -1,11 +1,18 @@
 import { scryptAsync } from "@noble/hashes/scrypt.js";
 import { xchacha20poly1305 } from "@noble/ciphers/chacha.js";
-import { bytesToHex, hexToBytes, randomBytes } from "./bytes";
+import { bytesToHex, bytesToUtf8, hexToBytes, randomBytes, utf8ToBytes } from "./bytes";
 import { ProtocolError } from "./errors";
 import { loadBetaInvite, saveBetaInvite } from "./betaInvite";
 import { fromSecret, type Identity } from "./identity";
+import { restKeyFromHex } from "./rest";
 
 const VAULT_KEY = "magicrita.vault";
+/**
+ * Marca del contenido cifrado de la boveda. La v1 cifraba los 32 bytes del
+ * `rsec` a pelo; la v2 guarda tambien la clave de cifrado en reposo. El prefijo
+ * permite leer bovedas antiguas (32 bytes sin marca) sin romper nada.
+ */
+const VAULT_TAG = "magicrita-vault:2:";
 
 export type VaultRecord = {
   v: 1;
@@ -14,6 +21,12 @@ export type VaultRecord = {
   nonce: string;
   ciphertext: string;
   invite?: string;
+};
+
+/** Resultado de abrir la boveda: la identidad y la clave de reposo (si la hay). */
+export type UnlockedVault = {
+  identity: Identity;
+  restKey: Uint8Array | null;
 };
 
 export function loadVault(): VaultRecord | null {
@@ -52,7 +65,11 @@ export function clearVaultInvite(): void {
   }
 }
 
-export async function wrapSecret(identity: Identity, password: string): Promise<VaultRecord> {
+export async function wrapSecret(
+  identity: Identity,
+  password: string,
+  restKey: Uint8Array | null,
+): Promise<VaultRecord> {
   if (password.length < 8) {
     throw new ProtocolError("password_short");
   }
@@ -60,7 +77,10 @@ export async function wrapSecret(identity: Identity, password: string): Promise<
   const nonce = randomBytes(24);
   const key = await deriveKey(password, salt);
   const cipher = xchacha20poly1305(key, nonce);
-  const ciphertext = cipher.encrypt(identity.secret);
+  const plain = restKey
+    ? utf8ToBytes(`${VAULT_TAG}${bytesToHex(identity.secret)}:${bytesToHex(restKey)}`)
+    : identity.secret;
+  const ciphertext = cipher.encrypt(plain);
   const invite = loadBetaInvite();
   const record: VaultRecord = {
     v: 1,
@@ -74,19 +94,32 @@ export async function wrapSecret(identity: Identity, password: string): Promise<
   return record;
 }
 
-export async function unwrapVault(record: VaultRecord, password: string): Promise<Identity> {
+export async function unwrapVault(record: VaultRecord, password: string): Promise<UnlockedVault> {
   const salt = hexToBytes(record.salt);
   const nonce = hexToBytes(record.nonce);
   const ciphertext = hexToBytes(record.ciphertext);
   const key = await deriveKey(password, salt);
   const cipher = xchacha20poly1305(key, nonce);
   try {
-    const secret = cipher.decrypt(ciphertext);
-    const identity = fromSecret(secret);
+    const plain = cipher.decrypt(ciphertext);
+    const text = bytesToUtf8(plain);
+    if (text.startsWith(VAULT_TAG)) {
+      const rest = text.slice(VAULT_TAG.length);
+      const sep = rest.indexOf(":");
+      const secretHex = sep >= 0 ? rest.slice(0, sep) : "";
+      const restHex = sep >= 0 ? rest.slice(sep + 1) : "";
+      const identity = fromSecret(hexToBytes(secretHex));
+      if (identity.rpub !== record.rpub) {
+        throw new ProtocolError("vault_mismatch");
+      }
+      return { identity, restKey: restKeyFromHex(restHex) };
+    }
+    // Boveda antigua: solo el `rsec`, sin clave de reposo.
+    const identity = fromSecret(plain);
     if (identity.rpub !== record.rpub) {
       throw new ProtocolError("vault_mismatch");
     }
-    return identity;
+    return { identity, restKey: null };
   } catch (error) {
     if (error instanceof ProtocolError) throw error;
     throw new ProtocolError("wrong_password");

@@ -1,6 +1,7 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "./bytes";
 import { ProtocolError } from "./errors";
+import { hasRestKey, isSealedBytes, openBytes, sealBytes } from "./rest";
 
 export const MAX_PHOTOS = 1;
 export const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
@@ -196,7 +197,10 @@ function isQuotaError(error: unknown): boolean {
 
 async function writeRecord(hash: string, mime: string, bytes: Uint8Array): Promise<void> {
   rememberBytes(hash, mime, bytes);
-  const record: MediaRecord = { hash, mime, bytes: tightBuffer(bytes) };
+  // El `hash` se calcula sobre los bytes planos (es la referencia del sobre),
+  // pero lo que se guarda en disco va cifrado con la clave de reposo.
+  const stored = sealBytes(asBytes(bytes));
+  const record: MediaRecord = { hash, mime, bytes: tightBuffer(stored) };
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
@@ -368,7 +372,9 @@ export async function loadMediaRecord(hash: string): Promise<MediaRecord | null>
     request.onerror = () => reject(request.error ?? new Error("indexeddb"));
   });
   if (!record?.bytes) return null;
-  const bytes = asBytes(record.bytes);
+  const plain = openBytes(asBytes(record.bytes));
+  if (!plain) return null;
+  const bytes = asBytes(plain);
   rememberBytes(hash, record.mime, bytes);
   return { hash: record.hash, mime: record.mime, bytes: tightBuffer(bytes) };
 }
@@ -510,6 +516,39 @@ export async function avatarThumb(hash: string): Promise<string | null> {
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+/**
+ * Re-cifra la media que aun este en texto plano (instalaciones anteriores al
+ * cifrado en reposo). Idempotente; se llama una vez tras desbloquear.
+ */
+export async function migrateMediaAtRest(): Promise<void> {
+  if (!hasRestKey()) return;
+  let db: IDBDatabase;
+  try {
+    db = await openDb();
+  } catch {
+    return;
+  }
+  await new Promise<void>((resolve) => {
+    const tx = db.transaction(STORE, "readwrite");
+    const cursorRequest = tx.objectStore(STORE).openCursor();
+    cursorRequest.onsuccess = () => {
+      const cursor = cursorRequest.result;
+      if (!cursor) return;
+      const record = cursor.value as MediaRecord;
+      if (record?.bytes) {
+        const bytes = asBytes(record.bytes);
+        if (!isSealedBytes(bytes)) {
+          cursor.update({ ...record, bytes: tightBuffer(sealBytes(bytes)) });
+        }
+      }
+      cursor.continue();
+    };
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
+    tx.onabort = () => resolve();
+  });
 }
 
 export async function wipeMediaStore(): Promise<void> {

@@ -402,6 +402,8 @@ export const es = {
     exportedBackup: "Archivo descargado. Guárdalo en privado e impórtalo donde quieras continuar.",
     import: "Importar mis datos",
     imported: "Datos restaurados. Si pide contraseña, usa la de esta cuenta.",
+    passwordOptional:
+      "Si escribes una contraseña, el archivo se cifra. Si la dejas vacía, se exporta sin cifrar.",
   },
   live: {
     savedInfo: "Notas que has guardado en este dispositivo. Si una nota se borra, desaparece de aquí.",
@@ -481,6 +483,8 @@ export const es = {
     media_too_many: "Solo una foto por nota.",
     empty_post: "Escribe un texto o añade una foto.",
     invalid_bundle: "Ese archivo no es un paquete MagicRita válido.",
+    bundle_password: "Este archivo está cifrado. Escribe su contraseña para abrirlo.",
+    bundle_wrong_password: "Contraseña incorrecta para este archivo cifrado.",
     media_hash: "Una foto del archivo no coincide con su firma.",
     backup_conflict: "Esa copia es de otra identidad. Cierra sesión antes de restaurarla.",
     cannot_follow_self: "No puedes seguirte a ti misma.",
@@ -1026,6 +1030,8 @@ export const en: Messages = {
     exportedBackup: "File downloaded. Keep it private and import it where you want to continue.",
     import: "Import my data",
     imported: "Data restored. If it asks for a password, use this account’s password.",
+    passwordOptional:
+      "If you type a password, the file is encrypted. If you leave it empty, it is saved unencrypted.",
   },
   live: {
     savedInfo: "Notes you saved on this device. If a note is deleted, it disappears from here.",
@@ -1103,6 +1109,8 @@ export const en: Messages = {
     media_too_many: "Only one photo per note.",
     empty_post: "Write some text or add a photo.",
     invalid_bundle: "That file is not a valid MagicRita bundle.",
+    bundle_password: "This file is encrypted. Type its password to open it.",
+    bundle_wrong_password: "Wrong password for this encrypted file.",
     media_hash: "A photo in the file does not match its hash.",
     backup_conflict: "That copy belongs to another identity. Log out before restoring it.",
     cannot_follow_self: "You cannot follow yourself.",
@@ -1647,6 +1655,8 @@ export const pt: Messages = {
       "Ficheiro descarregado. Guarda-o em privado e importa-o onde quiseres continuar.",
     import: "Importar os meus dados",
     imported: "Dados restaurados. Se pedir a palavra-passe, usa a desta conta.",
+    passwordOptional:
+      "Se escreveres uma palavra-passe, o ficheiro é cifrado. Se a deixares vazia, é guardado sem cifrar.",
   },
   live: {
     savedInfo: "Notas que guardaste neste dispositivo. Se uma nota for apagada, desaparece daqui.",
@@ -1724,6 +1734,8 @@ export const pt: Messages = {
     media_too_many: "Só uma foto por nota.",
     empty_post: "Escreve um texto ou adiciona uma foto.",
     invalid_bundle: "Esse ficheiro não é um pacote MagicRita válido.",
+    bundle_password: "Este ficheiro está cifrado. Escreve a palavra-passe para o abrir.",
+    bundle_wrong_password: "Palavra-passe incorreta para este ficheiro cifrado.",
     media_hash: "Uma foto do ficheiro não coincide com o hash.",
     backup_conflict: "Essa cópia é de outra identidade. Sai da sessão antes de a restaurar.",
     cannot_follow_self: "Não podes seguir-te a ti.",
@@ -2270,6 +2282,8 @@ export const fr: Messages = {
     exportedBackup: "Fichier téléchargé. Garde-le privé et importe-le là où tu veux continuer.",
     import: "Importer mes données",
     imported: "Données restaurées. S’il demande le mot de passe, utilise celui de ce compte.",
+    passwordOptional:
+      "Si tu saisis un mot de passe, le fichier est chiffré. Si tu le laisses vide, il est enregistré sans chiffrement.",
   },
   live: {
     savedInfo: "Notes que tu as enregistrées sur cet appareil. Si une note est supprimée, elle disparaît d'ici.",
@@ -2347,6 +2361,8 @@ export const fr: Messages = {
     media_too_many: "Une seule photo par note.",
     empty_post: "Écris un texte ou ajoute une photo.",
     invalid_bundle: "Ce fichier n’est pas un paquet MagicRita valide.",
+    bundle_password: "Ce fichier est chiffré. Saisis son mot de passe pour l’ouvrir.",
+    bundle_wrong_password: "Mot de passe incorrect pour ce fichier chiffré.",
     media_hash: "Une photo du fichier ne correspond pas à son empreinte.",
     backup_conflict: "Cette copie est d’une autre identité. Déconnecte-toi avant de la restaurer.",
     cannot_follow_self: "Tu ne peux pas te suivre toi-même.",
@@ -2883,6 +2899,8 @@ export const ar: Messages = {
     exportedBackup: "تم تنزيل الملف. احتفظ به سراً واستورده حيث تريد المتابعة.",
     import: "استيراد بياناتي",
     imported: "تمت استعادة البيانات. إن طلب كلمة المرور فاستخدم كلمة هذه الحساب.",
+    passwordOptional:
+      "إذا كتبت كلمة مرور، يُشفَّر الملف. وإذا تركتها فارغة، يُحفظ دون تشفير.",
   },
   live: {
     savedInfo: "الملاحظات التي حفظتها على هذا الجهاز. إذا حُذفت ملاحظة، تختفي من هنا.",
@@ -2960,6 +2978,8 @@ export const ar: Messages = {
     media_too_many: "صورة واحدة فقط لكل ملاحظة.",
     empty_post: "اكتب نصاً أو أضف صورة.",
     invalid_bundle: "هذا الملف ليس حزمة MagicRita صالحة.",
+    bundle_password: "هذا الملف مشفّر. اكتب كلمة مروره لفتحه.",
+    bundle_wrong_password: "كلمة مرور خاطئة لهذا الملف المشفّر.",
     media_hash: "صورة في الملف لا تطابق بصمتها.",
     backup_conflict: "هذه النسخة لهوية أخرى. اخرج قبل استعادتها.",
     cannot_follow_self: "لا يمكنك متابعة نفسك.",
@@ -3497,6 +3517,8 @@ export const ru: Messages = {
     exportedBackup: "Файл скачан. Храните его приватно и импортируйте там, где хотите продолжить.",
     import: "Импортировать мои данные",
     imported: "Данные восстановлены. Если спросят пароль — пароль этой учётной записи.",
+    passwordOptional:
+      "Если вы введёте пароль, файл будет зашифрован. Если оставить поле пустым, он сохранится без шифрования.",
   },
   live: {
     savedInfo: "Заметки, сохранённые на этом устройстве. Если заметку удалить, она исчезнет отсюда.",
@@ -3574,6 +3596,8 @@ export const ru: Messages = {
     media_too_many: "Только одно фото в заметке.",
     empty_post: "Напишите текст или добавьте фото.",
     invalid_bundle: "Этот файл не является пакетом MagicRita.",
+    bundle_password: "Этот файл зашифрован. Введите его пароль, чтобы открыть.",
+    bundle_wrong_password: "Неверный пароль для этого зашифрованного файла.",
     media_hash: "Фото в файле не совпадает с хешем.",
     backup_conflict: "Эта копия другой личности. Выйдите перед восстановлением.",
     cannot_follow_self: "Нельзя подписаться на себя.",
@@ -4108,6 +4132,7 @@ export const zh: Messages = {
     exportedBackup: "已下载文件。请私下保存，并在要继续的地方导入。",
     import: "导入我的数据",
     imported: "数据已恢复。若要求密码，请使用此账户的密码。",
+    passwordOptional: "如果填写密码，文件会被加密；留空则保存为未加密。",
   },
   live: {
     savedInfo: "你在此设备上保存的笔记。若笔记被删除，会从这里消失。",
@@ -4185,6 +4210,8 @@ export const zh: Messages = {
     media_too_many: "每条笔记只能有一张照片。",
     empty_post: "请写文字或添加照片。",
     invalid_bundle: "该文件不是有效的 MagicRita 包。",
+    bundle_password: "此文件已加密。请输入其密码以打开。",
+    bundle_wrong_password: "此加密文件的密码错误。",
     media_hash: "文件中的照片与哈希不一致。",
     backup_conflict: "该副本属于另一个身份。请先退出再恢复。",
     cannot_follow_self: "不能关注自己。",
@@ -4722,6 +4749,8 @@ export const ja: Messages = {
     import: "自分のデータを読み込む",
     imported:
       "データを復元しました。パスワードを求められたら、このアカウントのものを使ってください。",
+    passwordOptional:
+      "パスワードを入力するとファイルは暗号化されます。空欄のままなら暗号化されずに保存されます。",
   },
   live: {
     savedInfo: "この端末で保存したノートです。ノートが削除されると、ここから消えます。",
@@ -4799,6 +4828,8 @@ export const ja: Messages = {
     media_too_many: "1件のメモに写真は1枚だけです。",
     empty_post: "文章を書くか、写真を追加してください。",
     invalid_bundle: "そのファイルは有効な MagicRita の束ではありません。",
+    bundle_password: "このファイルは暗号化されています。開くにはパスワードを入力してください。",
+    bundle_wrong_password: "この暗号化ファイルのパスワードが違います。",
     media_hash: "ファイル内の写真がハッシュと一致しません。",
     backup_conflict: "そのコピーは別の身元です。復元する前にログアウトしてください。",
     cannot_follow_self: "自分をフォローできません。",
@@ -5346,6 +5377,8 @@ export const it: Messages = {
     exportedBackup: "File scaricato. Tienilo privato e importalo dove vuoi continuare.",
     import: "Importa i miei dati",
     imported: "Dati ripristinati. Se chiede una password, usa quella di questo account.",
+    passwordOptional:
+      "Se inserisci una password, il file viene cifrato. Se la lasci vuota, viene salvato senza cifratura.",
   },
   live: {
     savedInfo: "Note che hai salvato su questo dispositivo. Se una nota viene eliminata, sparisce da qui.",
@@ -5423,6 +5456,8 @@ export const it: Messages = {
     media_too_many: "Una sola foto per nota.",
     empty_post: "Scrivi del testo o aggiungi una foto.",
     invalid_bundle: "Quel file non è un bundle MagicRita valido.",
+    bundle_password: "Questo file è cifrato. Inserisci la password per aprirlo.",
+    bundle_wrong_password: "Password errata per questo file cifrato.",
     media_hash: "Una foto nel file non corrisponde al suo hash.",
     backup_conflict: "Quella copia appartiene a un’altra identità. Esci prima di ripristinarla.",
     cannot_follow_self: "Non puoi seguire te stesso.",
@@ -5970,6 +6005,8 @@ export const de: Messages = {
     exportedBackup: "Datei heruntergeladen. Halte sie privat und importiere sie, wo du fortfahren willst.",
     import: "Meine Daten importieren",
     imported: "Daten wiederhergestellt. Wenn nach einem Passwort gefragt wird, nutze das dieses Kontos.",
+    passwordOptional:
+      "Wenn du ein Passwort eingibst, wird die Datei verschlüsselt. Lässt du es leer, wird sie unverschlüsselt gespeichert.",
   },
   live: {
     savedInfo: "Notizen, die du auf diesem Gerät gespeichert hast. Wird eine Notiz gelöscht, verschwindet sie hier.",
@@ -6047,6 +6084,8 @@ export const de: Messages = {
     media_too_many: "Nur ein Foto pro Notiz.",
     empty_post: "Schreibe etwas Text oder füge ein Foto hinzu.",
     invalid_bundle: "Diese Datei ist kein gültiges MagicRita-Bundle.",
+    bundle_password: "Diese Datei ist verschlüsselt. Gib ihr Passwort ein, um sie zu öffnen.",
+    bundle_wrong_password: "Falsches Passwort für diese verschlüsselte Datei.",
     media_hash: "Ein Foto in der Datei passt nicht zu seinem Hash.",
     backup_conflict: "Diese Kopie gehört zu einer anderen Identität. Melde dich ab, bevor du sie wiederherstellst.",
     cannot_follow_self: "Du kannst dir nicht selbst folgen.",

@@ -25,6 +25,8 @@ import {
   mergeEnvelopes,
   pruneDistinctChats,
   onStorageTrim,
+  migrateLogsAtRest,
+  resetLogCache,
 } from "@/lib/protocol/store";
 import {
   signBlocks,
@@ -54,13 +56,14 @@ import {
   type ChatLine,
   type ChatPhase,
 } from "@/lib/protocol/chat";
-import { dropMedia, ingestPhoto, MAX_PHOTOS, onMediaStored, type MediaRef } from "@/lib/protocol/media";
+import { dropMedia, ingestPhoto, MAX_PHOTOS, migrateMediaAtRest, onMediaStored, type MediaRef } from "@/lib/protocol/media";
 import {
   applyBundle,
   buildBundle,
   downloadBundle,
   MAX_BUNDLE_BYTES,
   parseBundle,
+  sealBundle,
 } from "@/lib/protocol/bundle";
 import {
   assertVaultOwnership,
@@ -87,6 +90,7 @@ import {
   watchSessionLock,
 } from "@/lib/protocol/session";
 import { forgetSession, rememberSession } from "@/lib/protocol/sessionPersist";
+import { newRestKey, restKeyBytes, restKeyToHex, setRestKey } from "@/lib/protocol/rest";
 import { acceptRemoteEnvelope, broadcastEnvelope, listenEnvelopes } from "@/lib/protocol/bus";
 import {
   ingestMeshPacket,
@@ -215,11 +219,12 @@ type RitaContextValue = {
   personByRpub: (rpub: string) => Person | undefined;
   askPeerData: (rpub: string) => void;
   exportPublic: () => Promise<void>;
-  exportBackup: () => Promise<void>;
+  exportBackup: (password?: string) => Promise<void>;
   importBundleFile: (
     file: File,
     currentPassword?: string,
     invite?: string,
+    bundlePassword?: string,
   ) => Promise<{ authors: number; vaultRestored: boolean }>;
   attest: (target: string) => void;
   setupRecovery: (password: string, guardians: string[], threshold: number) => Promise<number>;
@@ -328,12 +333,18 @@ export function RitaProvider({ children }: { children: ReactNode }) {
     [bump],
   );
 
-  const hydrate = useCallback((next: Identity) => {
+  const hydrate = useCallback((next: Identity, restKey: Uint8Array | null) => {
     assertSingleSession(next.rpub);
     saveUnlockedRsec(next.rsec);
+    // Clave de cifrado en reposo: a partir de aqui los logs y la media se
+    // guardan cifrados. Los datos en claro de una instalacion anterior se
+    // re-cifran una vez (idempotente).
+    setRestKey(restKey);
+    migrateLogsAtRest();
+    void migrateMediaAtRest();
     // Recuerda la sesion en el dispositivo: reabrir la app no vuelve a pedir la
     // contraseña hasta que se cierre sesion o se borre la identidad.
-    void rememberSession(next.rsec, next.rpub);
+    void rememberSession(next.rsec, next.rpub, restKeyToHex());
     pruneDistinctChats();
     const stored = loadLog(next.rpub);
     setIdentity(next);
@@ -361,16 +372,18 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       await wipeRitaPreservingInvite();
       await assertBetaInvite(invite);
       const next = createIdentity();
+      const rest = newRestKey();
       // La foto se ingiere DESPUÉS del borrado: al crear cuenta se limpia el
       // almacén de media, así que si se guardara antes se perdería el avatar.
       const picture = pictureFile ? await ingestPhoto(pictureFile) : undefined;
-      const record = await wrapSecret(next, password);
+      const record = await wrapSecret(next, password, rest);
       setVault(record);
+      setRestKey(rest);
       const profile = signProfile(next, { name: name.trim() || "Rita", about, picture });
       appendEnvelope(next.rpub, profile);
       noteCreateSuccess();
       purgeForeignIdentities(next.rpub);
-      hydrate(next);
+      hydrate(next, rest);
       return next;
     },
     [hydrate],
@@ -405,9 +418,11 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       } else {
         purgeForeignIdentities(next.rpub);
       }
-      const record = await wrapSecret(next, password);
+      const rest = newRestKey();
+      const record = await wrapSecret(next, password, rest);
       setVault(record);
-      hydrate(next);
+      setRestKey(rest);
+      hydrate(next, rest);
     },
     [hydrate, identity, status],
   );
@@ -418,9 +433,17 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       if (!record) {
         throw new ProtocolError("no_vault");
       }
-      const next = await unwrapVault(record, password);
-      setVault(record);
-      hydrate(next);
+      const { identity: next, restKey } = await unwrapVault(record, password);
+      let rest = restKey;
+      if (!rest) {
+        // Boveda anterior al cifrado en reposo: se genera la clave y se vuelve a
+        // envolver para que el log y la media pasen a estar cifrados.
+        rest = newRestKey();
+        setVault(await wrapSecret(next, password, rest));
+      } else {
+        setVault(record);
+      }
+      hydrate(next, rest);
     },
     [hydrate],
   );
@@ -435,6 +458,10 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       if (identity) releaseSession(identity.rpub);
       resetLive();
       clearUnlockedRsec();
+      // Sin la clave de reposo, logs y media quedan cifrados e ilegibles; se
+      // vacia tambien la cache en memoria para no dejar texto plano.
+      setRestKey(null);
+      resetLogCache();
       if (forget) void forgetSession();
       setIdentity(null);
       setLog([]);
@@ -455,7 +482,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
     async (currentPassword: string, nextPassword: string) => {
       if (!identity) throw new ProtocolError("not_unlocked");
       await assertVaultOwnership(currentPassword);
-      const record = await wrapSecret(identity, nextPassword);
+      const record = await wrapSecret(identity, nextPassword, restKeyBytes() ?? newRestKey());
       setVault(record);
     },
     [identity],
@@ -475,6 +502,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
     }
     resetLive();
     clearUnlockedRsec();
+    setRestKey(null);
     void forgetSession();
     // El borrado nunca debe rechazar: aunque falle media o IndexedDB, se sale
     // igual a /welcome en vez de quedarse en una pantalla ya vacia.
@@ -768,7 +796,7 @@ export function RitaProvider({ children }: { children: ReactNode }) {
     await downloadBundle(bundle, `magicrita-${identity.rpub.slice(0, 12)}.json`);
   }, [identity]);
 
-  const exportBackup = useCallback(async () => {
+  const exportBackup = useCallback(async (password?: string) => {
     if (!identity) throw new ProtocolError("not_unlocked");
     const rpubs = [...new Set([identity.rpub, ...listKnownRpubs()])];
     // El codigo viaja dentro del backup para que al restaurarlo en otro
@@ -780,14 +808,16 @@ export function RitaProvider({ children }: { children: ReactNode }) {
       rpubs,
       vault: vault ? { ...vault, invite } : vault ?? undefined,
     });
-    await downloadBundle(bundle, `magicrita-backup-${Date.now()}.json`);
+    // Con contrasena, el archivo entero (notas, media y boveda) va cifrado.
+    const file = password && password.length > 0 ? await sealBundle(bundle, password) : bundle;
+    await downloadBundle(file, `magicrita-backup-${Date.now()}.json`);
   }, [identity, vault]);
 
   const importBundleFile = useCallback(
-    async (file: File, currentPassword?: string, invite?: string) => {
+    async (file: File, currentPassword?: string, invite?: string, bundlePassword?: string) => {
       if (file.size > MAX_BUNDLE_BYTES) throw new ProtocolError("invalid_bundle");
       const text = await file.text();
-      const bundle = parseBundle(text);
+      const bundle = await parseBundle(text, bundlePassword);
       if (bundle.kind === "backup" && bundle.vault) {
         // Restaurar una identidad es entrar en la beta otra vez. Si ya hay una
         // sesion con esa misma cuenta no hace falta el codigo; solo cuando la

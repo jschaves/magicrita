@@ -169,12 +169,67 @@ Prerequisites:
 
 - The domain's DNS **A** record points at this PC's public IP.
 - The router forwards **TCP 80 and 443** to this PC.
-- **nginx for Windows** unzipped to `C:\nginx` (`https://nginx.org/en/download.html`).
-- **win-acme** (`wacs.exe`) unzipped to `C:\win-acme` (`https://www.win-acme.com/`).
-- **NSSM** to run the relay and nginx as Windows services (`https://nssm.cc/`).
 - PowerShell **as Administrator** for the service, firewall, and certificate steps.
 
-Replace `YOUR-DOMAIN` everywhere (example `magicrita.com`).
+**Install nginx and win-acme first.** There is **no certbot on Windows** (certbot
+is the Linux path in `docs/INSTALAR-VPS.md`); here **win-acme** takes its place.
+nginx has no installer: it is a `.zip` you download and extract. In PowerShell
+**as Administrator**:
+
+> `ACME` is the protocol Let's Encrypt uses to prove you own the domain, and
+> **win-acme** is the client that speaks it. The `C:\certs\acme` folder and the
+> `/.well-known/acme-challenge/` URL are only where the proof file is written
+> during validation; they are **not** a program to install.
+
+```powershell
+Invoke-WebRequest https://nginx.org/download/nginx-1.30.5.zip -OutFile $env:TEMP\nginx.zip
+```
+
+```powershell
+Expand-Archive $env:TEMP\nginx.zip -DestinationPath C:\
+```
+
+```powershell
+Rename-Item C:\nginx-1.30.5 C:\nginx
+```
+
+```powershell
+C:\nginx\nginx.exe -v
+```
+
+```powershell
+Invoke-WebRequest https://github.com/win-acme/win-acme/releases/download/v2.2.9.1701/win-acme.v2.2.9.1701.x64.pluggable.zip -OutFile $env:TEMP\win-acme.zip
+```
+
+```powershell
+Expand-Archive $env:TEMP\win-acme.zip -DestinationPath C:\win-acme
+```
+
+```powershell
+C:\win-acme\wacs.exe --version
+```
+
+```powershell
+Invoke-WebRequest https://nssm.cc/release/nssm-2.24.zip -OutFile $env:TEMP\nssm.zip
+```
+
+```powershell
+Expand-Archive $env:TEMP\nssm.zip -DestinationPath C:\
+```
+
+```powershell
+Rename-Item C:\nssm-2.24 C:\nssm
+```
+
+NSSM is optional (only to run the relay and nginx as services). If `nssm` is not
+on `PATH`, call it by full path, for example `C:\nssm\win64\nssm.exe`. The
+versions above are the ones current when this was written; if the download 404s,
+take the numbers from `https://nginx.org/en/download.html` and
+`https://github.com/win-acme/win-acme/releases/latest`.
+
+Replace `YOUR-DOMAIN` everywhere (example `magicrita.com`). The paths below use
+`C:\magicrita`; if you cloned somewhere else (for example `E:\magicrita`), change
+every `C:\magicrita` / `C:/magicrita` accordingly.
 
 ### A. Build the site
 
