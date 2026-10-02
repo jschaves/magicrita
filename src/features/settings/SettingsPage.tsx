@@ -143,7 +143,7 @@ export function SettingsPage() {
             {showSecret && identity ? (
               <Button
                 type="button"
-                variant="ghost"
+                variant="secondary"
                 onClick={() => void copyText(identity.rsec)}
               >
                 {t("common.copy")}
@@ -184,7 +184,7 @@ export function SettingsPage() {
               {(previewUrl || (!removed && profile?.picture)) && (
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="secondary"
                   onClick={() => {
                     if (previewUrl) URL.revokeObjectURL(previewUrl);
                     setPreviewUrl(null);
@@ -219,12 +219,12 @@ export function SettingsPage() {
             hint={t("settings.interestsHint")}
           />
           {error ? <p className="text-sm text-accent">{error}</p> : null}
-          <Button type="submit" disabled={busy} className={pinSave ? "hidden" : ""}>
+          <Button type="submit" variant="secondary" disabled={busy} className={pinSave ? "hidden" : ""}>
             {busy ? t("compose.saving") : t("settings.signProfile")}
           </Button>
         </form>
         <MobileDock enabled={pinSave} role="composer" className="border-t border-line p-3">
-          <Button type="submit" form="profile-form" disabled={busy} className="w-full">
+          <Button type="submit" variant="secondary" form="profile-form" disabled={busy} className="w-full">
             {busy ? t("compose.saving") : t("settings.signProfile")}
           </Button>
         </MobileDock>
@@ -269,8 +269,32 @@ export function SettingsPage() {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <h2 className="font-display text-xl">{t("bundle.title")}</h2>
-            <InfoButton title={t("bundle.title")} body={t("bundle.hint")} />
+            <InfoButton title={t("bundle.title")} body={t("bundle.whatBody")} />
           </div>
+          <p className="text-sm leading-6 text-muted">{t("bundle.hint")}</p>
+          <details className="rounded-2xl border border-line bg-paper/70 p-3 text-sm text-muted">
+            <summary className="cursor-pointer font-semibold text-plum">
+              {t("bundle.whatTitle")}
+            </summary>
+            <div className="mt-3 space-y-3">
+              <div>
+                <p className="font-semibold text-ink">{t("bundle.exportTitle")}</p>
+                <p className="mt-1 whitespace-pre-wrap leading-6">{t("bundle.exportBody")}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-ink">{t("bundle.importTitle")}</p>
+                <p className="mt-1 whitespace-pre-wrap leading-6">{t("bundle.importBody")}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-ink">{t("bundle.passwordTitle")}</p>
+                <p className="mt-1 whitespace-pre-wrap leading-6">{t("bundle.passwordBody")}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-ink">{t("bundle.riskTitle")}</p>
+                <p className="mt-1 whitespace-pre-wrap leading-6">{t("bundle.riskBody")}</p>
+              </div>
+            </div>
+          </details>
           {needInvite ? (
             <TextField
               label={t("create.inviteCode")}
@@ -313,7 +337,7 @@ export function SettingsPage() {
                   });
               }}
             />
-            <Button type="button" onClick={() => bundleRef.current?.click()}>
+            <Button type="button" variant="secondary" onClick={() => bundleRef.current?.click()}>
               {t("bundle.import")}
             </Button>
           </div>
@@ -343,7 +367,7 @@ export function SettingsPage() {
             />
           ) : (
             <>
-              <Button type="button" variant="danger" className="w-full" onClick={() => setWipeOpen(true)}>
+              <Button type="button" variant="secondary" className="w-full" onClick={() => setWipeOpen(true)}>
                 {t("settings.delete")}
               </Button>
               <InfoButton title={t("settings.delete")} body={t("settings.deleteHint")} />

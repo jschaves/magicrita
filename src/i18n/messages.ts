@@ -395,7 +395,22 @@ export const es = {
   },
   bundle: {
     title: "Mis datos",
-    hint: "Exporta tu cuenta (identidad cifrada, notas y fotos) y súbela en otro navegador o dispositivo. El archivo es tuyo: no sirve para abrir la sesión de otra persona.",
+    hint: "Exporta tu cuenta (identidad, notas y fotos) a un archivo para continuar en otro navegador o dispositivo. Puedes protegerlo con una contraseña. Es tu copia: no abre la sesión de otra persona.",
+    whatTitle: "Qué puedes hacer aquí",
+    whatBody:
+      "Exportar descarga un archivo magicrita-bundle con tu identidad, tus notas, tus fotos y la información de tus conversaciones. Importar lee ese archivo y lo mete en este navegador.\n\nSe merece la pena para pasar tu cuenta a otro dispositivo o para guardar una copia. El archivo es tuyo: tenerlo no abre la sesión de otra persona, y una copia de otra identidad nunca se restaura encima de la tuya sin tu permiso.",
+    exportTitle: "Exportar",
+    exportBody:
+      "Pulsa Exportar mis datos y se descargará un solo archivo .json. Si escribes una contraseña en el campo de arriba, el archivo entero (notas, fotos e identidad) se cifra con esa contraseña. Si lo dejas vacío, se descarga sin cifrar: cualquiera que lo abra verá tus notas y fotos.",
+    importTitle: "Importar",
+    importBody:
+      "Pulsa Importar mis datos y elige el archivo. Si está cifrado, escribe la misma contraseña con la que lo exportaste. Se verificarán las firmas y las fotos antes de guardar nada. Importar un backup puede sustituir la identidad guardada en este navegador; si es de otra cuenta, se te pedirá la contraseña de la actual antes de continuar.",
+    passwordTitle: "La contraseña del archivo",
+    passwordBody:
+      "Es opcional y es solo para el archivo: no cambia la contraseña de tu cuenta. Úsala si vas a mover la copia por correo, USB o un chat, porque el archivo sin cifrar expone tus notas y fotos.",
+    riskTitle: "Qué puede pasar",
+    riskBody:
+      "Si olvidas esta contraseña, el archivo cifrado no se puede abrir: no hay recuperación. Si lo pierdes, no pasa nada aquí: sigues entrando con tu cuenta. Sin cifrar, quien tenga el archivo lee todo. Importar consume el código de invitación de la beta solo si entras con una identidad distinta a la de este dispositivo; para el mismo dispositivo solo se descifra y se fusiona. Si restauras una copia de OTRAA cuenta encima de la que tienes, se pedirá la contraseña de la actual y, si la aceptas, se reemplaza: guarda antes una copia.",
     exportPublic: "Exportar mis datos",
     exportBackup: "Exportar mis datos",
     exportedPublic: "Archivo descargado.",
@@ -1023,7 +1038,22 @@ export const en: Messages = {
   },
   bundle: {
     title: "My data",
-    hint: "Export your account (encrypted identity, notes and photos) and import it in another browser or device. The file is yours: it does not open someone else’s session.",
+    hint: "Export your account (identity, notes and photos) to a file and continue in another browser or device. You can protect it with a password. It is your copy: it does not open someone else’s session.",
+    whatTitle: "What you can do here",
+    whatBody:
+      "Export downloads a magicrita-bundle file with your identity, your notes, your photos and your conversations. Import reads that file and loads it into this browser.\n\nWorth it to move your account to another device or to keep a copy. The file is yours: having it does not open someone else's session, and a copy from another identity is never restored over yours without your permission.",
+    exportTitle: "Export",
+    exportBody:
+      "Press Export my data and a single .json file is downloaded. If you type a password in the field above, the whole file (notes, photos and identity) is encrypted with it. If you leave it empty, it is downloaded unencrypted: anyone who opens it will see your notes and photos.",
+    importTitle: "Import",
+    importBody:
+      "Press Import my data and pick the file. If it is encrypted, type the same password you exported it with. Signatures and photos are verified before anything is saved. Importing a backup can replace the identity stored in this browser; if it belongs to another account, you are asked for the current account's password before continuing.",
+    passwordTitle: "The file password",
+    passwordBody:
+      "It is optional and it is only for the file: it does not change your account password. Use it if you will move the copy over mail, USB or a chat, because the unencrypted file exposes your notes and photos.",
+    riskTitle: "What can happen",
+    riskBody:
+      "If you forget this password, the encrypted file cannot be opened: there is no recovery. If you lose the file, nothing happens here: you still sign in with your account. Without encryption, whoever has the file reads everything. Import only spends the beta invite if you enter with an identity different from this device's; on the same device it just decrypts and merges. Restoring a copy of ANOTHER account over the one you have asks for the current password and, if you accept, replaces it: keep a copy first.",
     exportPublic: "Export my data",
     exportBackup: "Export my data",
     exportedPublic: "Share file downloaded.",
@@ -1647,7 +1677,22 @@ export const pt: Messages = {
   },
   bundle: {
     title: "Os meus dados",
-    hint: "Exporta a tua conta (identidade cifrada, notas e fotos) e importa-a noutro navegador ou dispositivo. O ficheiro é teu: não abre a sessão de outra pessoa.",
+    hint: "Exporta a tua conta (identidade, notas e fotos) para um ficheiro e continua noutro navegador ou dispositivo. Podes protegê-lo com uma palavra-passe. É a tua cópia: não abre a sessão de outra pessoa.",
+    whatTitle: "O que podes fazer aqui",
+    whatBody:
+      "Exportar descarrega um ficheiro magicrita-bundle com a tua identidade, as tuas notas, as tuas fotos e as tuas conversas. Importar lê esse ficheiro e coloca-o neste navegador.\n\nVale a pena para passar a conta para outro dispositivo ou guardar uma cópia. O ficheiro é teu: tê-lo não abre a sessão de outra pessoa, e uma cópia de outra identidade nunca é restaurada por cima da tua sem a tua permissão.",
+    exportTitle: "Exportar",
+    exportBody:
+      "Carrega em Exportar os meus dados e será descarregado um só ficheiro .json. Se escreveres uma palavra-passe no campo de cima, o ficheiro inteiro (notas, fotos e identidade) é cifrado com ela. Se o deixares vazio, é descarregado sem cifrar: quem o abrir verá as tuas notas e fotos.",
+    importTitle: "Importar",
+    importBody:
+      "Carrega em Importar os meus dados e escolhe o ficheiro. Se estiver cifrado, escreve a mesma palavra-passe com que o exportaste. As assinaturas e as fotos são verificadas antes de guardar. Importar um backup pode substituir a identidade guardada neste navegador; se for de outra conta, pede-se a palavra-passe da atual antes de continuar.",
+    passwordTitle: "A palavra-passe do ficheiro",
+    passwordBody:
+      "É opcional e é só para o ficheiro: não muda a palavra-passe da tua conta. Usa-a se fores mover a cópia por email, USB ou chat, porque o ficheiro sem cifrar expõe as tuas notas e fotos.",
+    riskTitle: "O que pode acontecer",
+    riskBody:
+      "Se esqueceres esta palavra-passe, o ficheiro cifrado não se pode abrir: não há recuperação. Se perderes o ficheiro, não acontece nada aqui: continuas a entrar com a tua conta. Sem cifrar, quem tiver o ficheiro lê tudo. Importar só gasta o código de convite da beta se entrares com uma identidade diferente da deste dispositivo; no mesmo dispositivo apenas decifra e funde. Restaurar uma cópia de OUTRA conta por cima da que tens pede a palavra-passe atual e, se aceitares, substitui: guarda antes uma cópia.",
     exportPublic: "Exportar os meus dados",
     exportBackup: "Exportar os meus dados",
     exportedPublic: "Ficheiro de partilha descarregado.",
@@ -2275,7 +2320,22 @@ export const fr: Messages = {
   },
   bundle: {
     title: "Mes données",
-    hint: "Exporte ton compte (identité chiffrée, notes et photos) et importe-le dans un autre navigateur ou appareil. Le fichier est à toi : il n’ouvre pas la session de quelqu’un d’autre.",
+    hint: "Exporte ton compte (identité, notes et photos) vers un fichier et continue dans un autre navigateur ou appareil. Tu peux le protéger par un mot de passe. C’est ta copie : elle n’ouvre pas la session de quelqu’un d’autre.",
+    whatTitle: "Ce que tu peux faire ici",
+    whatBody:
+      "Exporter télécharge un fichier magicrita-bundle avec ton identité, tes notes, tes photos et tes conversations. Importer lit ce fichier et le charge dans ce navigateur.\n\nUtile pour passer ton compte sur un autre appareil ou garder une copie. Le fichier est à toi : le posséder n'ouvre pas la session de quelqu'un d'autre, et une copie d'une autre identité n'est jamais restaurée par-dessus la tienne sans ton accord.",
+    exportTitle: "Exporter",
+    exportBody:
+      "Appuie sur Exporter mes données et un seul fichier .json est téléchargé. Si tu saisis un mot de passe dans le champ ci-dessus, tout le fichier (notes, photos et identité) est chiffré avec. Si tu le laisses vide, il est téléchargé sans chiffrement : quiconque l’ouvre verra tes notes et tes photos.",
+    importTitle: "Importer",
+    importBody:
+      "Appuie sur Importer mes données et choisis le fichier. S’il est chiffré, saisis le même mot de passe que pour l’export. Les signatures et les photos sont vérifiées avant tout enregistrement. Importer une sauvegarde peut remplacer l’identité stockée dans ce navigateur ; si elle vient d’un autre compte, le mot de passe actuel est demandé avant de continuer.",
+    passwordTitle: "Le mot de passe du fichier",
+    passwordBody:
+      "Il est facultatif et ne concerne que le fichier : il ne change pas le mot de passe de ton compte. Utilise-le si tu déplaces la copie par mail, USB ou messagerie, car le fichier non chiffré expose tes notes et tes photos.",
+    riskTitle: "Ce qui peut arriver",
+    riskBody:
+      "Si tu oublies ce mot de passe, le fichier chiffré ne peut pas être ouvert : aucune récupération. Si tu perds le fichier, rien ne change ici : tu te connectes toujours avec ton compte. Sans chiffrement, qui a le fichier lit tout. Importer ne dépense le code d’invitation que si tu entres avec une identité différente de celle de cet appareil ; sur le même appareil, il déchiffre et fusionne seulement. Restaurer une copie d’UN AUTRE compte par-dessus la tienne demande le mot de passe actuel et, si tu acceptes, la remplace : garde une copie avant.",
     exportPublic: "Exporter mes données",
     exportBackup: "Exporter mes données",
     exportedPublic: "Fichier de partage téléchargé.",
@@ -2892,7 +2952,22 @@ export const ar: Messages = {
   },
   bundle: {
     title: "بياناتي",
-    hint: "صدّر حسابك (هوية مشفّرة وملاحظات وصور) واستورده في متصفح أو جهاز آخر. الملف لك: لا يفتح جلسة شخص آخر.",
+    hint: "صدّر حسابك (الهوية والملاحظات والصور) إلى ملف وتابع في متصفح أو جهاز آخر. يمكنك حمايته بكلمة مرور. إنها نسختك: لا تفتح جلسة شخص آخر.",
+    whatTitle: "ما يمكنك فعله هنا",
+    whatBody:
+      "التصدير ينزّل ملف magicrita-bundle فيه هويتك وملاحظاتك وصورك ومحادثاتك. والاستيراد يقرأ ذلك الملف ويضعه في هذا المتصفح.\n\nيفيد لنقل حسابك إلى جهاز آخر أو للاحتفاظ بنسخة. الملف لك: امتلاكه لا يفتح جلسة شخص آخر، ونسخة من هوية أخرى لا تُستعاد فوق هويتك أبدًا دون موافقتك.",
+    exportTitle: "التصدير",
+    exportBody:
+      "اضغط «تصدير بياناتي» فيُنزَّل ملف .json واحد. إذا كتبت كلمة مرور في الحقل أعلاه، يُشفَّر الملف كله (الملاحظات والصور والهوية) بها. وإذا تركته فارغًا، يُنزَّل دون تشفير: من يفتحه يرى ملاحظاتك وصورك.",
+    importTitle: "الاستيراد",
+    importBody:
+      "اضغط «استيراد بياناتي» واختر الملف. إن كان مشفّرًا فاكتب كلمة المرور نفسها التي صدّرته بها. تُتحقَّق التوقيعات والصور قبل حفظ أي شيء. استيراد نسخة احتياطية قد يستبدل الهوية المحفوظة في هذا المتصفح؛ وإن كانت من حساب آخر تُطلب كلمة مرور الحساب الحالي قبل المتابعة.",
+    passwordTitle: "كلمة مرور الملف",
+    passwordBody:
+      "اختيارية وهي للملف فقط: لا تغيّر كلمة مرور حسابك. استخدمها إن كنت ستنقل النسخة عبر البريد أو USB أو محادثة، لأن الملف غير المشفّر يكشف ملاحظاتك وصورك.",
+    riskTitle: "ما قد يحدث",
+    riskBody:
+      "إذا نسيت كلمة المرور هذه، لا يمكن فتح الملف المشفّر: لا يوجد استرجاع. وإذا فقدت الملف فلا شيء يحدث هنا: ما زلت تدخل بحسابك. وبدون تشفير، من يملك الملف يقرأ كل شيء. الاستيراد لا يستهلك رمز دعوة النسخة التجريبية إلا إذا دخلت بهوية مختلفة عن هوية هذا الجهاز؛ وعلى الجهاز نفسه يفكّ التشفير ويدمج فقط. واستعادة نسخة من حساب آخر فوق حسابك تطلب كلمة المرور الحالية، وإن قبلت تستبدله: احفظ نسخة أولًا.",
     exportPublic: "تصدير بياناتي",
     exportBackup: "تصدير بياناتي",
     exportedPublic: "تم تنزيل ملف المشاركة.",
@@ -3510,7 +3585,22 @@ export const ru: Messages = {
   },
   bundle: {
     title: "Мои данные",
-    hint: "Экспортируйте учётную запись (шифрованная личность, заметки и фото) и импортируйте её в другом браузере или на другом устройстве. Файл ваш: чужую сессию он не открывает.",
+    hint: "Экспортируйте аккаунт (личность, заметки и фото) в файл и продолжите в другом браузере или на другом устройстве. Можно защитить файл паролем. Это ваша копия: чужую сессию она не открывает.",
+    whatTitle: "Что здесь можно сделать",
+    whatBody:
+      "Экспорт скачивает файл magicrita-bundle с вашей личностью, заметками, фото и перепиской. Импорт читает этот файл и загружает его в этот браузер.\n\nПригодится, чтобы перенести аккаунт на другое устройство или сохранить копию. Файл ваш: его наличие не открывает сессию другого человека, и копия чужой личности никогда не восстановится поверх вашей без вашего разрешения.",
+    exportTitle: "Экспорт",
+    exportBody:
+      "Нажмите «Экспортировать мои данные» — скачается один файл .json. Если ввести пароль в поле выше, весь файл (заметки, фото и личность) будет зашифрован им. Если оставить пустым, файл скачается без шифрования: кто его откроет, увидит ваши заметки и фото.",
+    importTitle: "Импорт",
+    importBody:
+      "Нажмите «Импортировать мои данные» и выберите файл. Если он зашифрован, введите тот же пароль, которым экспортировали. Подписи и фото проверяются до сохранения. Импорт бэкапа может заменить личность, сохранённую в этом браузере; если он от другого аккаунта, перед продолжением запросят пароль текущего.",
+    passwordTitle: "Пароль файла",
+    passwordBody:
+      "Он необязателен и относится только к файлу: он не меняет пароль вашего аккаунта. Используйте его, если будете передавать копию по почте, USB или в чате, потому что незашифрованный файл раскрывает ваши заметки и фото.",
+    riskTitle: "Что может случиться",
+    riskBody:
+      "Если забыть этот пароль, зашифрованный файл нельзя открыть: восстановления нет. Если потерять файл, здесь ничего не случится: вы всё так же входите в аккаунт. Без шифрования тот, у кого файл, читает всё. Импорт расходует код приглашения бета-версии только если вы входите с личностью, отличной от личности этого устройства; на том же устройстве он лишь расшифровывает и объединяет. Восстановление копии ДРУГОГО аккаунта поверх вашего запросит текущий пароль и, если согласитесь, заменит его: сначала сохраните копию.",
     exportPublic: "Экспортировать мои данные",
     exportBackup: "Экспортировать мои данные",
     exportedPublic: "Файл для обмена скачан.",
@@ -4125,7 +4215,22 @@ export const zh: Messages = {
   },
   bundle: {
     title: "我的数据",
-    hint: "导出你的账户（加密身份、笔记和照片），再在另一台浏览器或设备上导入。这是你的文件：打不开别人的会话。",
+    hint: "把你的账户（身份、笔记和照片）导出为文件，在另一台浏览器或设备上继续。可用密码保护。这是你的副本：打不开别人的会话。",
+    whatTitle: "这里可以做什么",
+    whatBody:
+      "导出会下载一个 magicrita-bundle 文件，包含你的身份、笔记、照片和对话。导入会读取该文件并载入此浏览器。\n\n适合把账户迁移到另一台设备，或保存一份副本。文件是你的：拥有它并不能打开别人的会话，来自其他身份的副本也绝不会在未经你同意的情况下覆盖你的。",
+    exportTitle: "导出",
+    exportBody:
+      "点击“导出我的数据”会下载一个 .json 文件。如果在上方输入密码，整个文件（笔记、照片和身份）都会用它加密。如果留空，文件不会加密：任何打开它的人都能看到你的笔记和照片。",
+    importTitle: "导入",
+    importBody:
+      "点击“导入我的数据”并选择文件。若已加密，请输入导出时所用的同一密码。保存前会校验签名和照片。导入备份可能替换此浏览器中保存的身份；若来自其他账户，继续前会要求当前账户的密码。",
+    passwordTitle: "文件密码",
+    passwordBody:
+      "它是可选的，只作用于文件：不会更改你的账户密码。如果你要通过邮件、U 盘或聊天传输副本，请使用它，因为未加密的文件会暴露你的笔记和照片。",
+    riskTitle: "可能会发生什么",
+    riskBody:
+      "若忘记此密码，加密文件将无法打开：没有恢复途径。若丢失文件，这里不受影响：你仍用账户登录。若未加密，拿到文件的人能读到一切。仅当你使用与本设备不同的身份进入时，导入才会消耗内测邀请码；在同一设备上只会解密并合并。用“另一个”账户的副本覆盖你的会要求当前密码，若你同意就会替换：请先备份。",
     exportPublic: "导出我的数据",
     exportBackup: "导出我的数据",
     exportedPublic: "已下载分享文件。",
@@ -4741,7 +4846,22 @@ export const ja: Messages = {
   },
   bundle: {
     title: "自分のデータ",
-    hint: "アカウント（暗号化された身元、メモ、写真）をファイルに書き出し、別のブラウザや端末で読み込みます。自分のファイルです。他人のセッションは開きません。",
+    hint: "アカウント（身元・メモ・写真）をファイルに書き出し、別のブラウザや端末で続けられます。パスワードで保護できます。これはあなたのコピーです。他人のセッションは開きません。",
+    whatTitle: "ここでできること",
+    whatBody:
+      "書き出すと magicrita-bundle ファイルがダウンロードされ、身元・メモ・写真・会話が入っています。読み込むと、そのファイルをこのブラウザに入れます。\n\nアカウントを別の端末へ移すときや、コピーを残したいときに役立ちます。ファイルはあなたのものです。持っていても他人のセッションは開けず、別の身元のコピーがあなたの同意なく上書きされることはありません。",
+    exportTitle: "書き出す",
+    exportBody:
+      "「自分のデータを書き出す」を押すと .json ファイルを 1 つ保存します。上の欄にパスワードを入れると、ファイル全体（メモ・写真・身元）がそれで暗号化されます。空のままなら暗号化されずに保存され、開いた人はあなたのメモと写真を見られます。",
+    importTitle: "読み込む",
+    importBody:
+      "「自分のデータを読み込む」を押してファイルを選びます。暗号化されていれば、書き出したときと同じパスワードを入力します。保存前に署名と写真が検証されます。バックアップの読み込みで、このブラウザの身元が置き換わることがあります。別アカウントのものなら、続行前に現在のアカウントのパスワードを求めます。",
+    passwordTitle: "ファイルのパスワード",
+    passwordBody:
+      "任意で、ファイルだけに使います。アカウントのパスワードは変わりません。メールや USB、チャットでコピーを移すなら使ってください。暗号化しないファイルはメモと写真を晒します。",
+    riskTitle: "起こりうること",
+    riskBody:
+      "このパスワードを忘れると、暗号化したファイルは開けません。復元方法はありません。ファイルを失っても、ここでは何も起きません。アカウントでログインし続けられます。暗号化がなければ、ファイルを持つ人がすべて読めます。読み込みでベータの招待コードを使うのは、この端末と違う身元で入るときだけです。同じ端末では復号して統合するだけです。別アカウントのコピーをあなたの上に復元すると現在のパスワードを求め、同意すれば置き換えます。先にコピーを取ってください。",
     exportPublic: "自分のデータを書き出す",
     exportBackup: "自分のデータを書き出す",
     exportedPublic: "共有ファイルを保存しました。",
@@ -5370,7 +5490,22 @@ export const it: Messages = {
   },
   bundle: {
     title: "I miei dati",
-    hint: "Esporta il tuo account (identità cifrata, note e foto) e importalo in un altro browser o dispositivo. Il file è tuo: non apre la sessione di qualcun altro.",
+    hint: "Esporta il tuo account (identità, note e foto) in un file e continua in un altro browser o dispositivo. Puoi proteggerlo con una password. È la tua copia: non apre la sessione di qualcun altro.",
+    whatTitle: "Cosa puoi fare qui",
+    whatBody:
+      "Esporta scarica un file magicrita-bundle con la tua identità, le tue note, le tue foto e le tue conversazioni. Importa legge quel file e lo carica in questo browser.\n\nServe per spostare l'account su un altro dispositivo o per tenere una copia. Il file è tuo: averlo non apre la sessione di qualcun altro, e una copia di un'altra identità non viene mai ripristinata sopra la tua senza il tuo consenso.",
+    exportTitle: "Esporta",
+    exportBody:
+      "Premi Esporta i miei dati e viene scaricato un solo file .json. Se inserisci una password nel campo sopra, l'intero file (note, foto e identità) viene cifrato con essa. Se lo lasci vuoto, viene scaricato senza cifratura: chi lo apre vedrà le tue note e le tue foto.",
+    importTitle: "Importa",
+    importBody:
+      "Premi Importa i miei dati e scegli il file. Se è cifrato, inserisci la stessa password con cui l'hai esportato. Firme e foto vengono verificate prima di salvare. Importare un backup può sostituire l'identità salvata in questo browser; se è di un altro account, viene chiesta la password di quello attuale prima di continuare.",
+    passwordTitle: "La password del file",
+    passwordBody:
+      "È facoltativa ed è solo per il file: non cambia la password del tuo account. Usala se sposterai la copia via email, USB o chat, perché il file non cifrato espone le tue note e le tue foto.",
+    riskTitle: "Cosa può succedere",
+    riskBody:
+      "Se dimentichi questa password, il file cifrato non si può aprire: nessun recupero. Se perdi il file, qui non succede nulla: entri ancora con il tuo account. Senza cifratura, chi ha il file legge tutto. Importare consuma il codice d'invito della beta solo se entri con un'identità diversa da quella di questo dispositivo; sullo stesso dispositivo decifra e unisce soltanto. Ripristinare la copia di un ALTRO account sopra la tua chiede la password attuale e, se accetti, la sostituisce: tieni prima una copia.",
     exportPublic: "Esporta i miei dati",
     exportBackup: "Esporta i miei dati",
     exportedPublic: "File condivisibile scaricato.",
@@ -5998,7 +6133,22 @@ export const de: Messages = {
   },
   bundle: {
     title: "Meine Daten",
-    hint: "Exportiere dein Konto (verschlüsselte Identität, Notizen und Fotos) und importiere es in einem anderen Browser oder Gerät. Die Datei gehört dir: Sie öffnet nicht die Sitzung von jemand anderem.",
+    hint: "Exportiere dein Konto (Identität, Notizen und Fotos) in eine Datei und mach in einem anderen Browser oder Gerät weiter. Du kannst sie mit einem Passwort schützen. Es ist deine Kopie: sie öffnet nicht die Sitzung von jemand anderem.",
+    whatTitle: "Was du hier tun kannst",
+    whatBody:
+      "Exportieren lädt eine magicrita-bundle-Datei mit deiner Identität, deinen Notizen, deinen Fotos und deinen Gesprächen herunter. Importieren liest diese Datei und lädt sie in diesen Browser.\n\nNützlich, um dein Konto auf ein anderes Gerät zu bringen oder eine Kopie zu behalten. Die Datei gehört dir: sie zu haben öffnet nicht die Sitzung von jemand anderem, und eine Kopie einer anderen Identität wird nie ohne deine Zustimmung über deine gelegt.",
+    exportTitle: "Exportieren",
+    exportBody:
+      "Drücke „Meine Daten exportieren“, und es wird eine einzelne .json-Datei heruntergeladen. Wenn du oben ein Passwort eingibst, wird die ganze Datei (Notizen, Fotos und Identität) damit verschlüsselt. Lässt du es leer, wird sie unverschlüsselt geladen: wer sie öffnet, sieht deine Notizen und Fotos.",
+    importTitle: "Importieren",
+    importBody:
+      "Drücke „Meine Daten importieren“ und wähle die Datei. Ist sie verschlüsselt, gib dasselbe Passwort ein, mit dem du exportiert hast. Signaturen und Fotos werden geprüft, bevor etwas gespeichert wird. Ein Backup-Import kann die in diesem Browser gespeicherte Identität ersetzen; gehört sie zu einem anderen Konto, wird vor dem Fortfahren das aktuelle Passwort verlangt.",
+    passwordTitle: "Das Dateipasswort",
+    passwordBody:
+      "Es ist optional und gilt nur für die Datei: es ändert nicht das Passwort deines Kontos. Nutze es, wenn du die Kopie per Mail, USB oder Chat weitergibst, denn die unverschlüsselte Datei legt deine Notizen und Fotos offen.",
+    riskTitle: "Was passieren kann",
+    riskBody:
+      "Wenn du dieses Passwort vergisst, lässt sich die verschlüsselte Datei nicht öffnen: keine Wiederherstellung. Wenn du die Datei verlierst, passiert hier nichts: du meldest dich weiter mit deinem Konto an. Ohne Verschlüsselung liest jeder mit der Datei alles. Der Import verbraucht den Beta-Einladungscode nur, wenn du dich mit einer anderen Identität anmeldest als der dieses Geräts; auf demselben Gerät wird nur entschlüsselt und zusammengeführt. Eine Kopie eines ANDEREN Kontos über deine zu legen verlangt das aktuelle Passwort und ersetzt sie, wenn du zustimmst: sichere vorher eine Kopie.",
     exportPublic: "Meine Daten exportieren",
     exportBackup: "Meine Daten exportieren",
     exportedPublic: "Teilbare Datei heruntergeladen.",

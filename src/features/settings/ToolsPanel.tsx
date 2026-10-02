@@ -117,7 +117,7 @@ export function ToolsPanel() {
           <Button type="button" variant="secondary" onClick={checkProof} disabled={!proof.trim()}>
             {tt("verify")}
           </Button>
-          <Button type="button" variant="ghost" onClick={exportProof}>
+          <Button type="button" variant="secondary" onClick={exportProof}>
             {tt("copyProof")}
           </Button>
         </div>
@@ -142,7 +142,7 @@ export function ToolsPanel() {
           </Button>
           <Button
             type="button"
-            variant="ghost"
+            variant="secondary"
             disabled={!sync}
             onClick={() => void copyText(sync)}
           >
@@ -155,7 +155,7 @@ export function ToolsPanel() {
           value={incoming}
           onChange={(e) => setIncoming(e.target.value)}
         />
-        <Button type="button" onClick={doImport} disabled={!incoming.trim()}>
+        <Button type="button" variant="secondary" onClick={doImport} disabled={!incoming.trim()}>
           {tt("import")}
         </Button>
         {syncMsg ? <p className="text-sm text-plum">{syncMsg}</p> : null}
@@ -182,8 +182,8 @@ export function ToolsPanel() {
                       )
                     }
                     aria-pressed={active}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                      active ? "bg-accent text-white" : "border border-line bg-paper text-ink hover:border-accent/40"
+                    className={`rounded-full border bg-paper px-3 py-1.5 text-xs font-semibold text-ink transition hover:border-accent/40 ${
+                      active ? "border-accent" : "border-line"
                     }`}
                   >
                     {profileOf(rpub)?.name || shortenId(rpub)}
@@ -212,6 +212,7 @@ export function ToolsPanel() {
             </div>
             <Button
               type="button"
+              variant="secondary"
               onClick={doSetup}
               disabled={picked.length < RECOVERY_MIN_THRESHOLD || recPassword.length < 10}
             >
@@ -231,7 +232,7 @@ export function ToolsPanel() {
                   <span className="min-w-0 truncate text-xs text-muted">
                     {shortenId(env.body.owner)} · {env.body.index}/{env.body.total}
                   </span>
-                  <Button type="button" variant="ghost" onClick={() => void copyText(shareToText(env))}>
+                  <Button type="button" variant="secondary" onClick={() => void copyText(shareToText(env))}>
                     {tt("copyShare")}
                   </Button>
                 </li>

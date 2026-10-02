@@ -25,7 +25,7 @@ export function WipeConfirm({
       <div className="mt-4 flex flex-col gap-2">
         <Button
           type="button"
-          variant="primary"
+          variant="secondary"
           className="w-full"
           onClick={onConfirm}
         >

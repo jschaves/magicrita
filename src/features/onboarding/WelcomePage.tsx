@@ -91,6 +91,25 @@ export function WelcomePage() {
           <FileUp className="text-gold" />
           <h2 className="mt-3 font-display text-xl">{t("welcome.portableTitle")}</h2>
           <p className="mt-2 text-sm text-muted">{t("welcome.portableBody")}</p>
+          <details className="mt-3 rounded-2xl border border-line bg-paper/70 p-3 text-sm text-muted">
+            <summary className="cursor-pointer font-semibold text-plum">
+              {t("bundle.whatTitle")}
+            </summary>
+            <div className="mt-3 space-y-3">
+              <div>
+                <p className="font-semibold text-ink">{t("bundle.exportTitle")}</p>
+                <p className="mt-1 whitespace-pre-wrap leading-6">{t("bundle.exportBody")}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-ink">{t("bundle.importTitle")}</p>
+                <p className="mt-1 whitespace-pre-wrap leading-6">{t("bundle.importBody")}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-ink">{t("bundle.riskTitle")}</p>
+                <p className="mt-1 whitespace-pre-wrap leading-6">{t("bundle.riskBody")}</p>
+              </div>
+            </div>
+          </details>
           <div className="mt-4">
             <TextField
               label={t("create.password")}
