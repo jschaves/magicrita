@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Avatar } from "@/components/note/Avatar";
 import { Button } from "@/components/ui/Button";
 import { CharCount } from "@/components/ui/Field";
@@ -16,10 +16,14 @@ import {
   type LiveReaction,
 } from "@/lib/protocol/live";
 
+/** Cuántos comentarios se ven a la vez en el directo. */
+const LIVE_CHAT_VISIBLE = 3;
+
 /**
- * Chat efímero de un directo: comentarios (con avatar) subiendo por la derecha
- * y reacciones con emoji que flotan y desaparecen. Nada se guarda en el
- * dispositivo ni en el relé; el emisor reenvía lo que mandan los espectadores.
+ * Chat efímero de un directo: hasta tres comentarios (con avatar) anclados a la
+ * derecha sobre el vídeo, y reacciones con emoji + avatar que flotan hacia
+ * arriba y desaparecen. Nada se guarda en el dispositivo ni en el relé; el
+ * emisor reenvía lo que mandan los espectadores.
  */
 export function LiveChat({
   chat,
@@ -34,18 +38,12 @@ export function LiveChat({
   const { locale } = useI18n();
   const tt = (key: ToolsKey, vars?: Record<string, string | number>) => toolsText(locale, key, vars);
   const [text, setText] = useState("");
-  const listRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const node = listRef.current;
-    if (!node) return;
-    node.scrollTop = node.scrollHeight;
-  }, [chat.length]);
-
-  const authors = useMemo(
-    () => new Map(chat.map((item) => [item.from, profileOf(item.from)])),
-    [chat, profileOf],
-  );
+  const visible = chat.slice(-LIVE_CHAT_VISIBLE);
+  const infoOf = (from: string) => {
+    const p = profileOf(from);
+    return { name: p?.name || shortenId(from), picture: p?.picture };
+  };
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -57,32 +55,33 @@ export function LiveChat({
 
   return (
     <div className="pointer-events-none absolute inset-0 z-[85] overflow-hidden">
-      {/* Reacciones flotantes: suben por la banda derecha. */}
-      <div className="absolute inset-y-0 right-0 w-24 overflow-hidden">
-        {reactions.map((reaction) => (
-          <span
-            key={reaction.key}
-            className="rita-reaction absolute bottom-0 select-none text-3xl drop-shadow"
-            style={{ right: `${reaction.x}%` }}
-            aria-hidden
-          >
-            {reaction.emoji}
-          </span>
-        ))}
+      {/* Reacciones flotantes: emoji + avatar subiendo por la banda derecha. */}
+      <div className="absolute inset-y-0 right-0 w-40 overflow-hidden">
+        {reactions.map((reaction) => {
+          const info = infoOf(reaction.from);
+          return (
+            <div
+              key={reaction.key}
+              className="rita-reaction absolute bottom-0 flex items-center gap-1.5"
+              style={{ right: `${reaction.x}%` }}
+              aria-hidden
+            >
+              <span className="text-2xl drop-shadow">{reaction.emoji}</span>
+              <Avatar name={info.name} picture={info.picture} size="sm" />
+            </div>
+          );
+        })}
       </div>
 
-      {/* Comentarios: banda derecha, encima del vídeo, con avatar. */}
-      <div
-        ref={listRef}
-        className="pointer-events-none absolute inset-y-0 right-0 flex max-h-full w-56 flex-col gap-1.5 overflow-y-auto p-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:w-64"
-      >
-        {chat.map((message) => {
-          const name = authors.get(message.from)?.name || shortenId(message.from);
+      {/* Comentarios: máximo tres, anclados abajo a la derecha, con avatar. */}
+      <div className="absolute bottom-32 right-2 flex w-56 flex-col items-end gap-1.5 sm:w-64">
+        {visible.map((message) => {
+          const info = infoOf(message.from);
           return (
-            <div key={message.key} className="pointer-events-auto flex items-start gap-2">
-              <Avatar name={name} picture={authors.get(message.from)?.picture} size="sm" />
-              <div className="min-w-0 rounded-2xl rounded-tl-sm bg-ink/55 px-2.5 py-1.5 backdrop-blur">
-                <p className="truncate text-[11px] font-semibold text-cream/80">{name}</p>
+            <div key={message.key} className="pointer-events-auto flex max-w-full items-start gap-2">
+              <Avatar name={info.name} picture={info.picture} size="sm" />
+              <div className="min-w-0 max-w-[12rem] rounded-2xl rounded-tl-sm bg-ink/60 px-2.5 py-1.5 backdrop-blur">
+                <p className="truncate text-[11px] font-semibold text-cream/80">{info.name}</p>
                 <p className="break-words text-sm leading-5 text-white">{message.text}</p>
               </div>
             </div>

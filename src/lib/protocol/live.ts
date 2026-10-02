@@ -142,7 +142,8 @@ function pushChat(from: string, text: string, at: number): void {
 /** Añade una reacción flotante y programa su retirada. */
 function pushReaction(from: string, emoji: string, at: number): void {
   if (!LIVE_REACTION_EMOJIS.includes(emoji)) return;
-  const x = 8 + Math.round(Math.random() * 70);
+  // Posición horizontal dentro de la banda derecha, sin salirse (ver LiveChat).
+  const x = Math.round(Math.random() * 40);
   reactions = [...reactions, { key: `${from}:${at}:${reactions.length}`, from, emoji, at, x }];
   emit();
   scheduleReactionCleanup();
