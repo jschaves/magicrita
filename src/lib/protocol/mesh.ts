@@ -75,11 +75,31 @@ export type LiveSignal = {
   id: string;
   rpub?: string;
   sig?: string;
-  kind: "announce" | "discover" | "end" | "join" | "leave" | "offer" | "answer" | "cand";
+  kind:
+    | "announce"
+    | "discover"
+    | "end"
+    | "join"
+    | "leave"
+    | "offer"
+    | "answer"
+    | "cand"
+    /** Comentario efímero del chat del directo (máx. 280 caracteres). */
+    | "chat"
+    /** Reacción con emoji: se dibuja flotando y desaparece. */
+    | "reaction";
   title?: string;
   startedAt?: number;
   desc?: RTCSessionDescriptionInit;
   cand?: RTCIceCandidateInit;
+  /** Texto de un comentario del chat del directo. */
+  text?: string;
+  /** Emoji de una reacción del directo. */
+  emoji?: string;
+  /** Marca temporal del mensaje (para ordenar y caducar en la UI). */
+  at?: number;
+  /** Autor original. El emisor lo rellena al reenviar el chat de un espectador. */
+  author?: string;
 };
 
 type SignalIn =

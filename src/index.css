@@ -177,3 +177,33 @@ input {
   right: -12px;
   border-left-color: var(--color-bubble-mine);
 }
+
+/* Reacciones de directo: el emoji sube por la banda derecha y se desvanece. */
+@keyframes rita-reaction-float {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.7);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(-6vh) scale(1);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-58vh) scale(1.1);
+  }
+}
+
+.rita-reaction {
+  animation: rita-reaction-float 4s ease-out forwards;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rita-reaction {
+    animation-duration: 0.01s;
+  }
+}

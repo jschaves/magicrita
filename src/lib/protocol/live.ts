@@ -33,17 +33,47 @@ export type LiveSession =
   | { role: "viewing"; id: string; host: string; remote: MediaStream | null }
   | null;
 
+/** Comentario efímero del chat de un directo. No se guarda en ningún sitio. */
+export type LiveChatMessage = {
+  key: string;
+  from: string;
+  text: string;
+  at: number;
+};
+
+/** Reacción con emoji: se dibuja flotando sobre el directo y desaparece. */
+export type LiveReaction = {
+  key: string;
+  from: string;
+  emoji: string;
+  at: number;
+  /** Posición horizontal (0-100) dentro de la banda derecha donde flota. */
+  x: number;
+};
+
 export type LiveSnapshot = {
   lives: LiveInfo[];
   session: LiveSession;
   /** true mientras se espera el primer anuncio tras pedir la lista. */
   loading: boolean;
+  /** Chat efímero del directo en curso (vacío fuera de un directo). */
+  chat: LiveChatMessage[];
+  /** Reacciones efímeras vivas (se limpian solas al pasar unos segundos). */
+  reactions: LiveReaction[];
 };
 
 const LIVE_DOMAIN = "rita-live-v1";
 /** Un anuncio sin refresco en este tiempo se considera terminado. */
 const ANNOUNCE_TTL_MS = 15_000;
 const ANNOUNCE_EVERY_MS = 5_000;
+/** Cuántos comentarios de chat se conservan (RAM, efímeros). */
+const CHAT_MAX = 100;
+/** Un comentario del chat del directo, con el mismo tope que los de un post. */
+export const LIVE_CHAT_MAX_CHARS = 280;
+/** Emojis válidos para reaccionar en un directo. */
+export const LIVE_REACTION_EMOJIS = ["❤️", "🔥", "👏", "😂", "😮", "👍", "✨", "💛"];
+/** Cuánto vive una reacción flotante antes de retirarse. */
+const REACTION_TTL_MS = 4_000;
 
 type Broadcast = {
   id: string;
@@ -69,8 +99,13 @@ let pruneTimer = 0;
 let discovering = false;
 let discoverTimer = 0;
 
+/** Chat y reacciones del directo en curso. Efímeros: nunca tocan el disco. */
+let chat: LiveChatMessage[] = [];
+let reactions: LiveReaction[] = [];
+let reactionCleanup = 0;
+
 const listeners = new Set<() => void>();
-let snapshot: LiveSnapshot = { lives: [], session: null, loading: false };
+let snapshot: LiveSnapshot = { lives: [], session: null, loading: false, chat: [], reactions: [] };
 
 function emit() {
   snapshot = {
@@ -87,8 +122,59 @@ function emit() {
         ? { role: "viewing", id: viewing.id, host: viewing.host, remote: viewing.remote }
         : null,
     loading: discovering,
+    chat,
+    reactions,
   };
   for (const listener of listeners) listener();
+}
+
+/**
+ * Comentario de chat efímero: se añade a la lista (máx. `CHAT_MAX`) y se
+ * descarta solo. No se firma aquí; lo hace `sendSigned` con la `rsec`.
+ */
+function pushChat(from: string, text: string, at: number): void {
+  const clipped = clipText(text, LIVE_CHAT_MAX_CHARS);
+  if (!clipped) return;
+  chat = [...chat, { key: `${from}:${at}:${chat.length}`, from, text: clipped, at }].slice(-CHAT_MAX);
+  emit();
+}
+
+/** Añade una reacción flotante y programa su retirada. */
+function pushReaction(from: string, emoji: string, at: number): void {
+  if (!LIVE_REACTION_EMOJIS.includes(emoji)) return;
+  const x = 8 + Math.round(Math.random() * 70);
+  reactions = [...reactions, { key: `${from}:${at}:${reactions.length}`, from, emoji, at, x }];
+  emit();
+  scheduleReactionCleanup();
+}
+
+function scheduleReactionCleanup(): void {
+  if (reactionCleanup) return;
+  reactionCleanup = window.setInterval(() => {
+    const now = Date.now();
+    const next = reactions.filter((item) => now - item.at < REACTION_TTL_MS);
+    if (next.length !== reactions.length) {
+      reactions = next;
+      emit();
+    }
+    if (reactions.length === 0) {
+      window.clearInterval(reactionCleanup);
+      reactionCleanup = 0;
+    }
+  }, 1_000);
+}
+
+function clearChat(): void {
+  chat = [];
+  reactions = [];
+  if (reactionCleanup) {
+    window.clearInterval(reactionCleanup);
+    reactionCleanup = 0;
+  }
+}
+
+function clipText(text: string, max: number): string {
+  return text.trim().slice(0, max);
 }
 
 function stopDiscovering() {
@@ -127,6 +213,8 @@ function iceJson(candidate: RTCIceCandidate): RTCIceCandidateInit {
 
 function bodyOf(signal: LiveSignal): string {
   if (signal.kind === "announce") return `${signal.title ?? ""}\n${signal.startedAt ?? 0}`;
+  if (signal.kind === "chat") return `${signal.author ?? signal.rpub ?? ""}\n${signal.at ?? 0}\n${signal.text ?? ""}`;
+  if (signal.kind === "reaction") return `${signal.author ?? signal.rpub ?? ""}\n${signal.at ?? 0}\n${signal.emoji ?? ""}`;
   if (signal.desc) return `${signal.desc.type ?? ""}\n${signal.desc.sdp ?? ""}`;
   if (signal.cand) return signal.cand.candidate ?? "";
   return "";
@@ -218,6 +306,7 @@ function endViewing() {
   if (!viewing) return;
   const pc = viewing.pc;
   viewing = null;
+  clearChat();
   try {
     pc.close();
   } catch {
@@ -251,6 +340,7 @@ export async function startBroadcast(title: string): Promise<void> {
     pcs: new Map(),
     timer: 0,
   };
+  clearChat();
   announce();
   broadcast.timer = window.setInterval(announce, ANNOUNCE_EVERY_MS);
   emit();
@@ -270,6 +360,7 @@ export function stopBroadcast(): void {
     }
   }
   for (const track of session.local.getTracks()) track.stop();
+  clearChat();
   emit();
 }
 
@@ -293,6 +384,7 @@ export async function joinLive(id: string): Promise<void> {
   const info = lives.get(id);
   if (!info) return;
   if (broadcast || viewing) throw new Error("live_busy");
+  clearChat();
   viewing = { id, host: info.host, pc: newPc(info.host, id), remote: null, queuedIce: [] };
   sendSigned(info.host, { id, kind: "join" });
   emit();
@@ -304,6 +396,45 @@ export function leaveLive(): void {
   sendSigned(session.host, { id: session.id, kind: "leave" });
   endViewing();
   emit();
+}
+
+/**
+ * Envía un comentario al chat del directo. El espectador se lo manda al emisor,
+ * que lo reenvía a todos; el emisor lo manda a todos directamente. No se guarda.
+ */
+export function sendLiveChat(text: string): void {
+  const me = selfRpub();
+  if (!me) return;
+  const clipped = clipText(text, LIVE_CHAT_MAX_CHARS);
+  if (!clipped) return;
+  const at = Date.now();
+  pushChat(me, clipped, at);
+  if (broadcast) {
+    for (const to of liveRpubs()) {
+      sendSigned(to, { id: broadcast.id, kind: "chat", text: clipped, at, author: me });
+    }
+    return;
+  }
+  if (viewing) {
+    sendSigned(viewing.host, { id: viewing.id, kind: "chat", text: clipped, at, author: me });
+  }
+}
+
+/** Manda una reacción con emoji; se dibuja flotando y desaparece. No se guarda. */
+export function sendLiveReaction(emoji: string): void {
+  const me = selfRpub();
+  if (!me || !LIVE_REACTION_EMOJIS.includes(emoji)) return;
+  const at = Date.now();
+  pushReaction(me, emoji, at);
+  if (broadcast) {
+    for (const to of liveRpubs()) {
+      sendSigned(to, { id: broadcast.id, kind: "reaction", emoji, at, author: me });
+    }
+    return;
+  }
+  if (viewing) {
+    sendSigned(viewing.host, { id: viewing.id, kind: "reaction", emoji, at, author: me });
+  }
 }
 
 async function onJoin(from: string, signal: LiveSignal): Promise<void> {
@@ -437,6 +568,51 @@ function handleSignal(from: string, signal: LiveSignal) {
     case "cand":
       onCand(from, signal);
       return;
+    case "chat": {
+      if (broadcast && broadcast.id === signal.id) {
+        // Soy el emisor: muestro el comentario y lo reenvío a los demás.
+        const author = signal.author || from;
+        pushChat(author, signal.text ?? "", Number(signal.at) || Date.now());
+        for (const to of liveRpubs()) {
+          if (to === from) continue;
+          sendSigned(to, {
+            id: broadcast.id,
+            kind: "chat",
+            text: signal.text,
+            at: signal.at,
+            author,
+          });
+        }
+        return;
+      }
+      if (viewing && viewing.id === signal.id) {
+        // Soy espectador: lo reenvía el emisor, así que lo muestro tal cual.
+        pushChat(signal.author || from, signal.text ?? "", Number(signal.at) || Date.now());
+      }
+      return;
+    }
+    case "reaction": {
+      const emoji = signal.emoji ?? "";
+      const author = signal.author || from;
+      if (broadcast && broadcast.id === signal.id) {
+        pushReaction(author, emoji, Number(signal.at) || Date.now());
+        for (const to of liveRpubs()) {
+          if (to === from) continue;
+          sendSigned(to, {
+            id: broadcast.id,
+            kind: "reaction",
+            emoji,
+            at: signal.at,
+            author,
+          });
+        }
+        return;
+      }
+      if (viewing && viewing.id === signal.id) {
+        pushReaction(author, emoji, Number(signal.at) || Date.now());
+      }
+      return;
+    }
   }
 }
 
@@ -447,6 +623,7 @@ export function resetLive(): void {
   stopDiscovering();
   if (broadcast) stopBroadcast();
   if (viewing) endViewing();
+  clearChat();
   lives.clear();
   emit();
 }

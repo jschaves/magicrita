@@ -18,9 +18,10 @@ import {
   type LiveSnapshot,
 } from "@/lib/protocol/live";
 import { shortenId } from "@/lib/protocol/identity";
+import { LiveChat } from "@/features/live/LiveChat";
 
 const PAGE = 5;
-const EMPTY: LiveSnapshot = { lives: [], session: null, loading: false };
+const EMPTY: LiveSnapshot = { lives: [], session: null, loading: false, chat: [], reactions: [] };
 
 export function LivePage() {
   const live = useSyncExternalStore(subscribeLive, getLiveSnapshot, () => EMPTY);
@@ -70,7 +71,10 @@ export function LivePage() {
   if (session?.role === "broadcast") {
     return (
       <div className="fixed inset-0 z-[80] flex flex-col bg-ink/95">
-        <video ref={localRef} autoPlay playsInline muted className="min-h-0 flex-1 bg-black object-contain" />
+        <div className="relative min-h-0 flex-1">
+          <video ref={localRef} autoPlay playsInline muted className="h-full w-full bg-black object-contain" />
+          <LiveChat chat={live.chat} reactions={live.reactions} canWrite />
+        </div>
         <div className="flex shrink-0 items-center justify-between gap-3 bg-ink/80 px-4 py-3">
           <div className="min-w-0">
             <p className="flex items-center gap-2 text-sm font-bold text-white">
@@ -93,7 +97,10 @@ export function LivePage() {
     const name = profileOf(session.host)?.name || shortenId(session.host);
     return (
       <div className="fixed inset-0 z-[80] flex flex-col bg-ink/95">
-        <video ref={remoteRef} autoPlay playsInline className="min-h-0 flex-1 bg-black object-contain" />
+        <div className="relative min-h-0 flex-1">
+          <video ref={remoteRef} autoPlay playsInline className="h-full w-full bg-black object-contain" />
+          <LiveChat chat={live.chat} reactions={live.reactions} canWrite />
+        </div>
         <div className="flex shrink-0 items-center justify-between gap-3 bg-ink/80 px-4 py-3">
           <p className="min-w-0 flex-1 truncate text-sm font-semibold text-cream">
             {tt("liveWatching", { name })}
