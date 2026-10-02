@@ -5,6 +5,21 @@ viven en el dispositivo (`rpub`/`rsec` + sobres Ed25519 firmados). El único ser
 un **relé de señalización** en RAM. Mantén siempre: sin servidor de cuentas, sin base de datos de
 publicaciones y sin claves en el relé.
 
+## Regla obligatoria: ramas, Android y commits (permanente)
+
+- **Trabajamos siempre en la rama `apk-android-magicrita`.** Nunca cambiamos a otra rama de trabajo.
+- **Cada commit va a `apk-android-magicrita` y también a `main`**, y **nos mantenemos en
+  `apk-android-magicrita`** (nunca dejar la sesión en `main`).
+- **Todo cambio se aplica también a Android**, salvo las dos excepciones de abajo.
+- **Android NO lleva el panel de administración.** Nunca debe emitirse el chunk `AdminPage` /
+  `adminPath` en `dist-android/`; el panel es **solo web**.
+- **Android NO lleva el servidor relé.** El relé (`server/signal.mjs`) es **solo web/servidor**; en
+  la app el relé es externo y se configura en `.env.android`.
+- En **web sí** existen el panel de administración y el servidor relé.
+- Al compilar Android: `npm run build:android` (nunca debe incluir admin) y `npm run cap:sync`
+  cuando se toquen assets nativos. Verificación mínima: `npx tsc -b`, `npm run build`, y
+  `node --check server/signal.mjs`.
+
 ## Regla obligatoria: cero almacenamiento (solo este proyecto)
 
 Este proyecto **nunca** guarda datos de usuario fuera del dispositivo. Es innegociable:
