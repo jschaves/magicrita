@@ -12,11 +12,18 @@ MagicRita **does not use email for anything**. There is no signup by mail, no ve
 
 **Computer**
 
-<img src="docs/images/pc_magicrita.jpg" alt="MagicRita home feed on a computer" width="800">
+<img src="docs/images/post%20pc.jpg" alt="MagicRita feed on a computer" width="800">
 
 **Phone**
 
-<img src="docs/images/mobile_magicrita.jpg" alt="MagicRita home feed on a phone" width="280">
+<img src="docs/images/post%20mobile.jpg" alt="MagicRita feed on a phone" width="180">
+<img src="docs/images/live%20mobile.jpg" alt="MagicRita live streams on a phone" width="180">
+<img src="docs/images/chat%20mobile.jpg" alt="MagicRita one-to-one chat on a phone" width="180">
+<img src="docs/images/call%20mobile.jpg" alt="MagicRita voice call on a phone" width="180">
+<img src="docs/images/video%20call%20mobile.jpg" alt="MagicRita video call on a phone" width="180">
+<img src="docs/images/chats%20mobile.jpg" alt="MagicRita chat list on a phone" width="180">
+<img src="docs/images/saved%20mobile.jpg" alt="MagicRita saved notes on a phone" width="180">
+<img src="docs/images/settings%20mobile.jpg" alt="MagicRita settings on a phone" width="180">
 
 ## Security first
 
@@ -56,7 +63,7 @@ Libraries `@noble/curves`, `@noble/ciphers`, and `@noble/hashes` are **math only
 - **Compose:** text, one optional photo, optional voice, optional video; media-only notes allowed. You may edit a post or comment for 15 minutes; after that you can only delete.
 - **People / profile:** who is online now, follows, and signed 7-day invites (an `invite` envelope). Chats start from People or a profile.
 - **Messages:** request / accept / revoke / block; text is sealed in the browser, at most 280 characters per line. In an open chat the phone button starts a **P2P voice call** and the screen button a **P2P video call** (WebRTC); only SDP/ICE signaling goes through the relay. Both buttons are always shown while the chat is open and are **icon-only** (they carry an accessible label). An incoming call (voice or video) plays a ringtone, generated with **Web Audio** (no files, no third parties), until it is accepted, declined or times out. Everything is stored only on the device.
-- **Live:** peer-to-peer camera broadcasts from the header's radio icon. The icon opens `/live`, which lists the streams that are live right now — first the ones you follow (oldest first), then the rest, **5 per page** — with a **Create live** button on top. An announcement is signed and refreshes every few seconds; a stream that stops refreshing disappears. Each viewer opens a one-way P2P connection with the broadcaster (one `RTCPeerConnection` per viewer). Viewers can **comment** (up to 280 characters, like a post comment) and send **emoji reactions**; comments show the author's avatar on the right-hand band over the video and reactions float up and fade. The broadcaster re-broadcasts viewer messages to everyone else. **Nothing is stored** — no envelope, no file, no server; when it ends, it is gone.
+- **Live:** peer-to-peer camera broadcasts from the header's radio icon. The icon opens `/live`, which lists the streams that are live right now — first the ones you follow (oldest first), then the rest, **5 per page** — with a **Create live** button on top. An announcement is signed and refreshes every few seconds; a stream that stops refreshing disappears. Each viewer opens a one-way P2P connection with the broadcaster (one `RTCPeerConnection` per viewer). Viewers can **comment** (up to 280 characters, like a post comment) and send **emoji reactions**; each comment and each floating reaction shows the **sender's avatar next to it** (comments anchored on the right-hand band over the video, reactions floating up and fading; a connected peer's avatar comes from the inline `hello` thumbnail, so it paints at once). The broadcaster re-broadcasts viewer messages to everyone else. **Nothing is stored** — no envelope, no file, no server; when it ends, it is gone.
 - **Settings:** profile, language, export/import (`magicrita-bundle`), logout, delete-identity, and **change the local password** (it re-wraps the vault; after changing you are signed out to log in with the new one). Closing and reopening the app keeps you signed in; **log out** is what brings the password prompt back. There is a shared header with the alerts bell and the messages counter.
 - **Onboarding:** a non-skippable **terms of use** gate (accept the rules before creating an identity or posting), then create an identity (local canvas captcha, no Google/phone/KYC), import an `rsec`, import a portable file, or **recover with shares**; unlock an existing vault with your password.
 - **Tools (Settings → advanced):** *verifiable provenance* — export any note as a signed `magicrita-proof` and verify proofs pasted back without trusting a server, and co-sign (`attest`) notes you saw; *offline sync* — pack every known signed envelope into a portable `magicrita-sync:1:` text to move it to another device with **no network** (USB, messaging, QR), re-verified on import; *social recovery* — split the `rsec` with **Shamir (M of N)** into password-encrypted shares handed to chosen contacts, so a lost device is recovered by gathering M shares and the recovery password. No server, no email, no phone.

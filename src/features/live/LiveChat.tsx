@@ -34,7 +34,7 @@ export function LiveChat({
   reactions: LiveReaction[];
   canWrite: boolean;
 }) {
-  const { profileOf } = useRita();
+  const { profileOf, personByRpub } = useRita();
   const { locale } = useI18n();
   const tt = (key: ToolsKey, vars?: Record<string, string | number>) => toolsText(locale, key, vars);
   const [text, setText] = useState("");
@@ -42,7 +42,10 @@ export function LiveChat({
   const visible = chat.slice(-LIVE_CHAT_VISIBLE);
   const infoOf = (from: string) => {
     const p = profileOf(from);
-    return { name: p?.name || shortenId(from), picture: p?.picture };
+    // Un par conectado trae su avatar como data URL en el `hello`; se pinta al
+    // instante sin esperar a la foto completa.
+    const src = personByRpub(from)?.avatarUrl;
+    return { name: p?.name || shortenId(from), picture: p?.picture, src };
   };
 
   function onSubmit(event: FormEvent) {
@@ -67,7 +70,7 @@ export function LiveChat({
               aria-hidden
             >
               <span className="text-2xl drop-shadow">{reaction.emoji}</span>
-              <Avatar name={info.name} picture={info.picture} size="sm" />
+              <Avatar name={info.name} picture={info.picture} src={info.src} size="sm" />
             </div>
           );
         })}
@@ -79,7 +82,7 @@ export function LiveChat({
           const info = infoOf(message.from);
           return (
             <div key={message.key} className="pointer-events-auto flex max-w-full items-start gap-2">
-              <Avatar name={info.name} picture={info.picture} size="sm" />
+              <Avatar name={info.name} picture={info.picture} src={info.src} size="sm" />
               <div className="min-w-0 max-w-[12rem] rounded-2xl rounded-tl-sm bg-ink/60 px-2.5 py-1.5 backdrop-blur">
                 <p className="truncate text-[11px] font-semibold text-cream/80">{info.name}</p>
                 <p className="break-words text-sm leading-5 text-white">{message.text}</p>
