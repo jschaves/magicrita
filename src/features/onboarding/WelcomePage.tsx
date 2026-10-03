@@ -67,6 +67,7 @@ export function WelcomePage() {
             onChange={(e) => setInvite(e.target.value)}
             hint={t("create.inviteHint")}
           />
+          <p className="mt-1 text-xs text-muted">{t("create.inviteRequest")}</p>
         </div>
       ) : null}
 
