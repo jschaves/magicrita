@@ -101,7 +101,7 @@ export const es = {
     tagline: "Red social descentralizada y minimalista. Las claves son tuyas.",
     github: "descarga en GitHub",
     pitch:
-      "Una red propia, ligera: identidad, notas, fotos y chat firmados en este dispositivo. Sin muro de anuncios, sin algoritmo, sin cuenta en la nube de otro.\n\nQué hacemos con los datos: viven aquí, en tu navegador. El relé solo ve quién está conectado ahora para que os habléis entre vosotros. No guarda publicaciones, perfiles ni claves.\n\nQué no hacemos: no rastreamos, no usamos cookies, no vendemos datos. No hay servidor de cuentas ni recuperación si pierdes la clave. La red no es dueña de ti.",
+      "Una red propia, ligera: identidad, notas, fotos y chat firmados en este dispositivo. Sin muro de anuncios, sin algoritmo, sin cuenta en la nube de otro.\n\nQué hacemos con los datos: viven aquí, en tu navegador. El relé solo ve quién está conectado ahora para que os habléis entre vosotros. No guarda publicaciones, perfiles ni claves.\n\nQué no hacemos: no rastreamos, no usamos cookies, no vendemos datos. No hay servidor de cuentas ni recuperación central: si pierdes la clave y no configuraste antes la recuperación social, la cuenta se pierde. La red no es dueña de ti.",
     relayTitle: "Cómo funciona el relé",
     relayBody:
       "Es un servidor nuestro de señalización, no una nube de cuentas. Ve quién está en línea ahora y presenta vuestros navegadores para que hablen entre sí (WebRTC). Las notas, fotos y claves se quedan en cada dispositivo y viajan de persona a persona.\n\nSi el otro está ausente, puede retener un sobre un rato en memoria RAM. Al reiniciar el relé, ese buzón se vacía: no hay historial central.\n\nPara verse hace falta coincidir en línea (dos cuentas = dos navegadores). El relé no puede suplantar a nadie: no tiene vuestras rsec.",
@@ -137,7 +137,7 @@ export const es = {
       "En la era de la inmediatez, no tiene sentido guardar datos, solo vale el ahora, por eso no guardamos nada y tú eres el custodio de tus datos.",
     dataTitle: "Dónde están los datos",
     dataBody:
-      "En tu navegador: identidad, notas, fotos, chat e idioma. Tú los custodias.\n\nEl relé se aloja en Alemania (UE). Solo ve, en memoria RAM, quién está conectado ahora e IPs para el antispam; al reiniciar se pierde. En disco del VPS pueden quedar bloqueos del panel y el logo. No hay perfil ni historial de notas en el servidor.\n\nNo usamos cookies de rastreo. El almacenamiento local es necesario para que la app funcione. El chat cifrado el relé no lo lee. Si pierdes la rsec, no hay recuperación.",
+      "En tu navegador: identidad, notas, fotos, chat e idioma. Tú los custodias.\n\nEl relé se aloja en Alemania (UE). Solo ve, en memoria RAM, quién está conectado ahora e IPs para el antispam; al reiniciar se pierde. En disco del VPS pueden quedar bloqueos del panel y el logo. No hay perfil ni historial de notas en el servidor.\n\nNo usamos cookies de rastreo. El almacenamiento local es necesario para que la app funcione. El chat cifrado el relé no lo lee. Si pierdes la rsec no hay recuperación central; la recuperación social opcional hay que configurarla antes.",
     termsTitle: "Condiciones de la prueba",
     termsBody:
       "El contenido lo publicas tú y eres responsable. Nada ilegal: podemos bloquear una rpub en este relé. El relé no es copia de seguridad ni garantiza la entrega. Podemos terminar la beta cuando sea.",
@@ -148,7 +148,7 @@ export const es = {
     title: "Nueva identidad",
     saveTitle: "Guarda tu rsec",
     saveBody:
-      "Esta es tu clave secreta MagicRita. Quien la tenga es dueño de tu identidad. No hay recuperación. Cópiala y guárdala fuera del navegador.",
+      "Esta es tu clave secreta MagicRita. Quien la tenga es dueño de tu identidad. No hay recuperación salvo que configures antes la recuperación social. Cópiala y guárdala fuera del navegador.",
     copied: "Copiada",
     copyRsec: "Copiar rsec",
     enter: "Entrar",
@@ -745,7 +745,7 @@ export const en: Messages = {
     tagline: "A decentralized, minimalist social network. You hold the keys.",
     github: "download on GitHub",
     pitch:
-      "A small network of your own: identity, notes, photos and chat, signed on this device. No ad wall, no algorithm, no account on someone else’s cloud.\n\nWhat we do with data: it lives here, in your browser. The relay only sees who is online right now so you can talk to each other. It does not store posts, profiles or keys.\n\nWhat we don’t do: no tracking, no cookies, no selling data. No account server, and no recovery if you lose the key. The network does not own you.",
+      "A small network of your own: identity, notes, photos and chat, signed on this device. No ad wall, no algorithm, no account on someone else’s cloud.\n\nWhat we do with data: it lives here, in your browser. The relay only sees who is online right now so you can talk to each other. It does not store posts, profiles or keys.\n\nWhat we don’t do: no tracking, no cookies, no selling data. No account server and no central recovery: if you lose the key and did not set up social recovery beforehand, the account is gone. The network does not own you.",
     relayTitle: "How the relay works",
     relayBody:
       "It is our signaling server, not an account cloud. It sees who is online now and introduces your browsers so they can talk (WebRTC). Notes, photos and keys stay on each device and travel peer to peer.\n\nIf the other person is away, it may hold an envelope briefly in RAM. Restarting the relay empties that mailbox: there is no central history.\n\nTo see each other you need to be online at the same time (two accounts = two browsers). The relay cannot impersonate anyone: it does not have your rsec.",
@@ -781,7 +781,7 @@ export const en: Messages = {
       "In the age of immediacy, storing data makes no sense. Only now matters, so we store nothing, and you are the custodian of your data.",
     dataTitle: "Where the data is",
     dataBody:
-      "On your browser: identity, notes, photos, chat and language. You hold them.\n\nThe relay is hosted in Germany (EU). In RAM it only sees who is online now and IPs for anti-spam; a restart clears that. The VPS disk may keep admin blocks and the logo. There is no profile or post history on the server.\n\nWe do not use tracking cookies. Local storage is required for the app to work. The relay cannot read encrypted chat. If you lose the rsec, there is no recovery.",
+      "On your browser: identity, notes, photos, chat and language. You hold them.\n\nThe relay is hosted in Germany (EU). In RAM it only sees who is online now and IPs for anti-spam; a restart clears that. The VPS disk may keep admin blocks and the logo. There is no profile or post history on the server.\n\nWe do not use tracking cookies. Local storage is required for the app to work. The relay cannot read encrypted chat. If you lose the rsec there is no central recovery; the optional social recovery must be set up beforehand.",
     termsTitle: "Trial terms",
     termsBody:
       "You publish the content and you are responsible. Nothing illegal: we may block an rpub on this relay. The relay is not a backup and does not guarantee delivery. We may end the beta at any time.",
@@ -792,7 +792,7 @@ export const en: Messages = {
     title: "New identity",
     saveTitle: "Save your rsec",
     saveBody:
-      "This is your MagicRita secret key. Whoever has it owns your identity. There is no recovery. Copy it and keep it outside this browser.",
+      "This is your MagicRita secret key. Whoever has it owns your identity. There is no recovery unless you set up social recovery beforehand. Copy it and keep it outside this browser.",
     copied: "Copied",
     copyRsec: "Copy rsec",
     enter: "Enter",
@@ -1384,7 +1384,7 @@ export const pt: Messages = {
     tagline: "Rede social descentralizada e minimalista. As chaves são tuas.",
     github: "descarrega no GitHub",
     pitch:
-      "Uma rede própria e leve: identidade, notas, fotos e chat assinados neste dispositivo. Sem muro de anúncios, sem algoritmo, sem conta na nuvem de outro.\n\nO que fazemos com os dados: ficam aqui, no teu navegador. O relé só vê quem está ligado agora para vos juntar. Não guarda publicações, perfis nem chaves.\n\nO que não fazemos: não rastreamos, não usamos cookies, não vendemos dados. Não há servidor de contas nem recuperação se perderes a chave. A rede não é dona de ti.",
+      "Uma rede própria e leve: identidade, notas, fotos e chat assinados neste dispositivo. Sem muro de anúncios, sem algoritmo, sem conta na nuvem de outro.\n\nO que fazemos com os dados: ficam aqui, no teu navegador. O relé só vê quem está ligado agora para vos juntar. Não guarda publicações, perfis nem chaves.\n\nO que não fazemos: não rastreamos, não usamos cookies, não vendemos dados. Não há servidor de contas nem recuperação central: se perderes a chave e não configurares antes a recuperação social, a conta perde-se. A rede não é dona de ti.",
     relayTitle: "Como funciona o relé",
     relayBody:
       "É um servidor nosso de sinalização, não uma nuvem de contas. Vê quem está online agora e apresenta os vossos navegadores para falarem entre si (WebRTC). Notas, fotos e chaves ficam em cada dispositivo e viajam de pessoa para pessoa.\n\nSe o outro estiver ausente, pode reter um envelope um pouco em RAM. Ao reiniciar o relé, essa caixa esvazia-se: não há histórico central.\n\nPara se verem, precisam de coincidir online (duas contas = dois navegadores). O relé não pode impersonar ninguém: não tem as vossas rsec.",
@@ -1421,7 +1421,7 @@ export const pt: Messages = {
       "Na era da imediatidade, não faz sentido guardar dados. Só vale o agora, por isso não guardamos nada e tu és o custódio dos teus dados.",
     dataTitle: "Onde estão os dados",
     dataBody:
-      "No teu navegador: identidade, notas, fotos, chat e idioma. Tu custódias-los.\n\nO relé está na Alemanha (UE). Em RAM só vê quem está ligado agora e IPs para o antispam; ao reiniciar perde-se. No disco do VPS podem ficar bloqueios do painel e o logo. Não há perfil nem histórico de notas no servidor.\n\nNão usamos cookies de rastreio. O armazenamento local é necessário para a app. O relé não lê o chat cifrado. Se perderes a rsec, não há recuperação.",
+      "No teu navegador: identidade, notas, fotos, chat e idioma. Tu custódias-los.\n\nO relé está na Alemanha (UE). Em RAM só vê quem está ligado agora e IPs para o antispam; ao reiniciar perde-se. No disco do VPS podem ficar bloqueios do painel e o logo. Não há perfil nem histórico de notas no servidor.\n\nNão usamos cookies de rastreio. O armazenamento local é necessário para a app. O relé não lê o chat cifrado. Se perderes a rsec não há recuperação central; a recuperação social opcional tem de ser configurada antes.",
     termsTitle: "Condições da prova",
     termsBody:
       "O conteúdo publicas tu e és responsável. Nada ilegal: podemos bloquear uma rpub neste relé. O relé não é cópia de segurança nem garante entrega. Podemos terminar a beta quando for.",
@@ -1432,7 +1432,7 @@ export const pt: Messages = {
     title: "Nova identidade",
     saveTitle: "Guarda a tua rsec",
     saveBody:
-      "Esta é a tua chave secreta MagicRita. Quem a tiver é dono da tua identidade. Não há recuperação. Copia-a e guarda-a fora deste navegador.",
+      "Esta é a tua chave secreta MagicRita. Quem a tiver é dono da tua identidade. Não há recuperação salvo se configurares antes a recuperação social. Copia-a e guarda-a fora deste navegador.",
     copied: "Copiada",
     copyRsec: "Copiar rsec",
     enter: "Entrar",
@@ -2024,7 +2024,7 @@ export const fr: Messages = {
     tagline: "Réseau social décentralisé et minimaliste. Les clés sont à toi.",
     github: "télécharge sur GitHub",
     pitch:
-      "Un réseau à toi, léger : identité, notes, photos et chat signés sur cet appareil. Pas de mur de pubs, pas d’algorithme, pas de compte sur le cloud d’un autre.\n\nCe que nous faisons des données : elles vivent ici, dans ton navigateur. Le relais voit seulement qui est connecté maintenant pour vous relier. Il ne stocke ni publications, ni profils, ni clés.\n\nCe que nous ne faisons pas : pas de pistage, pas de cookies, pas de vente de données. Pas de serveur de comptes, pas de récupération si tu perds la clé. Le réseau ne te possède pas.",
+      "Un réseau à toi, léger : identité, notes, photos et chat signés sur cet appareil. Pas de mur de pubs, pas d’algorithme, pas de compte sur le cloud d’un autre.\n\nCe que nous faisons des données : elles vivent ici, dans ton navigateur. Le relais voit seulement qui est connecté maintenant pour vous relier. Il ne stocke ni publications, ni profils, ni clés.\n\nCe que nous ne faisons pas : pas de pistage, pas de cookies, pas de vente de données. Pas de serveur de comptes ni de récupération centrale : si tu perds la clé sans avoir configuré la récupération sociale, le compte est perdu. Le réseau ne te possède pas.",
     relayTitle: "Comment marche le relais",
     relayBody:
       "C’est notre serveur de signalisation, pas un cloud de comptes. Il voit qui est en ligne maintenant et présente vos navigateurs pour qu’ils se parlent (WebRTC). Notes, photos et clés restent sur chaque appareil et voyagent de personne à personne.\n\nSi l’autre est absent, il peut garder une enveloppe un moment en RAM. Redémarrer le relais vide cette boîte : pas d’historique central.\n\nPour vous voir, il faut être en ligne en même temps (deux comptes = deux navigateurs). Le relais ne peut usurper personne : il n’a pas vos rsec.",
@@ -2061,7 +2061,7 @@ export const fr: Messages = {
       "À l’ère de l’immédiateté, stocker des données n’a pas de sens. Seul le maintenant compte, donc nous ne gardons rien, et tu es le gardien de tes données.",
     dataTitle: "Où sont les données",
     dataBody:
-      "Dans ton navigateur : identité, notes, photos, chat et langue. Tu en as la garde.\n\nLe relais est hébergé en Allemagne (UE). En RAM il ne voit que qui est en ligne maintenant et des IP pour l’antispam ; un redémarrage efface cela. Le disque du VPS peut garder les blocages du panneau et le logo. Pas de profil ni d’historique de notes sur le serveur.\n\nPas de cookies de pistage. Le stockage local est nécessaire au fonctionnement. Le relais ne lit pas le chat chiffré. Si tu perds la rsec, pas de récupération.",
+      "Dans ton navigateur : identité, notes, photos, chat et langue. Tu en as la garde.\n\nLe relais est hébergé en Allemagne (UE). En RAM il ne voit que qui est en ligne maintenant et des IP pour l’antispam ; un redémarrage efface cela. Le disque du VPS peut garder les blocages du panneau et le logo. Pas de profil ni d’historique de notes sur le serveur.\n\nPas de cookies de pistage. Le stockage local est nécessaire au fonctionnement. Le relais ne lit pas le chat chiffré. Si tu perds la rsec, pas de récupération centrale ; la récupération sociale en option doit être configurée à l’avance.",
     termsTitle: "Conditions de l’essai",
     termsBody:
       "Tu publies le contenu et tu en es responsable. Rien d’illégal : nous pouvons bloquer une rpub sur ce relais. Le relais n’est pas une sauvegarde et ne garantit pas la livraison. Nous pouvons arrêter la bêta à tout moment.",
@@ -2072,7 +2072,7 @@ export const fr: Messages = {
     title: "Nouvelle identité",
     saveTitle: "Sauvegarde ta rsec",
     saveBody:
-      "Voici ta clé secrète MagicRita. Quiconque la possède est maître de ton identité. Il n’y a pas de récupération. Copie-la et garde-la hors de ce navigateur.",
+      "Voici ta clé secrète MagicRita. Quiconque la possède est maître de ton identité. Il n’y a pas de récupération, sauf si tu configures la récupération sociale à l’avance. Copie-la et garde-la hors de ce navigateur.",
     copied: "Copiée",
     copyRsec: "Copier la rsec",
     enter: "Entrer",
@@ -2668,7 +2668,7 @@ export const ar: Messages = {
     tagline: "شبكة اجتماعية لامركزية وبسيطة. المفاتيح ملكك.",
     github: "نزّله من GitHub",
     pitch:
-      "شبكة خاصة وخفيفة: هوية وملاحظات وصور ودردشة موقّعة على هذا الجهاز. بلا جدار إعلانات، بلا خوارزمية، بلا حساب على سحابة غيرك.\n\nماذا نفعل بالبيانات: تبقى هنا، في متصفحك. المرحل يرى فقط من المتصل الآن ليربط بينكم. لا يحفظ منشورات ولا ملفات ولا مفاتيح.\n\nماذا لا نفعل: لا تتبّع، لا ملفات تعريف ارتباط، لا بيع للبيانات. لا خادم حسابات ولا استعادة إن فقدت المفتاح. الشبكة لا تملكك.",
+      "شبكة خاصة وخفيفة: هوية وملاحظات وصور ودردشة موقّعة على هذا الجهاز. بلا جدار إعلانات، بلا خوارزمية، بلا حساب على سحابة غيرك.\n\nماذا نفعل بالبيانات: تبقى هنا، في متصفحك. المرحل يرى فقط من المتصل الآن ليربط بينكم. لا يحفظ منشورات ولا ملفات ولا مفاتيح.\n\nماذا لا نفعل: لا تتبّع، لا ملفات تعريف ارتباط، لا بيع للبيانات. لا خادم حسابات ولا استعادة مركزية: إن فقدت المفتاح ولم تُعِدّ الاستعادة الاجتماعية مسبقاً، يفقد الحساب. الشبكة لا تملكك.",
     relayTitle: "كيف يعمل المرحل",
     relayBody:
       "خادم إشارة لنا، لا سحابة حسابات. يرى من المتصل الآن ويقدّم متصفحاتكم ليتحدثا (WebRTC). الملاحظات والصور والمفاتيح تبقى على كل جهاز وتنتقل من شخص لشخص.\n\nإن غاب الآخر قد يحتفظ بغلاف قليلاً في الذاكرة. إعادة تشغيل المرحل تفرّغ ذلك الصندوق: لا سجل مركزي.\n\nلترى بعضكما يلزم أن تكونا متصلين معاً (حسابان = متصفحان). المرحل لا ينتحل أحداً: ليست لديه rsec.",
@@ -2704,7 +2704,7 @@ export const ar: Messages = {
       "في عصر الفورية لا معنى لحفظ البيانات. المهم هو الآن، لذلك لا نحفظ شيئاً وأنت حارس بياناتك.",
     dataTitle: "أين البيانات",
     dataBody:
-      "في متصفحك: الهوية والملاحظات والصور والدردشة واللغة. أنت حارسها.\n\nالمرحل في ألمانيا (الاتحاد الأوروبي). في الذاكرة يرى فقط من المتصل الآن وعناوين IP لمكافحة الإزعاج؛ إعادة التشغيل تمحو ذلك. قد يبقى على قرص الخادم حظر اللوحة والشعار. لا ملف ولا سجل منشورات على الخادم.\n\nلا ملفات تعريف ارتباط للتتبع. التخزين المحلي لازم لعمل التطبيق. المرحل لا يقرأ الدردشة المشفّرة. إن فقدت rsec فلا استعادة.",
+      "في متصفحك: الهوية والملاحظات والصور والدردشة واللغة. أنت حارسها.\n\nالمرحل في ألمانيا (الاتحاد الأوروبي). في الذاكرة يرى فقط من المتصل الآن وعناوين IP لمكافحة الإزعاج؛ إعادة التشغيل تمحو ذلك. قد يبقى على قرص الخادم حظر اللوحة والشعار. لا ملف ولا سجل منشورات على الخادم.\n\nلا ملفات تعريف ارتباط للتتبع. التخزين المحلي لازم لعمل التطبيق. المرحل لا يقرأ الدردشة المشفّرة. إن فقدت rsec فلا استعادة مركزية؛ الاستعادة الاجتماعية الاختيارية يجب إعدادها مسبقاً.",
     termsTitle: "شروط التجربة",
     termsBody:
       "المحتوى تنشره أنت وأنت المسؤول. لا شيء غير قانوني: يمكننا حظر rpub على هذا المرحل. المرحل ليس نسخة احتياطية ولا يضمن التسليم. يمكننا إنهاء النسخة التجريبية في أي وقت.",
@@ -2715,7 +2715,7 @@ export const ar: Messages = {
     title: "هوية جديدة",
     saveTitle: "احفظ rsec",
     saveBody:
-      "هذا مفتاحك السري في MagicRita. من يملكه يملك هويتك. لا استعادة. انسخه واحفظه خارج هذا المتصفح.",
+      "هذا مفتاحك السري في MagicRita. من يملكه يملك هويتك. لا استعادة إلا إذا أعددت الاستعادة الاجتماعية مسبقاً. انسخه واحفظه خارج هذا المتصفح.",
     copied: "تم النسخ",
     copyRsec: "نسخ rsec",
     enter: "دخول",
@@ -3298,7 +3298,7 @@ export const ru: Messages = {
     tagline: "Децентрализованная минималистичная соцсеть. Ключи ваши.",
     github: "скачать на GitHub",
     pitch:
-      "Своя лёгкая сеть: личность, заметки, фото и чат, подписанные на этом устройстве. Без стены рекламы, без алгоритма, без аккаунта в чужом облаке.\n\nЧто мы делаем с данными: они живут здесь, в браузере. Реле видит только кто сейчас в сети, чтобы вас соединить. Оно не хранит публикации, профили и ключи.\n\nЧего мы не делаем: нет слежки, cookies и продажи данных. Нет сервера аккаунтов и восстановления, если ключ потерян. Сеть вам не владеет.",
+      "Своя лёгкая сеть: личность, заметки, фото и чат, подписанные на этом устройстве. Без стены рекламы, без алгоритма, без аккаунта в чужом облаке.\n\nЧто мы делаем с данными: они живут здесь, в браузере. Реле видит только кто сейчас в сети, чтобы вас соединить. Оно не хранит публикации, профили и ключи.\n\nЧего мы не делаем: нет слежки, cookies и продажи данных. Нет сервера аккаунтов и центрального восстановления: если ключ потерян и социальное восстановление не настроено заранее, аккаунт утрачен. Сеть вам не владеет.",
     relayTitle: "Как работает реле",
     relayBody:
       "Это наш сигнальный сервер, не облако аккаунтов. Видит, кто сейчас в сети, и знакомит браузеры, чтобы они говорили (WebRTC). Заметки, фото и ключи остаются на каждом устройстве и идут от человека к человеку.\n\nЕсли другого нет, может коротко держать конверт в RAM. Перезапуск реле опустошает ящик: центральной истории нет.\n\nЧтобы увидеть друг друга, нужно быть онлайн вместе (два аккаунта = два браузера). Реле никого не подменит: у него нет ваших rsec.",
@@ -3334,7 +3334,7 @@ export const ru: Messages = {
       "В эпоху мгновенности нет смысла хранить данные. Важно только сейчас, поэтому мы ничего не храним, и вы — хранитель своих данных.",
     dataTitle: "Где данные",
     dataBody:
-      "В браузере: личность, заметки, фото, чат и язык. Вы их храните.\n\nРеле размещено в Германии (ЕС). В RAM видит только кто сейчас в сети и IP для антиспама; перезапуск это стирает. На диске VPS могут остаться блокировки панели и логотип. Нет профиля и истории постов на сервере.\n\nНет следящих cookies. Локальное хранилище нужно для работы приложения. Реле не читает шифрованный чат. Потеря rsec не восстанавливается.",
+      "В браузере: личность, заметки, фото, чат и язык. Вы их храните.\n\nРеле размещено в Германии (ЕС). В RAM видит только кто сейчас в сети и IP для антиспама; перезапуск это стирает. На диске VPS могут остаться блокировки панели и логотип. Нет профиля и истории постов на сервере.\n\nНет следящих cookies. Локальное хранилище нужно для работы приложения. Реле не читает шифрованный чат. При потере rsec нет центрального восстановления; необязательное социальное восстановление нужно настроить заранее.",
     termsTitle: "Условия испытания",
     termsBody:
       "Контент публикуете вы и вы отвечаете. Ничего незаконного: можем заблокировать rpub на этом реле. Реле не бэкап и не гарантирует доставку. Бету можно свернуть в любой момент.",
@@ -3345,7 +3345,7 @@ export const ru: Messages = {
     title: "Новая личность",
     saveTitle: "Сохраните rsec",
     saveBody:
-      "Это ваш секретный ключ MagicRita. Кто им владеет, владеет личностью. Восстановления нет. Скопируйте и храните вне браузера.",
+      "Это ваш секретный ключ MagicRita. Кто им владеет, владеет личностью. Восстановления нет, если заранее не настроено социальное восстановление. Скопируйте и храните вне браузера.",
     copied: "Скопировано",
     copyRsec: "Копировать rsec",
     enter: "Войти",
@@ -3932,7 +3932,7 @@ export const zh: Messages = {
     tagline: "去中心、极简的社交网络。密钥在你手里。",
     github: "在 GitHub 下载",
     pitch:
-      "属于你的轻量网络：身份、笔记、照片和聊天，都在此设备上签名。没有广告墙，没有算法，没有别人云上的账号。\n\n我们如何处理数据：数据留在你的浏览器里。中继只看到此刻谁在线，好让你们相连。它不保存帖子、资料或密钥。\n\n我们不做什么：不追踪，不用 cookie，不卖数据。没有账号服务器；密钥丢失无法找回。网络并不拥有你。",
+      "属于你的轻量网络：身份、笔记、照片和聊天，都在此设备上签名。没有广告墙，没有算法，没有别人云上的账号。\n\n我们如何处理数据：数据留在你的浏览器里。中继只看到此刻谁在线，好让你们相连。它不保存帖子、资料或密钥。\n\n我们不做什么：不追踪，不用 cookie，不卖数据。没有账号服务器，也没有中心化找回：若密钥丢失且未提前设置社交恢复，账号将无法找回。网络并不拥有你。",
     relayTitle: "中继如何工作",
     relayBody:
       "这是我们的信令服务器，不是账号云。它看到此刻谁在线，并让双方浏览器互相通话（WebRTC）。笔记、照片和密钥留在各台设备上，在人与人之间传递。\n\n对方不在时，可在内存里短暂留一个信封。重启中继会清空该信箱：没有中央历史。\n\n要看见彼此，需要同时在线（两个账号＝两个浏览器）。中继无法冒充任何人：它没有你们的 rsec。",
@@ -3968,7 +3968,7 @@ export const zh: Messages = {
       "在即时的时代，存数据没有意义。只有当下作数，所以我们什么都不存，你是自己数据的保管人。",
     dataTitle: "数据在哪里",
     dataBody:
-      "在你的浏览器：身份、笔记、照片、聊天和语言。由你保管。\n\n中继托管在德国（欧盟）。内存里只看到此刻谁在线以及用于防骚扰的 IP；重启即清空。VPS 磁盘上可能留下管理屏蔽和标志。服务器上没有资料或帖子历史。\n\n不使用跟踪 cookie。本地存储是应用运行所必需。中继读不到加密聊天。丢失 rsec 无法找回。",
+      "在你的浏览器：身份、笔记、照片、聊天和语言。由你保管。\n\n中继托管在德国（欧盟）。内存里只看到此刻谁在线以及用于防骚扰的 IP；重启即清空。VPS 磁盘上可能留下管理屏蔽和标志。服务器上没有资料或帖子历史。\n\n不使用跟踪 cookie。本地存储是应用运行所必需。中继读不到加密聊天。丢失 rsec 无法通过中心找回；可选的社交恢复需要提前设置。",
     termsTitle: "试验条款",
     termsBody:
       "内容由你发布，责任在你。禁止违法：我们可以在此中继屏蔽 rpub。中继不是备份，也不保证送达。我们可以随时结束测试。",
@@ -3979,7 +3979,7 @@ export const zh: Messages = {
     title: "新身份",
     saveTitle: "保存你的 rsec",
     saveBody:
-      "这是你的 MagicRita 密钥。谁拥有它，谁就拥有你的身份。无法找回。请复制并保存在此浏览器之外。",
+      "这是你的 MagicRita 密钥。谁拥有它，谁就拥有你的身份。除非提前设置社交恢复，否则无法找回。请复制并保存在此浏览器之外。",
     copied: "已复制",
     copyRsec: "复制 rsec",
     enter: "进入",
@@ -4560,7 +4560,7 @@ export const ja: Messages = {
     tagline: "分散型でミニマルなソーシャルネット。鍵はあなたのもの。",
     github: "GitHub でダウンロード",
     pitch:
-      "自分の小さなネットワーク：身元、メモ、写真、チャットをこの端末で署名します。広告の壁もアルゴリズムも、他人のクラウドのアカウントもありません。\n\nデータについて：ここに、このブラウザに残ります。リレーは今つながっている人だけを見て、つなぎます。投稿もプロフィールも鍵も保存しません。\n\nやらないこと：追跡しない、cookie を使わない、データを売らない。アカウントサーバーはなく、鍵を失うと復元できません。ネットワークはあなたを所有しません。",
+      "自分の小さなネットワーク：身元、メモ、写真、チャットをこの端末で署名します。広告の壁もアルゴリズムも、他人のクラウドのアカウントもありません。\n\nデータについて：ここに、このブラウザに残ります。リレーは今つながっている人だけを見て、つなぎます。投稿もプロフィールも鍵も保存しません。\n\nやらないこと：追跡しない、cookie を使わない、データを売らない。アカウントサーバーはなく、中央での復元もありません。鍵を失い、事前にソーシャルリカバリを設定していなければ、アカウントは失われます。ネットワークはあなたを所有しません。",
     relayTitle: "リレーのしくみ",
     relayBody:
       "アカウントのクラウドではなく、私たちのシグナリングサーバーです。今オンラインの人を見て、ブラウザ同士が話せるように紹介します（WebRTC）。メモ、写真、鍵は各端末に残り、人から人へ届きます。\n\n相手がいないときは、封筒を RAM にしばらく置けます。リレーを再起動するとその箱は空になります。中央の履歴はありません。\n\n互いを見るには同時にオンラインである必要があります（アカウント2つ＝ブラウザ2つ）。リレーはなりすましできません。rsec を持っていないからです。",
@@ -4597,7 +4597,7 @@ export const ja: Messages = {
       "即時の時代にデータを貯める意味はありません。今だけが大切なので、私たちは何も保存せず、データの守り手はあなたです。",
     dataTitle: "データの場所",
     dataBody:
-      "ブラウザ内：身元、メモ、写真、チャット、言語。あなたが守ります。\n\nリレーはドイツ（EU）にあります。RAM では今オンラインの人と、迷惑対策の IP だけ。再起動で消えます。VPS のディスクには管理ブロックとロゴが残ることがあります。サーバーにプロフィールや投稿履歴はありません。\n\n追跡 cookie は使いません。ローカル保存はアプリに必要です。リレーは暗号チャットを読めません。rsec を失うと復元できません。",
+      "ブラウザ内：身元、メモ、写真、チャット、言語。あなたが守ります。\n\nリレーはドイツ（EU）にあります。RAM では今オンラインの人と、迷惑対策の IP だけ。再起動で消えます。VPS のディスクには管理ブロックとロゴが残ることがあります。サーバーにプロフィールや投稿履歴はありません。\n\n追跡 cookie は使いません。ローカル保存はアプリに必要です。リレーは暗号チャットを読めません。rsec を失っても中央での復元はありません。任意のソーシャルリカバリは事前に設定が必要です。",
     termsTitle: "試験の条件",
     termsBody:
       "内容はあなたが投稿し、責任もあなたにあります。違法は不可。このリレーで rpub をブロックできます。リレーはバックアップではなく、到達も保証しません。ベータはいつでも終了できます。",
@@ -4608,7 +4608,7 @@ export const ja: Messages = {
     title: "新しい身元",
     saveTitle: "rsec を保存",
     saveBody:
-      "これが MagicRita の秘密鍵です。持っている人が身元の持ち主です。復元はありません。コピーして、このブラウザの外に保管してください。",
+      "これが MagicRita の秘密鍵です。持っている人が身元の持ち主です。事前にソーシャルリカバリを設定しない限り復元はありません。コピーして、このブラウザの外に保管してください。",
     copied: "コピーしました",
     copyRsec: "rsec をコピー",
     enter: "入る",
@@ -5193,7 +5193,7 @@ export const it: Messages = {
     tagline: "Un social network decentralizzato e minimalista. Le chiavi sono tue.",
     github: "scarica su GitHub",
     pitch:
-      "Una piccola rete tutta tua: identità, note, foto e chat, firmate su questo dispositivo. Nessun muro pubblicitario, nessun algoritmo, nessun account sul cloud di qualcun altro.\n\nCosa facciamo con i dati: vivono qui, nel tuo browser. Il relay vede solo chi è online in questo momento così potete parlarvi. Non conserva post, profili né chiavi.\n\nCosa non facciamo: nessun tracciamento, nessun cookie, nessuna vendita di dati. Nessun server di account e nessun recupero se perdi la chiave. La rete non ti possiede.",
+      "Una piccola rete tutta tua: identità, note, foto e chat, firmate su questo dispositivo. Nessun muro pubblicitario, nessun algoritmo, nessun account sul cloud di qualcun altro.\n\nCosa facciamo con i dati: vivono qui, nel tuo browser. Il relay vede solo chi è online in questo momento così potete parlarvi. Non conserva post, profili né chiavi.\n\nCosa non facciamo: nessun tracciamento, nessun cookie, nessuna vendita di dati. Nessun server di account e nessun recupero centrale: se perdi la chiave e non hai configurato prima il recupero sociale, l’account è perduto. La rete non ti possiede.",
     relayTitle: "Come funziona il relay",
     relayBody:
       "È il nostro server di segnalazione, non un cloud di account. Vede chi è online ora e presenta i vostri browser così possono parlarsi (WebRTC). Note, foto e chiavi restano su ogni dispositivo e viaggiano peer to peer.\n\nSe l’altra persona è assente, può trattenere un envelope per poco in RAM. Riavviare il relay svuota quella casella: non c’è storia centrale.\n\nPer vedervi dovete essere online nello stesso momento (due account = due browser). Il relay non può impersonare nessuno: non ha la tua rsec.",
@@ -5231,7 +5231,7 @@ export const it: Messages = {
       "Nell’epoca dell’immediatezza, conservare i dati non ha senso. Conta solo l’adesso, quindi non conserviamo nulla, e tu sei il custode dei tuoi dati.",
     dataTitle: "Dove sono i dati",
     dataBody:
-      "Nel tuo browser: identità, note, foto, chat e lingua. Li custodisci tu.\n\nIl relay è ospitato in Germania (UE). In RAM vede solo chi è online ora e gli IP per l’anti-spam; un riavvio cancella tutto. Il disco del VPS può conservare i blocchi admin e il logo. Non c’è storia di profili o post sul server.\n\nNon usiamo cookie di tracciamento. Lo storage locale è necessario perché l’app funzioni. Il relay non può leggere la chat cifrata. Se perdi la rsec, non c’è recupero.",
+      "Nel tuo browser: identità, note, foto, chat e lingua. Li custodisci tu.\n\nIl relay è ospitato in Germania (UE). In RAM vede solo chi è online ora e gli IP per l’anti-spam; un riavvio cancella tutto. Il disco del VPS può conservare i blocchi admin e il logo. Non c’è storia di profili o post sul server.\n\nNon usiamo cookie di tracciamento. Lo storage locale è necessario perché l’app funzioni. Il relay non può leggere la chat cifrata. Se perdi la rsec non c’è recupero centrale; il recupero sociale opzionale va configurato in anticipo.",
     termsTitle: "Termini della prova",
     termsBody:
       "Pubblichi tu i contenuti e ne sei responsabile. Niente di illegale: possiamo bloccare un rpub su questo relay. Il relay non è un backup e non garantisce la consegna. Possiamo terminare la beta in qualsiasi momento.",
@@ -5242,7 +5242,7 @@ export const it: Messages = {
     title: "Nuova identità",
     saveTitle: "Salva la tua rsec",
     saveBody:
-      "Questa è la tua chiave segreta MagicRita. Chi la possiede è proprietario della tua identità. Non c’è recupero. Copiala e conservala fuori da questo browser.",
+      "Questa è la tua chiave segreta MagicRita. Chi la possiede è proprietario della tua identità. Non c’è recupero, a meno che tu non configuri prima il recupero sociale. Copiala e conservala fuori da questo browser.",
     copied: "Copiata",
     copyRsec: "Copia rsec",
     enter: "Entra",
@@ -5836,7 +5836,7 @@ export const de: Messages = {
     tagline: "Ein dezentrales, minimalistisches soziales Netzwerk. Du hältst die Schlüssel.",
     github: "auf GitHub herunterladen",
     pitch:
-      "Ein kleines Netzwerk ganz für dich: Identität, Notizen, Fotos und Chat, auf diesem Gerät signiert. Keine Werbefläche, kein Algorithmus, kein Konto in der Cloud von jemand anderem.\n\nWas wir mit Daten tun: Sie leben hier, in deinem Browser. Der Relay sieht nur, wer gerade online ist, damit ihr miteinander sprechen könnt. Er speichert keine Beiträge, Profile oder Schlüssel.\n\nWas wir nicht tun: kein Tracking, keine Cookies, kein Verkauf von Daten. Kein Konto-Server und keine Wiederherstellung, wenn du den Schlüssel verlierst. Das Netzwerk besitzt dich nicht.",
+      "Ein kleines Netzwerk ganz für dich: Identität, Notizen, Fotos und Chat, auf diesem Gerät signiert. Keine Werbefläche, kein Algorithmus, kein Konto in der Cloud von jemand anderem.\n\nWas wir mit Daten tun: Sie leben hier, in deinem Browser. Der Relay sieht nur, wer gerade online ist, damit ihr miteinander sprechen könnt. Er speichert keine Beiträge, Profile oder Schlüssel.\n\nWas wir nicht tun: kein Tracking, keine Cookies, kein Verkauf von Daten. Kein Konto-Server und keine zentrale Wiederherstellung: Verlierst du den Schlüssel und hast die soziale Wiederherstellung nicht vorher eingerichtet, ist das Konto verloren. Das Netzwerk besitzt dich nicht.",
     relayTitle: "Wie der Relay funktioniert",
     relayBody:
       "Er ist unser Signalisierungsserver, keine Konto-Cloud. Er sieht, wer gerade online ist, und stellt eure Browser einander vor, damit sie sprechen können (WebRTC). Notizen, Fotos und Schlüssel bleiben auf jedem Gerät und wandern peer to peer.\n\nWenn die andere Person abwesend ist, kann er einen Umschlag kurz im RAM halten. Ein Neustart des Relays leert dieses Postfach: Es gibt keine zentrale Historie.\n\nUm euch zu sehen, müsst ihr gleichzeitig online sein (zwei Konten = zwei Browser). Der Relay kann niemanden vortäuschen: Er hat nicht deine rsec.",
@@ -5874,7 +5874,7 @@ export const de: Messages = {
       "Im Zeitalter der Unmittelbarkeit ergibt das Speichern von Daten keinen Sinn. Nur der Augenblick zählt, also speichern wir nichts, und du verwahrst deine Daten.",
     dataTitle: "Wo die Daten liegen",
     dataBody:
-      "In deinem Browser: Identität, Notizen, Fotos, Chat und Sprache. Du verwahrst sie.\n\nDer Relay wird in Deutschland (EU) gehostet. Im RAM sieht er nur, wer gerade online ist, und IPs für den Anti-Spam-Schutz; ein Neustart löscht das. Die VPS-Festplatte kann Admin-Sperren und das Logo behalten. Es gibt keine Profil- oder Beitrags-Historie auf dem Server.\n\nWir verwenden keine Tracking-Cookies. Lokaler Speicher ist nötig, damit die App funktioniert. Der Relay kann den verschlüsselten Chat nicht lesen. Wenn du die rsec verlierst, gibt es keine Wiederherstellung.",
+      "In deinem Browser: Identität, Notizen, Fotos, Chat und Sprache. Du verwahrst sie.\n\nDer Relay wird in Deutschland (EU) gehostet. Im RAM sieht er nur, wer gerade online ist, und IPs für den Anti-Spam-Schutz; ein Neustart löscht das. Die VPS-Festplatte kann Admin-Sperren und das Logo behalten. Es gibt keine Profil- oder Beitrags-Historie auf dem Server.\n\nWir verwenden keine Tracking-Cookies. Lokaler Speicher ist nötig, damit die App funktioniert. Der Relay kann den verschlüsselten Chat nicht lesen. Wenn du die rsec verlierst, gibt es keine zentrale Wiederherstellung; die optionale soziale Wiederherstellung muss vorher eingerichtet sein.",
     termsTitle: "Testbedingungen",
     termsBody:
       "Du veröffentlichst die Inhalte und bist dafür verantwortlich. Nichts Illegales: Wir können eine rpub auf diesem Relay blockieren. Der Relay ist kein Backup und garantiert keine Zustellung. Wir können die Beta jederzeit beenden.",
@@ -5885,7 +5885,7 @@ export const de: Messages = {
     title: "Neue Identität",
     saveTitle: "Speichere deine rsec",
     saveBody:
-      "Dies ist dein geheimer MagicRita-Schlüssel. Wer ihn hat, besitzt deine Identität. Es gibt keine Wiederherstellung. Kopiere ihn und bewahre ihn außerhalb dieses Browsers auf.",
+      "Dies ist dein geheimer MagicRita-Schlüssel. Wer ihn hat, besitzt deine Identität. Es gibt keine Wiederherstellung, außer du richtest vorher die soziale Wiederherstellung ein. Kopiere ihn und bewahre ihn außerhalb dieses Browsers auf.",
     copied: "Kopiert",
     copyRsec: "rsec kopieren",
     enter: "Weiter",
