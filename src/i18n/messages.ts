@@ -21,7 +21,7 @@ export const es = {
     rulesTitle: "Contenido prohibido",
     rulesBody:
       "No se permite contenido ilegal, acoso, amenazas, odio, discriminación, desnudos o contenido sexual, violencia, spam ni suplantación de identidad. Puedes reportar contenido o usuarios y bloquear a quien quieras; el operador de este relé puede bloquear una rpub. Publicas bajo tu responsabilidad y debes tener 16 años o más.",
-    checkbox: "He leído y acepto las condiciones de uso.",
+    checkbox: "He leído y acepto las condiciones de uso. Reconozco que MagicRita está en beta cerrada y que las invitaciones están destinadas a beta testers y a personas interesadas en probar el código, no a usuarios públicos.",
     accept: "Aceptar y continuar",
   },
   meta: {
@@ -665,7 +665,7 @@ export const en: Messages = {
     rulesTitle: "Prohibited content",
     rulesBody:
       "No illegal content, harassment, threats, hate, discrimination, nudity or sexual content, violence, spam, or impersonation. You can report content or users and block anyone; the operator of this relay can block an rpub. You post under your own responsibility and must be 16 or older.",
-    checkbox: "I have read and accept the terms of use.",
+    checkbox: "I have read and accept the terms of use. I understand that MagicRita is in closed beta and that invitations are intended for beta testers and for people interested in testing the code, not for public users.",
     accept: "Accept and continue",
   },
   meta: {
@@ -1304,7 +1304,7 @@ export const pt: Messages = {
     rulesTitle: "Conteúdo proibido",
     rulesBody:
       "Não é permitido conteúdo ilegal, assédio, ameaças, ódio, discriminação, nudez ou conteúdo sexual, violência, spam nem usurpação de identidade. Podes denunciar conteúdo ou utilizadores e bloquear quem quiseres; o operador deste relé pode bloquear uma rpub. Publicas sob a tua responsabilidade e deves ter 16 anos ou mais.",
-    checkbox: "Li e aceito os termos de uso.",
+    checkbox: "Li e aceito os termos de uso. Reconheço que a MagicRita está em beta fechada e que os convites se destinam a beta testers e a pessoas interessadas em testar o código, não a utilizadores públicos.",
     accept: "Aceitar e continuar",
   },
   meta: {
@@ -1944,7 +1944,7 @@ export const fr: Messages = {
     rulesTitle: "Contenu interdit",
     rulesBody:
       "Sont interdits : contenu illégal, harcèlement, menaces, haine, discrimination, nudité ou contenu sexuel, violence, spam et usurpation d’identité. Tu peux signaler un contenu ou un utilisateur et bloquer qui tu veux ; l’opérateur de ce relais peut bloquer une rpub. Tu publies sous ta responsabilité et tu dois avoir 16 ans ou plus.",
-    checkbox: "J’ai lu et j’accepte les conditions d’utilisation.",
+    checkbox: "J’ai lu et j’accepte les conditions d’utilisation. Je reconnais que MagicRita est en bêta fermée et que les invitations sont destinées aux bêta-testeurs et aux personnes intéressées par le test du code, et non au grand public.",
     accept: "Accepter et continuer",
   },
   meta: {
@@ -2588,7 +2588,7 @@ export const ar: Messages = {
     rulesTitle: "المحتوى المحظور",
     rulesBody:
       "يُحظر المحتوى غير القانوني، والتحرش، والتهديدات، والكراهية، والتمييز، والعري أو المحتوى الجنسي، والعنف، والرسائل المزعجة، وانتحال الهوية. يمكنك الإبلاغ عن المحتوى أو المستخدمين وحظر من تشاء؛ ويمكن لمشغّل هذا المرحّل حظر أي rpub. تنشر على مسؤوليتك ويجب أن يكون عمرك 16 عامًا أو أكثر.",
-    checkbox: "لقد قرأت شروط الاستخدام وأوافق عليها.",
+    checkbox: "لقد قرأت شروط الاستخدام وأوافق عليها. أُقرّ بأن MagicRita في مرحلة تجريبية مغلقة، وأن الدعوات مخصّصة للمختبِرين (beta testers) ولمن يهتمّون باختبار الكود، لا للمستخدمين العامّين.",
     accept: "أوافق وتابع",
   },
   meta: {
@@ -3218,7 +3218,7 @@ export const ru: Messages = {
     rulesTitle: "Запрещённый контент",
     rulesBody:
       "Запрещены незаконный контент, преследование, угрозы, ненависть, дискриминация, нагота или сексуальный контент, насилие, спам и выдача себя за другого. Вы можете жаловаться на контент или пользователей и блокировать кого угодно; оператор этого реле может заблокировать rpub. Вы публикуете на свою ответственность, и вам должно быть не меньше 16 лет.",
-    checkbox: "Я прочитал(а) и принимаю условия использования.",
+    checkbox: "Я прочитал(а) и принимаю условия использования. Я понимаю, что MagicRita находится в закрытой бете, а приглашения предназначены для бета-тестеров и людей, заинтересованных в тестировании кода, а не для широкой публики.",
     accept: "Принять и продолжить",
   },
   meta: {
@@ -3852,7 +3852,7 @@ export const zh: Messages = {
     rulesTitle: "禁止的内容",
     rulesBody:
       "禁止违法内容、骚扰、威胁、仇恨、歧视、裸露或色情内容、暴力、垃圾信息以及冒充他人。你可以举报内容或用户，并屏蔽任何人；本中继的运营者可以屏蔽某个 rpub。你需对自己的发布负责，且必须年满 16 岁。",
-    checkbox: "我已阅读并接受使用条款。",
+    checkbox: "我已阅读并接受使用条款。我知悉 MagicRita 处于封闭测试阶段，邀请面向测试人员（beta tester）以及有兴趣测试代码的人士，而非普通公众用户。",
     accept: "接受并继续",
   },
   meta: {
@@ -4480,7 +4480,7 @@ export const ja: Messages = {
     rulesTitle: "禁止コンテンツ",
     rulesBody:
       "違法なコンテンツ、嫌がらせ、脅迫、ヘイト、差別、ヌードや性的コンテンツ、暴力、スパム、なりすましは禁止です。コンテンツやユーザーを報告し、誰でもブロックできます。このリレーの運営者は rpub をブロックできます。投稿は自己責任で行い、16 歳以上である必要があります。",
-    checkbox: "利用規約を読み、同意します。",
+    checkbox: "利用規約を読み、同意します。MagicRita はクローズドベータであり、招待はベータテスターおよびコードの検証に関心のある方向けで、一般ユーザー向けではないことを理解します。",
     accept: "同意して続行",
   },
   meta: {
@@ -5113,7 +5113,7 @@ export const it: Messages = {
     rulesTitle: "Contenuti vietati",
     rulesBody:
       "Sono vietati contenuti illegali, molestie, minacce, odio, discriminazione, nudità o contenuti sessuali, violenza, spam e impersonificazione. Puoi segnalare contenuti o utenti e bloccare chi vuoi; l’operatore di questo relay può bloccare una rpub. Pubblichi sotto la tua responsabilità e devi avere almeno 16 anni.",
-    checkbox: "Ho letto e accetto le condizioni d’uso.",
+    checkbox: "Ho letto e accetto le condizioni d’uso. Riconosco che MagicRita è in beta chiusa e che gli inviti sono destinati ai beta tester e a chi è interessato a testare il codice, non agli utenti pubblici.",
     accept: "Accetta e continua",
   },
   meta: {
@@ -5756,7 +5756,7 @@ export const de: Messages = {
     rulesTitle: "Verbotene Inhalte",
     rulesBody:
       "Verboten sind illegale Inhalte, Belästigung, Drohungen, Hass, Diskriminierung, Nacktheit oder sexuelle Inhalte, Gewalt, Spam und Identitätstäuschung. Du kannst Inhalte oder Nutzer melden und jeden blockieren; der Betreiber dieses Relays kann eine rpub blockieren. Du veröffentlichst auf eigene Verantwortung und musst mindestens 16 Jahre alt sein.",
-    checkbox: "Ich habe die Nutzungsbedingungen gelesen und akzeptiere sie.",
+    checkbox: "Ich habe die Nutzungsbedingungen gelesen und akzeptiere sie. Mir ist bewusst, dass sich MagicRita in einer geschlossenen Beta befindet und dass Einladungen für Beta-Tester und für Personen bestimmt sind, die den Code testen möchten – nicht für die breite Öffentlichkeit.",
     accept: "Akzeptieren und fortfahren",
   },
   meta: {
