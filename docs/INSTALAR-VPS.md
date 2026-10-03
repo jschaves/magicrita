@@ -284,6 +284,11 @@ server {
         proxy_set_header Authorization $http_authorization;
     }
 
+    location /admin-path {
+        proxy_pass http://127.0.0.1:8787/admin-path;
+        proxy_set_header Host $host;
+    }
+
     location /beta {
         proxy_pass http://127.0.0.1:8787;
         proxy_set_header Host $host;
@@ -341,7 +346,7 @@ In the **443** `server {` block (the one certbot created), add:
 ```nginx
 add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 add_header X-Content-Type-Options nosniff always;
-add_header Referrer-Policy strict-origin-when-cross-origin always;
+add_header Referrer-Policy no-referrer always;
 add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=()" always;
 add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' wss://YOUR-DOMAIN; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
 ```

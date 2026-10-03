@@ -107,7 +107,7 @@ export const es = {
       "Es un servidor nuestro de señalización, no una nube de cuentas. Ve quién está en línea ahora y presenta vuestros navegadores para que hablen entre sí (WebRTC). Las notas, fotos y claves se quedan en cada dispositivo y viajan de persona a persona.\n\nSi el otro está ausente, puede retener un sobre un rato en memoria RAM. Al reiniciar el relé, ese buzón se vacía: no hay historial central.\n\nPara verse hace falta coincidir en línea (dos cuentas = dos navegadores). El relé no puede suplantar a nadie: no tiene vuestras rsec.",
     chatTitle: "Chat cifrado",
     chatBody:
-      "Pides chat a cualquiera; la otra persona tiene que aceptar. Las dos podéis revocar o bloquear. El texto se cifra en este dispositivo: ni el relé ni nadie más lo lee.\n\nCada mensaje lleva como máximo 280 caracteres. Se guardan 50 entradas por conversación en este navegador; las más antiguas se borran para no saturar la memoria. No hay historial en un servidor.",
+      "Pides chat a cualquiera; la otra persona tiene que aceptar. Las dos podéis revocar o bloquear. El texto se cifra en este dispositivo: ni el relé ni nadie más lo lee.\n\nCada mensaje lleva como máximo 280 caracteres. Se guardan 100 entradas por conversación en este navegador; las más antiguas se borran para no saturar la memoria. No hay historial en un servidor.",
     postsTitle: "Publicaciones",
     postsBody:
       "Cada nota se firma con tu rsec y se queda en este navegador. Si hay alguien conectado, viaja de persona a persona; el relé no la almacena.\n\nComo máximo 100 publicaciones por cuenta en este dispositivo. Al pasar de 100 se descartan las más antiguas para no llenar la memoria del navegador. Cada nota lleva hasta 280 caracteres.",
@@ -751,7 +751,7 @@ export const en: Messages = {
       "It is our signaling server, not an account cloud. It sees who is online now and introduces your browsers so they can talk (WebRTC). Notes, photos and keys stay on each device and travel peer to peer.\n\nIf the other person is away, it may hold an envelope briefly in RAM. Restarting the relay empties that mailbox: there is no central history.\n\nTo see each other you need to be online at the same time (two accounts = two browsers). The relay cannot impersonate anyone: it does not have your rsec.",
     chatTitle: "Encrypted chat",
     chatBody:
-      "You can ask anyone to chat; they have to accept. Either of you can revoke or block. Text is encrypted on this device: the relay cannot read it.\n\nEach message is at most 280 characters. 50 entries per conversation are kept in this browser; older ones are dropped so local memory does not fill up. There is no server history.",
+      "You can ask anyone to chat; they have to accept. Either of you can revoke or block. Text is encrypted on this device: the relay cannot read it.\n\nEach message is at most 280 characters. 100 entries per conversation are kept in this browser; older ones are dropped so local memory does not fill up. There is no server history.",
     postsTitle: "Posts",
     postsBody:
       "Each note is signed with your rsec and stays in this browser. If someone is online, it travels peer to peer; the relay does not store it.\n\nAt most 100 posts per account on this device. Beyond 100, the oldest are discarded so the browser does not run out of memory. Each note is up to 280 characters.",
@@ -1390,7 +1390,7 @@ export const pt: Messages = {
       "É um servidor nosso de sinalização, não uma nuvem de contas. Vê quem está online agora e apresenta os vossos navegadores para falarem entre si (WebRTC). Notas, fotos e chaves ficam em cada dispositivo e viajam de pessoa para pessoa.\n\nSe o outro estiver ausente, pode reter um envelope um pouco em RAM. Ao reiniciar o relé, essa caixa esvazia-se: não há histórico central.\n\nPara se verem, precisam de coincidir online (duas contas = dois navegadores). O relé não pode impersonar ninguém: não tem as vossas rsec.",
     chatTitle: "Chat cifrado",
     chatBody:
-      "Pedis chat a qualquer pessoa; a outra tem de aceitar. As duas podem revogar ou bloquear. O texto cifra-se neste dispositivo: o relé não o lê.\n\nCada mensagem tem no máximo 280 caracteres. Guardam-se 50 entradas por conversa neste navegador; as mais antigas apagam-se para não saturar a memória. Não há histórico num servidor.",
+      "Pedis chat a qualquer pessoa; a outra tem de aceitar. As duas podem revogar ou bloquear. O texto cifra-se neste dispositivo: o relé não o lê.\n\nCada mensagem tem no máximo 280 caracteres. Guardam-se 100 entradas por conversa neste navegador; as mais antigas apagam-se para não saturar a memória. Não há histórico num servidor.",
     postsTitle: "Publicações",
     postsBody:
       "Cada nota é assinada com a tua rsec e fica neste navegador. Se alguém estiver ligado, viaja de pessoa para pessoa; o relé não a guarda.\n\nNo máximo 100 publicações por conta neste dispositivo. Ao passar de 100, as mais antigas saem para não encher a memória. Cada nota tem até 280 caracteres.",
@@ -2030,7 +2030,7 @@ export const fr: Messages = {
       "C’est notre serveur de signalisation, pas un cloud de comptes. Il voit qui est en ligne maintenant et présente vos navigateurs pour qu’ils se parlent (WebRTC). Notes, photos et clés restent sur chaque appareil et voyagent de personne à personne.\n\nSi l’autre est absent, il peut garder une enveloppe un moment en RAM. Redémarrer le relais vide cette boîte : pas d’historique central.\n\nPour vous voir, il faut être en ligne en même temps (deux comptes = deux navigateurs). Le relais ne peut usurper personne : il n’a pas vos rsec.",
     chatTitle: "Chat chiffré",
     chatBody:
-      "Tu peux demander un chat à n’importe qui ; l’autre doit accepter. Vous pouvez toutes les deux révoquer ou bloquer. Le texte est chiffré ici : le relais ne le lit pas.\n\nChaque message fait au plus 280 caractères. 50 entrées par conversation dans ce navigateur ; les plus anciennes partent pour ne pas saturer la mémoire. Pas d’historique sur un serveur.",
+      "Tu peux demander un chat à n’importe qui ; l’autre doit accepter. Vous pouvez toutes les deux révoquer ou bloquer. Le texte est chiffré ici : le relais ne le lit pas.\n\nChaque message fait au plus 280 caractères. 100 entrées par conversation dans ce navigateur ; les plus anciennes partent pour ne pas saturer la mémoire. Pas d’historique sur un serveur.",
     postsTitle: "Publications",
     postsBody:
       "Chaque note est signée avec ta rsec et reste dans ce navigateur. S’il y a quelqu’un en ligne, elle voyage de personne à personne ; le relais ne la stocke pas.\n\nAu plus 100 publications par compte sur cet appareil. Au-delà, les plus anciennes disparaissent pour ne pas remplir la mémoire. Chaque note fait jusqu’à 280 caractères.",
@@ -2674,7 +2674,7 @@ export const ar: Messages = {
       "خادم إشارة لنا، لا سحابة حسابات. يرى من المتصل الآن ويقدّم متصفحاتكم ليتحدثا (WebRTC). الملاحظات والصور والمفاتيح تبقى على كل جهاز وتنتقل من شخص لشخص.\n\nإن غاب الآخر قد يحتفظ بغلاف قليلاً في الذاكرة. إعادة تشغيل المرحل تفرّغ ذلك الصندوق: لا سجل مركزي.\n\nلترى بعضكما يلزم أن تكونا متصلين معاً (حسابان = متصفحان). المرحل لا ينتحل أحداً: ليست لديه rsec.",
     chatTitle: "دردشة مشفّرة",
     chatBody:
-      "تطلب الدردشة من أي شخص؛ يجب أن يقبل. يمكنكما سحب الدردشة أو الحظر. يُشفَّر النص هنا: المرحل لا يقرأه.\n\nكل رسالة حتى 280 حرفاً. يُحفظ 50 إدخالاً لكل محادثة في هذا المتصفح؛ تُحذف الأقدم حتى لا تمتلئ الذاكرة. لا سجل على خادم.",
+      "تطلب الدردشة من أي شخص؛ يجب أن يقبل. يمكنكما سحب الدردشة أو الحظر. يُشفَّر النص هنا: المرحل لا يقرأه.\n\nكل رسالة حتى 280 حرفاً. يُحفظ 100 إدخالاً لكل محادثة في هذا المتصفح؛ تُحذف الأقدم حتى لا تمتلئ الذاكرة. لا سجل على خادم.",
     postsTitle: "المنشورات",
     postsBody:
       "كل ملاحظة تُوقَّع بـ rsec وتبقى في هذا المتصفح. إن وُجد متصل تنتقل من شخص لشخص؛ المرحل لا يخزنها.\n\n100 منشور كحد أقصى لكل حساب على هذا الجهاز. بعد ذلك تُحذف الأقدم حتى لا تمتلئ الذاكرة. حتى 280 حرفاً لكل ملاحظة.",
@@ -3304,7 +3304,7 @@ export const ru: Messages = {
       "Это наш сигнальный сервер, не облако аккаунтов. Видит, кто сейчас в сети, и знакомит браузеры, чтобы они говорили (WebRTC). Заметки, фото и ключи остаются на каждом устройстве и идут от человека к человеку.\n\nЕсли другого нет, может коротко держать конверт в RAM. Перезапуск реле опустошает ящик: центральной истории нет.\n\nЧтобы увидеть друг друга, нужно быть онлайн вместе (два аккаунта = два браузера). Реле никого не подменит: у него нет ваших rsec.",
     chatTitle: "Шифрованный чат",
     chatBody:
-      "Чат можно запросить у кого угодно; другой должен принять. Оба можете отозвать или заблокировать. Текст шифруется здесь: реле его не читает.\n\nКаждое сообщение — до 280 символов. В переписке хранится 50 записей в этом браузере; старые удаляются, чтобы не забить память. Серверной истории нет.",
+      "Чат можно запросить у кого угодно; другой должен принять. Оба можете отозвать или заблокировать. Текст шифруется здесь: реле его не читает.\n\nКаждое сообщение — до 280 символов. В переписке хранится 100 записей в этом браузере; старые удаляются, чтобы не забить память. Серверной истории нет.",
     postsTitle: "Публикации",
     postsBody:
       "Каждая заметка подписывается вашей rsec и остаётся в этом браузере. Если кто-то в сети, она идёт от человека к человеку; реле её не хранит.\n\nНе больше 100 публикаций на аккаунт на этом устройстве. Сверх 100 старые отбрасываются, чтобы не заполнить память. До 280 символов в заметке.",
@@ -3938,7 +3938,7 @@ export const zh: Messages = {
       "这是我们的信令服务器，不是账号云。它看到此刻谁在线，并让双方浏览器互相通话（WebRTC）。笔记、照片和密钥留在各台设备上，在人与人之间传递。\n\n对方不在时，可在内存里短暂留一个信封。重启中继会清空该信箱：没有中央历史。\n\n要看见彼此，需要同时在线（两个账号＝两个浏览器）。中继无法冒充任何人：它没有你们的 rsec。",
     chatTitle: "加密聊天",
     chatBody:
-      "可向任何人请求聊天；对方必须接受。双方都可撤销或屏蔽。正文在此设备加密：中继读不到。\n\n每条最多 280 个字符。每个对话在此浏览器保存 50 条；更早的会删掉，以免占满内存。服务器上没有历史。",
+      "可向任何人请求聊天；对方必须接受。双方都可撤销或屏蔽。正文在此设备加密：中继读不到。\n\n每条最多 280 个字符。每个对话在此浏览器保存 100 条；更早的会删掉，以免占满内存。服务器上没有历史。",
     postsTitle: "帖子",
     postsBody:
       "每条笔记用你的 rsec 签名，留在此浏览器。若有人在线，就在人与人之间传递；中继不保存。\n\n此设备每个账号最多 100 条帖子。超过后丢掉最旧的，以免占满内存。每条最多 280 个字符。",
@@ -4566,7 +4566,7 @@ export const ja: Messages = {
       "アカウントのクラウドではなく、私たちのシグナリングサーバーです。今オンラインの人を見て、ブラウザ同士が話せるように紹介します（WebRTC）。メモ、写真、鍵は各端末に残り、人から人へ届きます。\n\n相手がいないときは、封筒を RAM にしばらく置けます。リレーを再起動するとその箱は空になります。中央の履歴はありません。\n\n互いを見るには同時にオンラインである必要があります（アカウント2つ＝ブラウザ2つ）。リレーはなりすましできません。rsec を持っていないからです。",
     chatTitle: "暗号チャット",
     chatBody:
-      "誰にでもチャットを頼めます。相手の承認が必要です。どちらからでも取消やブロックができます。本文はこの端末で暗号化され、リレーは読めません。\n\n1件は 280 文字まで。会話ごとにこのブラウザへ 50 件。古いものから消して、メモリを圧迫しません。サーバーに履歴はありません。",
+      "誰にでもチャットを頼めます。相手の承認が必要です。どちらからでも取消やブロックができます。本文はこの端末で暗号化され、リレーは読めません。\n\n1件は 280 文字まで。会話ごとにこのブラウザへ 100 件。古いものから消して、メモリを圧迫しません。サーバーに履歴はありません。",
     postsTitle: "投稿",
     postsBody:
       "メモは rsec で署名され、このブラウザに残ります。誰かがオンラインなら人から人へ届き、リレーは保存しません。\n\nこの端末のアカウントあたり投稿は最大 100。超えると古いものから捨て、メモリを守ります。1件は 280 文字まで。",
@@ -5199,7 +5199,7 @@ export const it: Messages = {
       "È il nostro server di segnalazione, non un cloud di account. Vede chi è online ora e presenta i vostri browser così possono parlarsi (WebRTC). Note, foto e chiavi restano su ogni dispositivo e viaggiano peer to peer.\n\nSe l’altra persona è assente, può trattenere un envelope per poco in RAM. Riavviare il relay svuota quella casella: non c’è storia centrale.\n\nPer vedervi dovete essere online nello stesso momento (due account = due browser). Il relay non può impersonare nessuno: non ha la tua rsec.",
     chatTitle: "Chat cifrata",
     chatBody:
-      "Puoi chiedere a chiunque di chattare; deve accettare. Chiunque dei due può revocare o bloccare. Il testo è cifrato su questo dispositivo: il relay non può leggerlo.\n\nOgni messaggio è al massimo 280 caratteri. In questo browser si tengono 50 voci per conversazione; le più vecchie vengono eliminate per non riempire la memoria locale. Non c’è storia sul server.",
+      "Puoi chiedere a chiunque di chattare; deve accettare. Chiunque dei due può revocare o bloccare. Il testo è cifrato su questo dispositivo: il relay non può leggerlo.\n\nOgni messaggio è al massimo 280 caratteri. In questo browser si tengono 100 voci per conversazione; le più vecchie vengono eliminate per non riempire la memoria locale. Non c’è storia sul server.",
     postsTitle: "Post",
     postsBody:
       "Ogni nota è firmata con la tua rsec e resta in questo browser. Se qualcuno è online, viaggia peer to peer; il relay non la conserva.\n\nAl massimo 100 post per account su questo dispositivo. Oltre i 100, i più vecchi vengono scartati per non esaurire la memoria del browser. Ogni nota è fino a 280 caratteri.",
@@ -5842,7 +5842,7 @@ export const de: Messages = {
       "Er ist unser Signalisierungsserver, keine Konto-Cloud. Er sieht, wer gerade online ist, und stellt eure Browser einander vor, damit sie sprechen können (WebRTC). Notizen, Fotos und Schlüssel bleiben auf jedem Gerät und wandern peer to peer.\n\nWenn die andere Person abwesend ist, kann er einen Umschlag kurz im RAM halten. Ein Neustart des Relays leert dieses Postfach: Es gibt keine zentrale Historie.\n\nUm euch zu sehen, müsst ihr gleichzeitig online sein (zwei Konten = zwei Browser). Der Relay kann niemanden vortäuschen: Er hat nicht deine rsec.",
     chatTitle: "Verschlüsselter Chat",
     chatBody:
-      "Du kannst jeden um einen Chat bitten; er muss annehmen. Jeder von euch kann widerrufen oder blockieren. Der Text wird auf diesem Gerät verschlüsselt: Der Relay kann ihn nicht lesen.\n\nJede Nachricht hat höchstens 280 Zeichen. In diesem Browser werden 50 Einträge pro Unterhaltung behalten; ältere werden verworfen, damit der lokale Speicher nicht vollläuft. Es gibt keine Server-Historie.",
+      "Du kannst jeden um einen Chat bitten; er muss annehmen. Jeder von euch kann widerrufen oder blockieren. Der Text wird auf diesem Gerät verschlüsselt: Der Relay kann ihn nicht lesen.\n\nJede Nachricht hat höchstens 280 Zeichen. In diesem Browser werden 100 Einträge pro Unterhaltung behalten; ältere werden verworfen, damit der lokale Speicher nicht vollläuft. Es gibt keine Server-Historie.",
     postsTitle: "Beiträge",
     postsBody:
       "Jede Notiz wird mit deiner rsec signiert und bleibt in diesem Browser. Ist jemand online, wandert sie peer to peer; der Relay speichert sie nicht.\n\nHöchstens 100 Beiträge pro Konto auf diesem Gerät. Über 100 hinaus werden die ältesten verworfen, damit dem Browser nicht der Speicher ausgeht. Jede Notiz hat bis zu 280 Zeichen.",

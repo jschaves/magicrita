@@ -42,7 +42,7 @@ export function LiveChat({
   const visible = chat.slice(-LIVE_CHAT_VISIBLE);
   const infoOf = (from: string) => {
     const p = profileOf(from);
-    // Un par conectado trae su avatar como data URL en el `hello`; se pinta al
+    // Un par comparte su avatar (data URL) por el canal P2P; se pinta al
     // instante sin esperar a la foto completa.
     const src = personByRpub(from)?.avatarUrl;
     return { name: p?.name || shortenId(from), picture: p?.picture, src };
