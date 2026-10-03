@@ -76,8 +76,10 @@ export function LiveChat({
         })}
       </div>
 
-      {/* Comentarios: máximo tres, anclados abajo a la derecha, con avatar. */}
-      <div className="absolute bottom-32 right-2 flex w-56 flex-col items-end gap-1.5 sm:w-64">
+      {/* Comentarios: máximo tres, anclados abajo a la derecha, con avatar. En
+          pantallas anchas se separan a la izquierda de la banda de reacciones
+          para que los emojis flotantes no se superpongan al primer mensaje. */}
+      <div className="absolute bottom-32 right-2 z-10 flex w-56 flex-col items-end gap-1.5 sm:right-44 sm:w-64">
         {visible.map((message) => {
           const info = infoOf(message.from);
           return (

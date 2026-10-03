@@ -16,14 +16,16 @@ MagicRita **does not use email for anything**. There is no signup by mail, no ve
 
 **Phone**
 
-<img src="docs/images/post%20mobile.jpg" alt="MagicRita feed on a phone" width="180">
-<img src="docs/images/live%20mobile.jpg" alt="MagicRita live streams on a phone" width="180">
-<img src="docs/images/chat%20mobile.jpg" alt="MagicRita one-to-one chat on a phone" width="180">
-<img src="docs/images/call%20mobile.jpg" alt="MagicRita voice call on a phone" width="180">
-<img src="docs/images/video%20call%20mobile.jpg" alt="MagicRita video call on a phone" width="180">
-<img src="docs/images/chats%20mobile.jpg" alt="MagicRita chat list on a phone" width="180">
-<img src="docs/images/saved%20mobile.jpg" alt="MagicRita saved notes on a phone" width="180">
-<img src="docs/images/settings%20mobile.jpg" alt="MagicRita settings on a phone" width="180">
+<p align="center">
+<img src="docs/images/post%20mobile.jpg" alt="MagicRita feed on a phone" width="260">
+<img src="docs/images/live%20mobile.jpg" alt="MagicRita live streams on a phone" width="260">
+<img src="docs/images/chat%20mobile.jpg" alt="MagicRita one-to-one chat on a phone" width="260">
+<img src="docs/images/call%20mobile.jpg" alt="MagicRita voice call on a phone" width="260">
+<img src="docs/images/video%20call%20mobile.jpg" alt="MagicRita video call on a phone" width="260">
+<img src="docs/images/chats%20mobile.jpg" alt="MagicRita chat list on a phone" width="260">
+<img src="docs/images/saved%20mobile.jpg" alt="MagicRita saved notes on a phone" width="260">
+<img src="docs/images/settings%20mobile.jpg" alt="MagicRita settings on a phone" width="260">
+</p>
 
 ## Security first
 
