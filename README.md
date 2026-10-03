@@ -308,7 +308,7 @@ The `android/` Capacitor project is committed. `cap:sync` regenerates its web as
 | --- | --- |
 | Code (`src/`, `server/`, `docs/`, `android/`) and the Android icon set (`android_icons/`) | `node_modules/` |
 | `package.json` and `package-lock.json` | `dist/` (`npm run build` output) |
-| `LICENSE`, `.env.example`, `.env.android` (public URLs only) | `dist-android/` (`npm run build:android` output) |
+| `LICENSE`, `NOTICE`, `.env.example`, `.env.android` (public URLs only) | `dist-android/` (`npm run build:android` output) |
 | | `.env` (secrets) |
 | | `data/` (admin blocks, beta invites, runtime path, logo) |
 
@@ -320,6 +320,7 @@ The `android/` Capacitor project is committed. `cap:sync` regenerates its web as
 - `docs/INSTALAR-WINDOWS.md` — install web + admin on Windows 11 (no Android), and publish on a domain with HTTPS (nginx + win-acme)
 - `docs/ANDROID.md` — Android/APK build plan (external relay, no admin)
 - `LICENSE` — GNU Affero GPL v3
+- `NOTICE` — additional attribution terms under AGPL-3.0 section 7
 
 ---
 
@@ -349,4 +350,6 @@ MagicRita is free software under the [GNU Affero General Public License v3.0 or 
 
 If you run a modified MagicRita as a network service (your own relay or demo), AGPL requires you to offer that modified source to the people who use it.
 
-There is no warranty. See `LICENSE` for the full terms.
+**Attribution.** Under AGPL-3.0 section 7, the [`NOTICE`](NOTICE) file adds one condition: any copy, modification, or derivative work — and any interface that runs it — must name MagicRita and state that it is **based on MagicRita**, with a link to this repository or to [magicrita.com](https://magicrita.com). A visible footer, about screen, credits screen, or README line such as "Based on MagicRita — https://magicrita.com" is enough. The author's copyright notices, the `NOTICE` file, and the AGPL "Appropriate Legal Notices" must be preserved.
+
+There is no warranty. See `LICENSE` and `NOTICE` for the full terms.

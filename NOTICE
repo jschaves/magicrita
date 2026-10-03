@@ -1,0 +1,43 @@
+MagicRita
+Copyright (C) 2026 jschaves
+https://github.com/jschaves/magicrita
+
+Additional terms under section 7 of the GNU Affero General Public License
+version 3 (AGPL-3.0), applying to the copyright holder's code in this
+repository. These terms add to AGPL-3.0; they do not replace it, and where they
+conflict with AGPL-3.0, AGPL-3.0 prevails.
+
+1. Attribution of the origin (AGPL-3.0 section 7(b)).
+
+   Any copy, modification, or derivative work of MagicRita, and any interactive
+   interface that runs it or a modified version of it, must keep and, where the
+   work has a user interface, display in a reasonably visible place a credit
+   that:
+
+     a. names MagicRita; and
+     b. states that the work is based on or derived from MagicRita,
+
+   together with a link or reference to https://github.com/jschaves/magicrita
+   (or https://magicrita.com).
+
+   A visible footer, about screen, credits screen, or README line such as
+   "Based on MagicRita - https://magicrita.com" satisfies this requirement.
+
+2. Preservation of notices (AGPL-3.0 section 7(b)).
+
+   The copyright notices, this NOTICE file, and any author attribution shown by
+   the original work must be preserved in source and binary distributions and
+   in the "Appropriate Legal Notices" required by AGPL-3.0 section 5(d).
+
+3. No endorsement.
+
+   These terms do not grant permission to use the MagicRita name or logo to
+   imply that a modified version is official, endorsed, or approved by the
+   original author, beyond the attribution required in paragraph 1.
+
+4. Severability.
+
+   If any part of these additional terms is held unenforceable, the rest stays
+   in force.
+
+There is no warranty. See LICENSE for the full terms of AGPL-3.0.
